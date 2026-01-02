@@ -1,0 +1,192 @@
+package main
+
+import (
+	"context"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/holyredeemer/library-api/internal/config"
+	"github.com/holyredeemer/library-api/internal/database"
+	"github.com/holyredeemer/library-api/internal/handlers"
+	"github.com/holyredeemer/library-api/internal/middleware"
+	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
+	"github.com/holyredeemer/library-api/internal/utils"
+	"github.com/holyredeemer/library-api/pkg/response"
+)
+
+func main() {
+	// Load configuration
+	cfg := config.Load()
+
+	// Set Gin mode
+	if cfg.Environment == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	// Initialize database
+	db, err := database.New(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	log.Println("Connected to database successfully")
+
+	// Initialize queries
+	queries := sqlcdb.New(db.Pool)
+
+	// Initialize JWT manager
+	jwtManager := utils.NewJWTManager(
+		cfg.JWTAccessSecret,
+		cfg.JWTRefreshSecret,
+		cfg.JWTAccessExpiry,
+		cfg.JWTRefreshExpiry,
+	)
+
+	// Initialize handlers
+	authHandler := handlers.NewAuthHandler(queries, jwtManager)
+	bookHandler := handlers.NewBookHandler(queries)
+	studentHandler := handlers.NewStudentHandler(queries)
+	circulationHandler := handlers.NewCirculationHandler(queries, cfg)
+	reportHandler := handlers.NewReportHandler(queries)
+	fineHandler := handlers.NewFineHandler(queries)
+
+	// Initialize router
+	router := gin.New()
+	router.Use(middleware.Recovery())
+	router.Use(middleware.Logger())
+	router.Use(middleware.CORSConfig(cfg.CORSOrigins))
+
+	// Health check endpoint
+	router.GET("/health", func(c *gin.Context) {
+		if err := db.Health(c.Request.Context()); err != nil {
+			response.InternalError(c, "Database connection failed")
+			return
+		}
+		response.Success(c, gin.H{"status": "healthy"}, "Server is running")
+	})
+
+	// API v1 routes
+	v1 := router.Group("/api/v1")
+	{
+		// Auth routes (public)
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/login", authHandler.Login)
+			auth.POST("/refresh", authHandler.RefreshToken)
+			auth.POST("/logout", middleware.Auth(jwtManager), authHandler.Logout)
+			auth.POST("/rfid/lookup", middleware.Auth(jwtManager), authHandler.RFIDLookup)
+			auth.POST("/rfid/register", middleware.Auth(jwtManager), authHandler.RegisterRFID)
+		}
+
+		// Book routes
+		books := v1.Group("/books")
+		books.Use(middleware.Auth(jwtManager))
+		{
+			books.GET("", bookHandler.ListBooks)
+			books.GET("/:id", bookHandler.GetBook)
+			books.POST("", middleware.RequireRoles("admin", "super_admin", "librarian"), bookHandler.CreateBook)
+			books.PUT("/:id", middleware.RequireRoles("admin", "super_admin", "librarian"), bookHandler.UpdateBook)
+			books.DELETE("/:id", middleware.RequireRoles("admin", "super_admin"), bookHandler.DeleteBook)
+			books.GET("/:id/copies", bookHandler.ListCopies)
+			books.POST("/:id/copies", middleware.RequireRoles("admin", "super_admin", "librarian"), bookHandler.CreateCopy)
+		}
+
+		// Categories routes
+		categories := v1.Group("/categories")
+		categories.Use(middleware.Auth(jwtManager))
+		{
+			categories.GET("", bookHandler.ListCategories)
+			categories.POST("", middleware.RequireRoles("admin", "super_admin"), bookHandler.CreateCategory)
+		}
+
+		// Copy lookup (for QR scanning)
+		v1.GET("/copies/:qr_code", middleware.Auth(jwtManager), bookHandler.GetCopyByQR)
+
+		// Student routes
+		students := v1.Group("/students")
+		students.Use(middleware.Auth(jwtManager))
+		{
+			students.GET("", middleware.RequireRoles("admin", "super_admin", "librarian"), studentHandler.ListStudents)
+			students.GET("/:id", studentHandler.GetStudent)
+			students.POST("", middleware.RequireRoles("admin", "super_admin"), studentHandler.CreateStudent)
+			students.PUT("/:id", middleware.RequireRoles("admin", "super_admin", "librarian"), studentHandler.UpdateStudent)
+			students.GET("/:id/loans", studentHandler.GetStudentLoans)
+			students.GET("/:id/history", studentHandler.GetStudentHistory)
+			students.GET("/:id/fines", studentHandler.GetStudentFines)
+		}
+
+		// Circulation routes
+		circulation := v1.Group("/circulation")
+		circulation.Use(middleware.Auth(jwtManager))
+		{
+			circulation.POST("/checkout", middleware.RequireRoles("librarian", "admin", "super_admin"), circulationHandler.Checkout)
+			circulation.POST("/return", middleware.RequireRoles("librarian", "admin", "super_admin"), circulationHandler.Return)
+			circulation.POST("/renew", circulationHandler.Renew)
+			circulation.GET("/current", circulationHandler.ListCurrentLoans)
+			circulation.GET("/overdue", circulationHandler.ListOverdue)
+		}
+
+		// Transaction routes
+		v1.GET("/transactions", middleware.Auth(jwtManager), circulationHandler.ListTransactions)
+
+		// Fine routes
+		fines := v1.Group("/fines")
+		fines.Use(middleware.Auth(jwtManager))
+		{
+			fines.GET("", fineHandler.ListFines)
+			fines.GET("/:id", fineHandler.GetFine)
+			fines.POST("/:id/pay", middleware.RequireRoles("librarian", "admin", "super_admin"), fineHandler.PayFine)
+			fines.POST("/:id/waive", middleware.RequireRoles("admin", "super_admin"), fineHandler.WaiveFine)
+		}
+
+		// Report routes
+		reports := v1.Group("/reports")
+		reports.Use(middleware.Auth(jwtManager))
+		{
+			reports.GET("/dashboard", reportHandler.GetDashboardStats)
+			reports.GET("/charts/categories", reportHandler.GetBooksByCategory)
+			reports.GET("/charts/trends", reportHandler.GetMonthlyTrends)
+			reports.GET("/charts/top-borrowed", reportHandler.GetTopBorrowedBooks)
+			reports.GET("/activity", reportHandler.GetRecentActivity)
+		}
+	}
+
+	// Create HTTP server
+	srv := &http.Server{
+		Addr:         ":" + cfg.Port,
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	// Start server in goroutine
+	go func() {
+		log.Printf("Server starting on port %s", cfg.Port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed to start: %v", err)
+		}
+	}()
+
+	// Graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	log.Println("Server exited gracefully")
+}
