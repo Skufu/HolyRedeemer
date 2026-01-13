@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -10,14 +11,19 @@ import (
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/pkg/response"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type BookHandler struct {
 	queries *sqlcdb.Queries
+	db      *pgxpool.Pool
 }
 
-func NewBookHandler(queries *sqlcdb.Queries) *BookHandler {
-	return &BookHandler{queries: queries}
+func NewBookHandler(queries *sqlcdb.Queries, db *pgxpool.Pool) *BookHandler {
+	return &BookHandler{
+		queries: queries,
+		db:      db,
+	}
 }
 
 // BookResponse represents a book in API responses (matches frontend types.ts)
@@ -179,7 +185,18 @@ func (h *BookHandler) CreateBook(c *gin.Context) {
 		}
 	}
 
-	book, err := h.queries.CreateBook(c.Request.Context(), sqlcdb.CreateBookParams{
+	// Begin transaction
+	tx, err := h.db.Begin(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to begin transaction")
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	// Use transactional queries
+	queries := h.queries.WithTx(tx)
+
+	book, err := queries.CreateBook(c.Request.Context(), sqlcdb.CreateBookParams{
 		Isbn:            toPgText(req.ISBN),
 		Title:           req.Title,
 		Author:          req.Author,
@@ -198,18 +215,34 @@ func (h *BookHandler) CreateBook(c *gin.Context) {
 	}
 
 	// Create initial copies if specified
+	copiesCreated := 0
 	for i := 1; i <= req.InitialCopies; i++ {
 		qrCode := fmt.Sprintf("HR-%s-C%d", book.ID.String()[:8], i)
-		_, _ = h.queries.CreateCopy(c.Request.Context(), sqlcdb.CreateCopyParams{
+		_, err := queries.CreateCopy(c.Request.Context(), sqlcdb.CreateCopyParams{
 			BookID:     toPgUUID(book.ID),
 			CopyNumber: int32(i),
 			QrCode:     qrCode,
 			Status:     sqlcdb.NullCopyStatus{CopyStatus: sqlcdb.CopyStatusAvailable, Valid: true},
 			Condition:  sqlcdb.NullCopyCondition{CopyCondition: sqlcdb.CopyConditionGood, Valid: true},
 		})
+		if err != nil {
+			log.Printf("Failed to create copy %d: %v", i, err)
+			continue
+		}
+		copiesCreated++
 	}
 
-	response.Created(c, gin.H{"id": book.ID.String()}, "Book created successfully")
+	// Commit transaction
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		log.Printf("Failed to commit transaction: %v", err)
+		response.InternalError(c, "Failed to complete book creation")
+		return
+	}
+
+	response.Created(c, gin.H{
+		"id":             book.ID.String(),
+		"copies_created": copiesCreated,
+	}, "Book created successfully")
 }
 
 // UpdateBook updates an existing book
@@ -368,6 +401,90 @@ func (h *BookHandler) CreateCopy(c *gin.Context) {
 		"id":      copy.ID.String(),
 		"qr_code": copy.QrCode,
 	}, "Copy created successfully")
+}
+
+// RegenerateQRCodeRequest represents the regenerate QR code request
+type RegenerateQRCodeRequest struct {
+	QRCode string `json:"qr_code" binding:"required"`
+}
+
+func (h *BookHandler) RegenerateQRCode(c *gin.Context) {
+	qrCode := c.Param("qr_code")
+
+	existingCopy, err := h.queries.GetCopyByQRCode(c.Request.Context(), qrCode)
+	if err != nil {
+		response.NotFound(c, "Copy not found")
+		return
+	}
+
+	bookID := existingCopy.BookID
+
+	// Get next copy number to generate new QR code
+	newCopyNumber, err := h.queries.GetNextCopyNumber(c.Request.Context(), bookID)
+	if err != nil {
+		response.InternalError(c, "Failed to get next copy number")
+		return
+	}
+
+	newQRCode := fmt.Sprintf("HR-%s-C%d", bookID.String()[:8], newCopyNumber)
+
+	// Execute raw query to update QR code using sqlc-generated method
+	_, err = h.queries.UpdateCopyQRCode(c.Request.Context(), sqlcdb.UpdateCopyQRCodeParams{
+		ID:     existingCopy.ID,
+		QrCode: newQRCode,
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to update QR code")
+		return
+	}
+
+	response.Success(c, gin.H{
+		"id":          existingCopy.ID.String(),
+		"old_qr_code": qrCode,
+		"new_qr_code": newQRCode,
+	}, "QR code regenerated successfully")
+}
+
+// BulkRegenerateQRCodesRequest represents bulk regenerate request
+type BulkRegenerateQRCodesRequest struct {
+	BookID string `json:"book_id" binding:"required"`
+}
+
+func (h *BookHandler) BulkRegenerateQRCodes(c *gin.Context) {
+	var req BulkRegenerateQRCodesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
+
+	bookID, err := uuid.Parse(req.BookID)
+	if err != nil {
+		response.BadRequest(c, "Invalid book ID")
+		return
+	}
+
+	copies, err := h.queries.ListCopiesByBook(c.Request.Context(), toPgUUID(bookID))
+	if err != nil {
+		response.InternalError(c, "Failed to fetch copies")
+		return
+	}
+
+	for _, copy := range copies {
+		newQRCode := fmt.Sprintf("HR-%s-C%d", bookID.String()[:8], copy.CopyNumber)
+		_, err = h.queries.UpdateCopyQRCode(c.Request.Context(), sqlcdb.UpdateCopyQRCodeParams{
+			ID:     copy.ID,
+			QrCode: newQRCode,
+		})
+		if err != nil {
+			response.InternalError(c, fmt.Sprintf("Failed to update QR code for copy %d", copy.CopyNumber))
+			return
+		}
+	}
+
+	response.Success(c, gin.H{
+		"message": fmt.Sprintf("Successfully regenerated %d QR codes", len(copies)),
+		"count":   len(copies),
+	}, "Bulk regeneration completed")
 }
 
 // GetCopyByQR returns a copy by its QR code

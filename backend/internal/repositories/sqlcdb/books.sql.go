@@ -254,7 +254,8 @@ func (q *Queries) GetBookByISBN(ctx context.Context, isbn pgtype.Text) (GetBookB
 }
 
 const getCategoryByID = `-- name: GetCategoryByID :one
-SELECT id, name, description, color_code, created_at FROM categories WHERE id = $1
+SELECT id, name, description, color_code, created_at
+FROM categories WHERE id = $1
 `
 
 func (q *Queries) GetCategoryByID(ctx context.Context, id uuid.UUID) (Category, error) {
@@ -271,7 +272,8 @@ func (q *Queries) GetCategoryByID(ctx context.Context, id uuid.UUID) (Category, 
 }
 
 const getCategoryByName = `-- name: GetCategoryByName :one
-SELECT id, name, description, color_code, created_at FROM categories WHERE name = $1
+SELECT id, name, description, color_code, created_at
+FROM categories WHERE name = $1
 `
 
 func (q *Queries) GetCategoryByName(ctx context.Context, name string) (Category, error) {
@@ -483,7 +485,8 @@ func (q *Queries) ListBooksAvailableOnly(ctx context.Context, arg ListBooksAvail
 }
 
 const listCategories = `-- name: ListCategories :many
-SELECT id, name, description, color_code, created_at FROM categories ORDER BY name
+SELECT id, name, description, color_code, created_at
+FROM categories ORDER BY name
 `
 
 // Category queries

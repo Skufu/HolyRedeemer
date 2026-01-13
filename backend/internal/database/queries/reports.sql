@@ -70,10 +70,12 @@ LIMIT 10;
 
 -- Librarian queries
 -- name: GetLibrarianByUserID :one
-SELECT * FROM librarians WHERE user_id = $1;
+SELECT id, user_id, employee_id, name, email, phone, department, created_at, updated_at
+FROM librarians WHERE user_id = $1;
 
 -- name: GetLibrarianByID :one
-SELECT * FROM librarians WHERE id = $1;
+SELECT id, user_id, employee_id, name, email, phone, department, created_at, updated_at
+FROM librarians WHERE id = $1;
 
 -- name: CreateLibrarian :one
 INSERT INTO librarians (user_id, employee_id, name, email, phone, department)

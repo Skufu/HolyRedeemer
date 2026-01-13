@@ -37,14 +37,18 @@ ORDER BY f.created_at DESC
 LIMIT $1 OFFSET $2;
 
 -- name: ListFinesByStudent :many
-SELECT f.*, 
+SELECT f.*,
        b.title as book_title
 FROM fines f
 LEFT JOIN transactions t ON f.transaction_id = t.id
 LEFT JOIN book_copies bc ON t.copy_id = bc.id
 LEFT JOIN books b ON bc.book_id = b.id
 WHERE f.student_id = $1
-ORDER BY f.created_at DESC;
+ORDER BY f.created_at DESC
+LIMIT $2 OFFSET $3;
+
+-- name: CountFinesByStudent :one
+SELECT COUNT(*) FROM fines WHERE student_id = $1;
 
 -- name: GetPendingFinesByStudent :many
 SELECT f.* FROM fines f

@@ -166,6 +166,44 @@ func (h *StudentHandler) GetStudent(c *gin.Context) {
 	}, "")
 }
 
+// GetMe returns the current student's profile
+func (h *StudentHandler) GetMe(c *gin.Context) {
+	authUser := middleware.GetAuthUser(c)
+
+	userID, err := uuid.Parse(authUser.ID)
+	if err != nil {
+		response.InternalError(c, "Invalid user ID")
+		return
+	}
+
+	student, err := h.queries.GetStudentByUserID(c.Request.Context(), toPgUUID(userID))
+	if err != nil {
+		response.NotFound(c, "Student profile not found")
+		return
+	}
+
+	loans, _ := h.queries.GetStudentCurrentLoans(c.Request.Context(), toPgUUID(student.ID))
+	fines, _ := h.queries.GetStudentTotalFines(c.Request.Context(), toPgUUID(student.ID))
+
+	response.Success(c, StudentResponse{
+		ID:              student.ID.String(),
+		Username:        student.Username,
+		Name:            student.UserName,
+		Email:           fromPgText(student.UserEmail),
+		Role:            "student",
+		StudentID:       student.StudentID,
+		GradeLevel:      student.GradeLevel,
+		Section:         student.Section,
+		RFID:            fromPgText(student.RfidCode),
+		GuardianName:    fromPgText(student.GuardianName),
+		GuardianContact: fromPgText(student.GuardianContact),
+		Status:          getStudentStatusFromNull(student.Status),
+		CurrentLoans:    loans,
+		TotalFines:      fines,
+		CreatedAt:       fromPgTimestamp(student.CreatedAt),
+	}, "")
+}
+
 // CreateStudentRequest represents the create student request
 type CreateStudentRequest struct {
 	Username        string `json:"username" binding:"required"`
@@ -224,7 +262,11 @@ func (h *StudentHandler) CreateStudent(c *gin.Context) {
 	})
 	if err != nil {
 		// Rollback user creation
-		_ = h.queries.DeleteUser(c.Request.Context(), user.ID)
+		err = h.queries.DeleteUser(c.Request.Context(), user.ID)
+		if err != nil {
+			// User cleanup failed - log but continue with error response
+			_ = err
+		}
 		response.InternalError(c, "Failed to create student")
 		return
 	}
@@ -327,7 +369,13 @@ func (h *StudentHandler) GetStudentLoans(c *gin.Context) {
 		return
 	}
 
-	// Authorization check for students
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
+	if perPage > 100 {
+		perPage = 100
+	}
+	offset := (page - 1) * perPage
+
 	authUser := middleware.GetAuthUser(c)
 	if authUser.Role == "student" {
 		student, err := h.queries.GetStudentByID(c.Request.Context(), studentID)
@@ -338,14 +386,16 @@ func (h *StudentHandler) GetStudentLoans(c *gin.Context) {
 	}
 
 	transactions, err := h.queries.ListActiveTransactions(c.Request.Context(), sqlcdb.ListActiveTransactionsParams{
-		Limit:     100,
-		Offset:    0,
+		Limit:     int32(perPage),
+		Offset:    int32(offset),
 		StudentID: toPgUUID(studentID),
 	})
 	if err != nil {
 		response.InternalError(c, "Failed to fetch loans")
 		return
 	}
+
+	total, _ := h.queries.CountActiveTransactionsByStudent(c.Request.Context(), toPgUUID(studentID))
 
 	txnResponses := make([]TransactionResponse, len(transactions))
 	for i, t := range transactions {
@@ -364,7 +414,17 @@ func (h *StudentHandler) GetStudentLoans(c *gin.Context) {
 		}
 	}
 
-	response.Success(c, txnResponses, "")
+	totalPages := int(total) / perPage
+	if int(total)%perPage > 0 {
+		totalPages++
+	}
+
+	response.SuccessWithMeta(c, txnResponses, &response.Meta{
+		Page:       page,
+		PerPage:    perPage,
+		Total:      total,
+		TotalPages: totalPages,
+	})
 }
 
 // GetStudentHistory returns borrowing history for a student
@@ -377,9 +437,11 @@ func (h *StudentHandler) GetStudentHistory(c *gin.Context) {
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
+	if perPage > 100 {
+		perPage = 100
+	}
 	offset := (page - 1) * perPage
 
-	// Authorization check for students
 	authUser := middleware.GetAuthUser(c)
 	if authUser.Role == "student" {
 		student, err := h.queries.GetStudentByID(c.Request.Context(), studentID)
@@ -398,6 +460,8 @@ func (h *StudentHandler) GetStudentHistory(c *gin.Context) {
 		response.InternalError(c, "Failed to fetch history")
 		return
 	}
+
+	total, _ := h.queries.CountTransactionsByStudent(c.Request.Context(), toPgUUID(studentID))
 
 	txnResponses := make([]TransactionResponse, len(transactions))
 	for i, t := range transactions {
@@ -419,7 +483,17 @@ func (h *StudentHandler) GetStudentHistory(c *gin.Context) {
 		}
 	}
 
-	response.Success(c, txnResponses, "")
+	totalPages := int(total) / perPage
+	if int(total)%perPage > 0 {
+		totalPages++
+	}
+
+	response.SuccessWithMeta(c, txnResponses, &response.Meta{
+		Page:       page,
+		PerPage:    perPage,
+		Total:      total,
+		TotalPages: totalPages,
+	})
 }
 
 // FineResponse represents a fine in API responses
@@ -444,7 +518,13 @@ func (h *StudentHandler) GetStudentFines(c *gin.Context) {
 		return
 	}
 
-	// Authorization check for students
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
+	if perPage > 100 {
+		perPage = 100
+	}
+	offset := (page - 1) * perPage
+
 	authUser := middleware.GetAuthUser(c)
 	if authUser.Role == "student" {
 		student, err := h.queries.GetStudentByID(c.Request.Context(), studentID)
@@ -454,11 +534,17 @@ func (h *StudentHandler) GetStudentFines(c *gin.Context) {
 		}
 	}
 
-	fines, err := h.queries.ListFinesByStudent(c.Request.Context(), toPgUUID(studentID))
+	fines, err := h.queries.ListFinesByStudent(c.Request.Context(), sqlcdb.ListFinesByStudentParams{
+		StudentID: toPgUUID(studentID),
+		Limit:     int32(perPage),
+		Offset:    int32(offset),
+	})
 	if err != nil {
 		response.InternalError(c, "Failed to fetch fines")
 		return
 	}
+
+	total, _ := h.queries.CountFinesByStudent(c.Request.Context(), toPgUUID(studentID))
 
 	fineResponses := make([]FineResponse, len(fines))
 	for i, f := range fines {
@@ -476,7 +562,17 @@ func (h *StudentHandler) GetStudentFines(c *gin.Context) {
 		}
 	}
 
-	response.Success(c, fineResponses, "")
+	totalPages := int(total) / perPage
+	if int(total)%perPage > 0 {
+		totalPages++
+	}
+
+	response.SuccessWithMeta(c, fineResponses, &response.Meta{
+		Page:       page,
+		PerPage:    perPage,
+		Total:      total,
+		TotalPages: totalPages,
+	})
 }
 
 // Helper function for transaction status

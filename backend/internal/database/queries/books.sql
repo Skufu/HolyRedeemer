@@ -87,13 +87,16 @@ SELECT COUNT(*) FROM books WHERE status = 'active';
 
 -- Category queries
 -- name: ListCategories :many
-SELECT * FROM categories ORDER BY name;
+SELECT id, name, description, color_code, created_at
+FROM categories ORDER BY name;
 
 -- name: GetCategoryByID :one
-SELECT * FROM categories WHERE id = $1;
+SELECT id, name, description, color_code, created_at
+FROM categories WHERE id = $1;
 
 -- name: GetCategoryByName :one
-SELECT * FROM categories WHERE name = $1;
+SELECT id, name, description, color_code, created_at
+FROM categories WHERE name = $1;
 
 -- name: CreateCategory :one
 INSERT INTO categories (name, description, color_code)

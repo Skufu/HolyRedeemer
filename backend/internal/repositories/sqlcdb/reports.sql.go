@@ -130,7 +130,8 @@ func (q *Queries) GetDashboardStats(ctx context.Context) (GetDashboardStatsRow, 
 }
 
 const getLibrarianByID = `-- name: GetLibrarianByID :one
-SELECT id, user_id, employee_id, name, email, phone, department, created_at, updated_at FROM librarians WHERE id = $1
+SELECT id, user_id, employee_id, name, email, phone, department, created_at, updated_at
+FROM librarians WHERE id = $1
 `
 
 func (q *Queries) GetLibrarianByID(ctx context.Context, id uuid.UUID) (Librarian, error) {
@@ -151,7 +152,8 @@ func (q *Queries) GetLibrarianByID(ctx context.Context, id uuid.UUID) (Librarian
 }
 
 const getLibrarianByUserID = `-- name: GetLibrarianByUserID :one
-SELECT id, user_id, employee_id, name, email, phone, department, created_at, updated_at FROM librarians WHERE user_id = $1
+SELECT id, user_id, employee_id, name, email, phone, department, created_at, updated_at
+FROM librarians WHERE user_id = $1
 `
 
 // Librarian queries

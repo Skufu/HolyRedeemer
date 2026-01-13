@@ -50,11 +50,15 @@ func main() {
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(queries, jwtManager)
-	bookHandler := handlers.NewBookHandler(queries)
+	bookHandler := handlers.NewBookHandler(queries, db.Pool)
 	studentHandler := handlers.NewStudentHandler(queries)
-	circulationHandler := handlers.NewCirculationHandler(queries, cfg)
+	circulationHandler := handlers.NewCirculationHandler(queries, cfg, db.Pool)
 	reportHandler := handlers.NewReportHandler(queries)
 	fineHandler := handlers.NewFineHandler(queries)
+	notificationHandler := handlers.NewNotificationHandler(queries)
+	auditHandler := handlers.NewAuditHandler(queries)
+	librarianHandler := handlers.NewLibrarianHandler(queries)
+	settingsHandler := handlers.NewSettingsHandler(queries)
 
 	// Initialize router
 	router := gin.New()
@@ -107,6 +111,8 @@ func main() {
 
 		// Copy lookup (for QR scanning)
 		v1.GET("/copies/:qr_code", middleware.Auth(jwtManager), bookHandler.GetCopyByQR)
+		v1.POST("/copies/:qr_code/regenerate", middleware.Auth(jwtManager), middleware.RequireRoles("admin", "super_admin"), bookHandler.RegenerateQRCode)
+		v1.POST("/books/:id/copies/bulk-regenerate", middleware.Auth(jwtManager), middleware.RequireRoles("admin", "super_admin"), bookHandler.BulkRegenerateQRCodes)
 
 		// Student routes
 		students := v1.Group("/students")
@@ -154,6 +160,41 @@ func main() {
 			reports.GET("/charts/trends", reportHandler.GetMonthlyTrends)
 			reports.GET("/charts/top-borrowed", reportHandler.GetTopBorrowedBooks)
 			reports.GET("/activity", reportHandler.GetRecentActivity)
+		}
+
+		// Notification routes
+		notifications := v1.Group("/notifications")
+		notifications.Use(middleware.Auth(jwtManager))
+		{
+			notifications.GET("", notificationHandler.ListNotifications)
+			notifications.GET("/unread-count", notificationHandler.GetUnreadCount)
+			notifications.PUT("/:id/read", notificationHandler.MarkAsRead)
+			notifications.PUT("/read-all", notificationHandler.MarkAllAsRead)
+		}
+
+		// Audit routes
+		audit := v1.Group("/audit-logs")
+		audit.Use(middleware.Auth(jwtManager), middleware.RequireRoles("admin", "super_admin"))
+		{
+			audit.GET("", auditHandler.ListAuditLogs)
+		}
+
+		// Librarian routes
+		librarians := v1.Group("/librarians")
+		librarians.Use(middleware.Auth(jwtManager), middleware.RequireRoles("admin", "super_admin"))
+		{
+			librarians.GET("", librarianHandler.ListLibrarians)
+		}
+
+		// Settings routes
+		settings := v1.Group("/settings")
+		settings.Use(middleware.Auth(jwtManager))
+		{
+			settings.GET("", settingsHandler.ListSettings)
+			settings.GET("/:key", settingsHandler.GetSetting)
+			settings.PUT("", middleware.RequireRoles("admin", "super_admin"), settingsHandler.UpdateSettings)
+			settings.GET("/borrowing", settingsHandler.GetBorrowingSettings)
+			settings.GET("/fines", settingsHandler.GetFineSettings)
 		}
 	}
 

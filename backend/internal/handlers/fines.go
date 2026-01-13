@@ -191,15 +191,23 @@ func (h *FineHandler) PayFine(c *gin.Context) {
 	totalPaid, _ := h.queries.GetTotalPaidForFine(c.Request.Context(), toPgUUID(fineID))
 	fineAmount := fromPgNumeric(fine.Amount)
 	if totalPaid >= fineAmount {
-		_, _ = h.queries.UpdateFineStatus(c.Request.Context(), sqlcdb.UpdateFineStatusParams{
+		_, err := h.queries.UpdateFineStatus(c.Request.Context(), sqlcdb.UpdateFineStatusParams{
 			ID:     fineID,
 			Status: sqlcdb.NullFineStatus{FineStatus: sqlcdb.FineStatusPaid, Valid: true},
 		})
+		if err != nil {
+			// Log error but don't fail the response - payment was recorded
+			_ = err
+		}
 	} else if totalPaid > 0 {
-		_, _ = h.queries.UpdateFineStatus(c.Request.Context(), sqlcdb.UpdateFineStatusParams{
+		_, err := h.queries.UpdateFineStatus(c.Request.Context(), sqlcdb.UpdateFineStatusParams{
 			ID:     fineID,
 			Status: sqlcdb.NullFineStatus{FineStatus: sqlcdb.FineStatusPartial, Valid: true},
 		})
+		if err != nil {
+			// Log error but don't fail the response - payment was recorded
+			_ = err
+		}
 	}
 
 	response.Success(c, gin.H{

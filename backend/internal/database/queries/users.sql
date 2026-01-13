@@ -1,8 +1,10 @@
 -- name: GetUserByID :one
-SELECT * FROM users WHERE id = $1;
+SELECT id, username, password_hash, role, email, name, status, created_at, updated_at
+FROM users WHERE id = $1;
 
 -- name: GetUserByUsername :one
-SELECT * FROM users WHERE username = $1;
+SELECT id, username, password_hash, role, email, name, status, created_at, updated_at
+FROM users WHERE username = $1;
 
 -- name: CreateUser :one
 INSERT INTO users (username, password_hash, role, email, name, status)
@@ -22,7 +24,8 @@ RETURNING *;
 UPDATE users SET password_hash = $2 WHERE id = $1;
 
 -- name: ListUsers :many
-SELECT * FROM users
+SELECT id, username, password_hash, role, email, name, status, created_at, updated_at
+FROM users
 WHERE (sqlc.narg('role')::user_role IS NULL OR role = sqlc.narg('role'))
   AND (sqlc.narg('status')::user_status IS NULL OR status = sqlc.narg('status'))
 ORDER BY created_at DESC
@@ -43,7 +46,8 @@ VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: GetRefreshToken :one
-SELECT * FROM refresh_tokens WHERE token_hash = $1 AND expires_at > NOW();
+SELECT id, user_id, token_hash, expires_at, created_at
+FROM refresh_tokens WHERE token_hash = $1 AND expires_at > NOW();
 
 -- name: DeleteRefreshToken :exec
 DELETE FROM refresh_tokens WHERE token_hash = $1;
@@ -51,5 +55,13 @@ DELETE FROM refresh_tokens WHERE token_hash = $1;
 -- name: DeleteUserRefreshTokens :exec
 DELETE FROM refresh_tokens WHERE user_id = $1;
 
--- name: DeleteExpiredRefreshTokens :exec
-DELETE FROM refresh_tokens WHERE expires_at < NOW();
+ -- name: DeleteExpiredRefreshTokens :exec
+ DELETE FROM refresh_tokens WHERE expires_at < NOW();
+
+-- name: ListLibrarians :many
+SELECT l.id, l.user_id, l.employee_id, l.name, l.email, l.phone, l.department, l.created_at, l.updated_at, u.username
+FROM librarians l
+LEFT JOIN users u ON l.user_id = u.id
+ORDER BY l.created_at DESC
+LIMIT sqlc.narg('limit') OFFSET sqlc.narg('offset');
+

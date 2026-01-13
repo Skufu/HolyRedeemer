@@ -43,7 +43,10 @@ func fromPgInt4(i pgtype.Int4) int32 {
 // Numeric (float64) helpers
 func toPgNumeric(f float64) pgtype.Numeric {
 	var num pgtype.Numeric
-	_ = num.Scan(f)
+	err := num.Scan(f)
+	if err != nil {
+		return pgtype.Numeric{Valid: false}
+	}
 	return num
 }
 
@@ -51,7 +54,10 @@ func fromPgNumeric(n pgtype.Numeric) float64 {
 	if !n.Valid {
 		return 0
 	}
-	f, _ := n.Float64Value()
+	f, err := n.Float64Value()
+	if err != nil {
+		return 0
+	}
 	if f.Valid {
 		return f.Float64
 	}

@@ -92,6 +92,71 @@ make seed           # Seed demo data
 
 See `.env.example` for all configuration options:
 
+## 💾 Database Transactions
+
+**IMPORTANT**: Always use database transactions for multi-step operations to ensure data integrity.
+
+### When to Use Transactions
+
+Use transactions when your handler performs multiple database writes that must succeed or fail together:
+
+- **Circulation**: Checkout and Return (transaction + copy status update)
+- **Book Creation**: Create book with initial copies
+- **Any multi-table write operation**
+
+### Transaction Pattern
+
+```go
+// Handler struct must include database pool
+type Handler struct {
+    queries *sqlcdb.Queries
+    db      *pgxpool.Pool
+}
+
+// Begin transaction
+tx, err := h.db.Begin(ctx)
+if err != nil {
+    response.InternalError(c, "Failed to begin transaction")
+    return
+}
+defer tx.Rollback(ctx)  // Auto-rollback if not committed
+
+// Use transactional queries
+queries := h.queries.WithTx(tx)
+
+// Perform operations
+result1, err := queries.CreateSomething(ctx, params)
+if err != nil {
+    return  // Rollback automatically
+}
+
+result2, err := queries.UpdateSomething(ctx, params)
+if err != nil {
+    return  // Rollback automatically
+}
+
+// Commit transaction
+if err := tx.Commit(ctx); err != nil {
+    log.Printf("Failed to commit transaction: %v", err)
+    response.InternalError(c, "Failed to complete operation")
+    return
+}
+
+response.Success(c, result1, "Operation successful")
+```
+
+### Key Points
+
+1. **Always use `defer tx.Rollback(ctx)`** - ensures rollback if commit fails
+2. **Use `queries.WithTx(tx)`** - creates transactional query object
+3. **Handle errors properly** - return immediately on error to trigger rollback
+4. **Commit at the end** - only commit if all operations succeed
+5. **Log commit failures** - helps debug transaction issues
+
+### Configuration
+
+See `.env.example` for all configuration options:
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | `8080` |

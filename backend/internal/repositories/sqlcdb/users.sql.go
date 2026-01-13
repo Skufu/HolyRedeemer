@@ -95,15 +95,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
-const deleteExpiredRefreshTokens = `-- name: DeleteExpiredRefreshTokens :exec
-DELETE FROM refresh_tokens WHERE expires_at < NOW()
-`
-
-func (q *Queries) DeleteExpiredRefreshTokens(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, deleteExpiredRefreshTokens)
-	return err
-}
-
 const deleteRefreshToken = `-- name: DeleteRefreshToken :exec
 DELETE FROM refresh_tokens WHERE token_hash = $1
 `
@@ -132,7 +123,8 @@ func (q *Queries) DeleteUserRefreshTokens(ctx context.Context, userID pgtype.UUI
 }
 
 const getRefreshToken = `-- name: GetRefreshToken :one
-SELECT id, user_id, token_hash, expires_at, created_at FROM refresh_tokens WHERE token_hash = $1 AND expires_at > NOW()
+SELECT id, user_id, token_hash, expires_at, created_at
+FROM refresh_tokens WHERE token_hash = $1 AND expires_at > NOW()
 `
 
 func (q *Queries) GetRefreshToken(ctx context.Context, tokenHash string) (RefreshToken, error) {
@@ -149,7 +141,8 @@ func (q *Queries) GetRefreshToken(ctx context.Context, tokenHash string) (Refres
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password_hash, role, email, name, status, created_at, updated_at FROM users WHERE id = $1
+SELECT id, username, password_hash, role, email, name, status, created_at, updated_at
+FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -170,7 +163,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password_hash, role, email, name, status, created_at, updated_at FROM users WHERE username = $1
+SELECT id, username, password_hash, role, email, name, status, created_at, updated_at
+FROM users WHERE username = $1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -190,8 +184,66 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 	return i, err
 }
 
+const listLibrarians = `-- name: ListLibrarians :many
+SELECT l.id, l.user_id, l.employee_id, l.name, l.email, l.phone, l.department, l.created_at, l.updated_at, u.username
+FROM librarians l
+LEFT JOIN users u ON l.user_id = u.id
+ORDER BY l.created_at DESC
+LIMIT $2 OFFSET $1
+`
+
+type ListLibrariansParams struct {
+	Offset pgtype.Int4 `json:"offset"`
+	Limit  pgtype.Int4 `json:"limit"`
+}
+
+type ListLibrariansRow struct {
+	ID         uuid.UUID        `json:"id"`
+	UserID     pgtype.UUID      `json:"user_id"`
+	EmployeeID string           `json:"employee_id"`
+	Name       string           `json:"name"`
+	Email      pgtype.Text      `json:"email"`
+	Phone      pgtype.Text      `json:"phone"`
+	Department pgtype.Text      `json:"department"`
+	CreatedAt  pgtype.Timestamp `json:"created_at"`
+	UpdatedAt  pgtype.Timestamp `json:"updated_at"`
+	Username   pgtype.Text      `json:"username"`
+}
+
+func (q *Queries) ListLibrarians(ctx context.Context, arg ListLibrariansParams) ([]ListLibrariansRow, error) {
+	rows, err := q.db.Query(ctx, listLibrarians, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLibrariansRow{}
+	for rows.Next() {
+		var i ListLibrariansRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.EmployeeID,
+			&i.Name,
+			&i.Email,
+			&i.Phone,
+			&i.Department,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Username,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, password_hash, role, email, name, status, created_at, updated_at FROM users
+SELECT id, username, password_hash, role, email, name, status, created_at, updated_at
+FROM users
 WHERE ($3::user_role IS NULL OR role = $3)
   AND ($4::user_status IS NULL OR status = $4)
 ORDER BY created_at DESC
