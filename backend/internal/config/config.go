@@ -25,17 +25,17 @@ type Config struct {
 	CORSOrigins []string
 
 	// Library Settings (defaults, can be overridden from DB)
-	DefaultLoanDays     int
-	DefaultMaxBooks     int
-	DefaultFinePerDay   float64
-	DefaultGracePeriod  int
-	DefaultMaxFineCap   float64
+	DefaultLoanDays       int
+	DefaultMaxBooks       int
+	DefaultFinePerDay     float64
+	DefaultGracePeriod    int
+	DefaultMaxFineCap     float64
 	DefaultBlockThreshold float64
 }
 
 // Load reads configuration from environment variables
 func Load() *Config {
-	return &Config{
+	cfg := &Config{
 		// Server
 		Port:        getEnv("PORT", "8080"),
 		Environment: getEnv("ENVIRONMENT", "development"),
@@ -59,6 +59,24 @@ func Load() *Config {
 		DefaultGracePeriod:    getIntEnv("DEFAULT_GRACE_PERIOD", 1),
 		DefaultMaxFineCap:     getFloatEnv("DEFAULT_MAX_FINE_CAP", 200.0),
 		DefaultBlockThreshold: getFloatEnv("DEFAULT_BLOCK_THRESHOLD", 100.0),
+	}
+
+	validateConfig(cfg)
+	return cfg
+}
+
+// validateConfig ensures required configuration is present in production
+func validateConfig(cfg *Config) {
+	if cfg.Environment == "production" {
+		if cfg.JWTAccessSecret == "" || cfg.JWTAccessSecret == "dev-access-secret-change-in-production" {
+			panic("JWT_ACCESS_SECRET environment variable must be set in production")
+		}
+		if cfg.JWTRefreshSecret == "" || cfg.JWTRefreshSecret == "dev-refresh-secret-change-in-production" {
+			panic("JWT_REFRESH_SECRET environment variable must be set in production")
+		}
+		if cfg.DatabaseURL == "" {
+			panic("DATABASE_URL environment variable must be set")
+		}
 	}
 }
 

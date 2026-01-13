@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -10,17 +12,20 @@ import (
 	"github.com/holyredeemer/library-api/internal/middleware"
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/pkg/response"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type CirculationHandler struct {
 	queries *sqlcdb.Queries
 	config  *config.Config
+	db      *pgxpool.Pool
 }
 
-func NewCirculationHandler(queries *sqlcdb.Queries, cfg *config.Config) *CirculationHandler {
+func NewCirculationHandler(queries *sqlcdb.Queries, cfg *config.Config, db *pgxpool.Pool) *CirculationHandler {
 	return &CirculationHandler{
 		queries: queries,
 		config:  cfg,
+		db:      db,
 	}
 }
 
@@ -122,8 +127,19 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 		}
 	}
 
+	// Begin transaction
+	tx, err := h.db.Begin(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to begin transaction")
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	// Use transactional queries
+	queries := h.queries.WithTx(tx)
+
 	// Create transaction
-	txn, err := h.queries.CreateTransaction(c.Request.Context(), sqlcdb.CreateTransactionParams{
+	txn, err := queries.CreateTransaction(c.Request.Context(), sqlcdb.CreateTransactionParams{
 		StudentID:      toPgUUID(studentID),
 		CopyID:         toPgUUID(copyID),
 		LibrarianID:    librarianID,
@@ -139,10 +155,21 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 	}
 
 	// Update copy status
-	_ = h.queries.UpdateCopyStatus(c.Request.Context(), sqlcdb.UpdateCopyStatusParams{
+	err = queries.UpdateCopyStatus(c.Request.Context(), sqlcdb.UpdateCopyStatusParams{
 		ID:     copyID,
 		Status: sqlcdb.NullCopyStatus{CopyStatus: sqlcdb.CopyStatusBorrowed, Valid: true},
 	})
+	if err != nil {
+		response.InternalError(c, "Failed to update copy status")
+		return
+	}
+
+	// Commit transaction
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		log.Printf("Failed to commit transaction: %v", err)
+		response.InternalError(c, "Failed to complete checkout")
+		return
+	}
 
 	resp := CheckoutResponse{
 		TransactionID: txn.ID.String(),
@@ -212,9 +239,20 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 		returnCondition = sqlcdb.NullCopyCondition{CopyCondition: sqlcdb.CopyCondition(req.Condition), Valid: true}
 	}
 
+	// Begin transaction
+	tx, err := h.db.Begin(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to begin transaction")
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	// Use transactional queries
+	queries := h.queries.WithTx(tx)
+
 	// Update transaction
 	now := time.Now()
-	_, err = h.queries.UpdateTransactionReturn(c.Request.Context(), sqlcdb.UpdateTransactionReturnParams{
+	_, err = queries.UpdateTransactionReturn(c.Request.Context(), sqlcdb.UpdateTransactionReturnParams{
 		ID:              loan.ID,
 		ReturnDate:      toPgTimestampNullable(now, true),
 		ReturnedBy:      librarianID,
@@ -231,10 +269,14 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 	if returnCondition.Valid && returnCondition.CopyCondition == sqlcdb.CopyConditionPoor {
 		newStatus = sqlcdb.NullCopyStatus{CopyStatus: sqlcdb.CopyStatusDamaged, Valid: true}
 	}
-	_ = h.queries.UpdateCopyStatus(c.Request.Context(), sqlcdb.UpdateCopyStatusParams{
+	err = queries.UpdateCopyStatus(c.Request.Context(), sqlcdb.UpdateCopyStatusParams{
 		ID:     copyID,
 		Status: newStatus,
 	})
+	if err != nil {
+		response.InternalError(c, "Failed to update copy status")
+		return
+	}
 
 	// Check for overdue and create fine if needed
 	resp := ReturnResponse{
@@ -257,7 +299,7 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 				fineAmount = h.config.DefaultMaxFineCap
 			}
 
-			fine, err := h.queries.CreateFine(c.Request.Context(), sqlcdb.CreateFineParams{
+			fine, err := queries.CreateFine(c.Request.Context(), sqlcdb.CreateFineParams{
 				TransactionID: toPgUUID(loan.ID),
 				StudentID:     loan.StudentID,
 				Amount:        toPgNumeric(fineAmount),
@@ -275,8 +317,17 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 					Amount: fineAmount,
 					Type:   "overdue",
 				}
+			} else {
+				log.Printf("Failed to create fine: %v", err)
 			}
 		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		log.Printf("Failed to commit transaction: %v", err)
+		response.InternalError(c, "Failed to complete return")
+		return
 	}
 
 	response.Success(c, resp, "Book returned successfully")
@@ -333,7 +384,18 @@ func (h *CirculationHandler) Renew(c *gin.Context) {
 	// Calculate new due date
 	newDueDate := time.Now().AddDate(0, 0, h.config.DefaultLoanDays)
 
-	_, err = h.queries.RenewTransaction(c.Request.Context(), sqlcdb.RenewTransactionParams{
+	// Begin transaction
+	tx, err := h.db.Begin(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to begin transaction")
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	// Use transactional queries
+	queries := h.queries.WithTx(tx)
+
+	_, err = queries.RenewTransaction(c.Request.Context(), sqlcdb.RenewTransactionParams{
 		ID:      txnID,
 		DueDate: toPgDate(newDueDate),
 	})
@@ -344,10 +406,22 @@ func (h *CirculationHandler) Renew(c *gin.Context) {
 
 	// Update overdue status if was overdue
 	if txn.Status.Valid && txn.Status.TransactionStatus == sqlcdb.TransactionStatusOverdue {
-		_ = h.queries.UpdateTransactionStatus(c.Request.Context(), sqlcdb.UpdateTransactionStatusParams{
+		err = queries.UpdateTransactionStatus(c.Request.Context(), sqlcdb.UpdateTransactionStatusParams{
 			ID:     txnID,
 			Status: sqlcdb.NullTransactionStatus{TransactionStatus: sqlcdb.TransactionStatusBorrowed, Valid: true},
 		})
+		if err != nil {
+			log.Printf("Failed to update transaction status: %v", err)
+			response.InternalError(c, "Failed to update transaction status")
+			return
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		log.Printf("Failed to commit transaction: %v", err)
+		response.InternalError(c, "Failed to complete renewal")
+		return
 	}
 
 	response.Success(c, gin.H{
@@ -474,6 +548,68 @@ func (h *CirculationHandler) ListOverdue(c *gin.Context) {
 		PerPage: perPage,
 		Total:   total,
 	})
+}
+
+// NotifyOverdue sends a notification to the student about an overdue book
+func (h *CirculationHandler) NotifyOverdue(c *gin.Context) {
+	txnID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid transaction ID")
+		return
+	}
+
+	// Get transaction details
+	txn, err := h.queries.GetTransactionByID(c.Request.Context(), txnID)
+	if err != nil {
+		response.NotFound(c, "Transaction not found")
+		return
+	}
+
+	// Check if book is actually overdue
+	dueDate := fromPgDate(txn.DueDate)
+	now := time.Now()
+	if !dueDate.Before(now.Truncate(24 * time.Hour)) {
+		response.BadRequest(c, "Book is not overdue yet")
+		return
+	}
+
+	// Get student info to get user_id
+	student, err := h.queries.GetStudentByID(c.Request.Context(), fromPgUUID(txn.StudentID))
+	if err != nil {
+		response.NotFound(c, "Student not found")
+		return
+	}
+
+	// Calculate current fine for the message
+	daysOverdue := int(now.Truncate(24*time.Hour).Sub(dueDate).Hours() / 24)
+	if daysOverdue > h.config.DefaultGracePeriod {
+		daysOverdue -= h.config.DefaultGracePeriod
+	}
+
+	fineAmount := 0.0
+	if daysOverdue > 0 {
+		fineAmount = float64(daysOverdue) * h.config.DefaultFinePerDay
+		if fineAmount > h.config.DefaultMaxFineCap {
+			fineAmount = h.config.DefaultMaxFineCap
+		}
+	}
+
+	// Create notification
+	_, err = h.queries.CreateNotification(c.Request.Context(), sqlcdb.CreateNotificationParams{
+		UserID: student.UserID,
+		Type:   sqlcdb.NotificationTypeOverdue,
+		Title:  "Overdue Book Reminder",
+		Message: fmt.Sprintf("Reminder: The book '%s' was due on %s (%d days overdue). Please return it soon. Current fine: P%.2f",
+			txn.BookTitle, dueDate.Format("Jan 02, 2006"), daysOverdue, fineAmount),
+		ReferenceType: toPgText("transaction"),
+		ReferenceID:   toPgUUID(txnID),
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to send notification")
+		return
+	}
+
+	response.Success(c, nil, "Notification sent to student successfully")
 }
 
 // ListTransactions returns transaction history

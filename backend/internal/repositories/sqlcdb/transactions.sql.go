@@ -23,6 +23,18 @@ func (q *Queries) CountActiveLoans(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countActiveTransactionsByStudent = `-- name: CountActiveTransactionsByStudent :one
+SELECT COUNT(*) FROM transactions
+WHERE student_id = $1 AND status IN ('borrowed', 'overdue')
+`
+
+func (q *Queries) CountActiveTransactionsByStudent(ctx context.Context, studentID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveTransactionsByStudent, studentID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countDueToday = `-- name: CountDueToday :one
 SELECT COUNT(*) FROM transactions WHERE due_date = CURRENT_DATE AND status IN ('borrowed', 'overdue')
 `
@@ -64,6 +76,17 @@ SELECT COUNT(*) FROM transactions WHERE DATE(return_date) = CURRENT_DATE
 
 func (q *Queries) CountTodayReturns(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, countTodayReturns)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countTransactionsByStudent = `-- name: CountTransactionsByStudent :one
+SELECT COUNT(*) FROM transactions WHERE student_id = $1
+`
+
+func (q *Queries) CountTransactionsByStudent(ctx context.Context, studentID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countTransactionsByStudent, studentID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -482,7 +505,7 @@ func (q *Queries) ListOverdueTransactions(ctx context.Context, arg ListOverdueTr
 }
 
 const listTransactionsByStudent = `-- name: ListTransactionsByStudent :many
-SELECT t.id, t.student_id, t.copy_id, t.librarian_id, t.checkout_date, t.due_date, t.return_date, t.returned_by, t.status, t.checkout_method, t.renewal_count, t.return_condition, t.notes, t.created_at, t.updated_at, 
+SELECT t.id, t.student_id, t.copy_id, t.librarian_id, t.checkout_date, t.due_date, t.return_date, t.returned_by, t.status, t.checkout_method, t.renewal_count, t.return_condition, t.notes, t.created_at, t.updated_at,
        b.title as book_title, b.author as book_author, b.id as book_id,
        bc.copy_number, bc.qr_code
 FROM transactions t

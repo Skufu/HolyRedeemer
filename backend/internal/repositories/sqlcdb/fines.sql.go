@@ -31,6 +31,17 @@ func (q *Queries) CountFines(ctx context.Context, arg CountFinesParams) (int64, 
 	return count, err
 }
 
+const countFinesByStudent = `-- name: CountFinesByStudent :one
+SELECT COUNT(*) FROM fines WHERE student_id = $1
+`
+
+func (q *Queries) CountFinesByStudent(ctx context.Context, studentID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countFinesByStudent, studentID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createFine = `-- name: CreateFine :one
 INSERT INTO fines (transaction_id, student_id, amount, fine_type, description, status)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -300,7 +311,7 @@ func (q *Queries) ListFines(ctx context.Context, arg ListFinesParams) ([]ListFin
 }
 
 const listFinesByStudent = `-- name: ListFinesByStudent :many
-SELECT f.id, f.transaction_id, f.student_id, f.amount, f.fine_type, f.description, f.status, f.created_at, f.updated_at, 
+SELECT f.id, f.transaction_id, f.student_id, f.amount, f.fine_type, f.description, f.status, f.created_at, f.updated_at,
        b.title as book_title
 FROM fines f
 LEFT JOIN transactions t ON f.transaction_id = t.id
@@ -308,7 +319,14 @@ LEFT JOIN book_copies bc ON t.copy_id = bc.id
 LEFT JOIN books b ON bc.book_id = b.id
 WHERE f.student_id = $1
 ORDER BY f.created_at DESC
+LIMIT $2 OFFSET $3
 `
+
+type ListFinesByStudentParams struct {
+	StudentID pgtype.UUID `json:"student_id"`
+	Limit     int32       `json:"limit"`
+	Offset    int32       `json:"offset"`
+}
 
 type ListFinesByStudentRow struct {
 	ID            uuid.UUID        `json:"id"`
@@ -323,8 +341,8 @@ type ListFinesByStudentRow struct {
 	BookTitle     pgtype.Text      `json:"book_title"`
 }
 
-func (q *Queries) ListFinesByStudent(ctx context.Context, studentID pgtype.UUID) ([]ListFinesByStudentRow, error) {
-	rows, err := q.db.Query(ctx, listFinesByStudent, studentID)
+func (q *Queries) ListFinesByStudent(ctx context.Context, arg ListFinesByStudentParams) ([]ListFinesByStudentRow, error) {
+	rows, err := q.db.Query(ctx, listFinesByStudent, arg.StudentID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

@@ -69,7 +69,7 @@ ORDER BY t.due_date ASC
 LIMIT $1 OFFSET $2;
 
 -- name: ListTransactionsByStudent :many
-SELECT t.*, 
+SELECT t.*,
        b.title as book_title, b.author as book_author, b.id as book_id,
        bc.copy_number, bc.qr_code
 FROM transactions t
@@ -78,6 +78,9 @@ JOIN books b ON bc.book_id = b.id
 WHERE t.student_id = $1
 ORDER BY t.checkout_date DESC
 LIMIT $2 OFFSET $3;
+
+-- name: CountTransactionsByStudent :one
+SELECT COUNT(*) FROM transactions WHERE student_id = $1;
 
 -- name: ListDueTodayTransactions :many
 SELECT t.*, 
@@ -99,6 +102,10 @@ WHERE t.copy_id = $1 AND t.status IN ('borrowed', 'overdue');
 
 -- name: CountActiveLoans :one
 SELECT COUNT(*) FROM transactions WHERE status IN ('borrowed', 'overdue');
+
+-- name: CountActiveTransactionsByStudent :one
+SELECT COUNT(*) FROM transactions
+WHERE student_id = $1 AND status IN ('borrowed', 'overdue');
 
 -- name: CountOverdueLoans :one
 SELECT COUNT(*) 
