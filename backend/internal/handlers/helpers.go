@@ -69,13 +69,6 @@ func toPgUUID(id uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: id, Valid: true}
 }
 
-func toPgUUIDNullable(id uuid.UUID, valid bool) pgtype.UUID {
-	if !valid || id == uuid.Nil {
-		return pgtype.UUID{Valid: false}
-	}
-	return pgtype.UUID{Bytes: id, Valid: true}
-}
-
 func fromPgUUID(u pgtype.UUID) uuid.UUID {
 	if u.Valid {
 		return u.Bytes
@@ -122,6 +115,7 @@ func formatPgTimestamp(t pgtype.Timestamp, layout string) string {
 	return ""
 }
 
+//nolint:unparam // layout is a format string parameter for consistency
 func formatPgDate(d pgtype.Date, layout string) string {
 	if d.Valid {
 		return d.Time.Format(layout)
@@ -136,10 +130,6 @@ func isUserActive(status sqlcdb.NullUserStatus) bool {
 
 func isStudentStatusActive(status sqlcdb.NullStudentStatus) bool {
 	return status.Valid && status.StudentStatus == sqlcdb.StudentStatusActive
-}
-
-func getStudentStatusString(status sqlcdb.StudentStatus) string {
-	return string(status)
 }
 
 func getStudentStatusFromNull(status sqlcdb.NullStudentStatus) string {
@@ -162,18 +152,4 @@ func toPgFineStatus(s string) sqlcdb.NullFineStatus {
 		return sqlcdb.NullFineStatus{}
 	}
 	return sqlcdb.NullFineStatus{FineStatus: sqlcdb.FineStatus(s), Valid: true}
-}
-
-func toPgCopyCondition(s string) sqlcdb.NullCopyCondition {
-	if s == "" {
-		return sqlcdb.NullCopyCondition{}
-	}
-	return sqlcdb.NullCopyCondition{CopyCondition: sqlcdb.CopyCondition(s), Valid: true}
-}
-
-func toPgCopyStatus(s string) sqlcdb.NullCopyStatus {
-	if s == "" {
-		return sqlcdb.NullCopyStatus{}
-	}
-	return sqlcdb.NullCopyStatus{CopyStatus: sqlcdb.CopyStatus(s), Valid: true}
 }

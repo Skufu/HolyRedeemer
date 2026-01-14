@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"log"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -178,7 +179,9 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	var req RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err == nil && req.RefreshToken != "" {
 		tokenHash := hashToken(req.RefreshToken)
-		_ = h.queries.DeleteRefreshToken(c.Request.Context(), tokenHash)
+		if err := h.queries.DeleteRefreshToken(c.Request.Context(), tokenHash); err != nil {
+			log.Printf("Warning: Failed to delete refresh token: %v", err)
+		}
 	}
 
 	response.Success(c, nil, "Logged out successfully")
@@ -222,8 +225,8 @@ func (h *AuthHandler) RFIDLookup(c *gin.Context) {
 
 	// Check for overdue
 	hasOverdue := false
-	overdueCount, _ := h.queries.CountOverdueLoans(c.Request.Context())
-	if overdueCount > 0 {
+	studentOverdueCount, _ := h.queries.CountStudentOverdueLoans(c.Request.Context(), toPgUUID(student.ID))
+	if studentOverdueCount > 0 {
 		hasOverdue = true
 	}
 

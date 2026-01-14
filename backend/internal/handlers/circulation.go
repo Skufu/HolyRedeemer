@@ -12,6 +12,7 @@ import (
 	"github.com/holyredeemer/library-api/internal/middleware"
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/pkg/response"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -76,7 +77,7 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 	authUser := middleware.GetAuthUser(c)
 	librarianUserID, _ := uuid.Parse(authUser.ID)
 	librarian, err := h.queries.GetLibrarianByUserID(c.Request.Context(), toPgUUID(librarianUserID))
-	librarianID := toPgUUIDNullable(uuid.Nil, false)
+	librarianID := pgtype.UUID{Valid: false}
 	if err == nil {
 		librarianID = toPgUUID(librarian.ID)
 	}
@@ -122,7 +123,7 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 	// Calculate due date
 	dueDate := time.Now().AddDate(0, 0, h.config.DefaultLoanDays)
 	if req.DueDate != "" {
-		if parsed, err := time.Parse("2006-01-02", req.DueDate); err == nil {
+		if parsed, parseErr := time.Parse("2006-01-02", req.DueDate); parseErr == nil {
 			dueDate = parsed
 		}
 	}
@@ -133,7 +134,9 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 		response.InternalError(c, "Failed to begin transaction")
 		return
 	}
-	defer tx.Rollback(c.Request.Context())
+	defer func() {
+		_ = tx.Rollback(c.Request.Context())
+	}()
 
 	// Use transactional queries
 	queries := h.queries.WithTx(tx)
@@ -221,7 +224,7 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 	authUser := middleware.GetAuthUser(c)
 	librarianUserID, _ := uuid.Parse(authUser.ID)
 	librarian, err := h.queries.GetLibrarianByUserID(c.Request.Context(), toPgUUID(librarianUserID))
-	librarianID := toPgUUIDNullable(uuid.Nil, false)
+	librarianID := pgtype.UUID{Valid: false}
 	if err == nil {
 		librarianID = toPgUUID(librarian.ID)
 	}
@@ -245,7 +248,9 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 		response.InternalError(c, "Failed to begin transaction")
 		return
 	}
-	defer tx.Rollback(c.Request.Context())
+	defer func() {
+		_ = tx.Rollback(c.Request.Context())
+	}()
 
 	// Use transactional queries
 	queries := h.queries.WithTx(tx)
@@ -390,7 +395,9 @@ func (h *CirculationHandler) Renew(c *gin.Context) {
 		response.InternalError(c, "Failed to begin transaction")
 		return
 	}
-	defer tx.Rollback(c.Request.Context())
+	defer func() {
+		_ = tx.Rollback(c.Request.Context())
+	}()
 
 	// Use transactional queries
 	queries := h.queries.WithTx(tx)

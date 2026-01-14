@@ -191,7 +191,9 @@ func (h *BookHandler) CreateBook(c *gin.Context) {
 		response.InternalError(c, "Failed to begin transaction")
 		return
 	}
-	defer tx.Rollback(c.Request.Context())
+	defer func() {
+		_ = tx.Rollback(c.Request.Context())
+	}()
 
 	// Use transactional queries
 	queries := h.queries.WithTx(tx)
@@ -254,14 +256,14 @@ func (h *BookHandler) UpdateBook(c *gin.Context) {
 	}
 
 	var req CreateBookRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		response.BadRequest(c, "Invalid request body")
 		return
 	}
 
 	var categoryID pgtype.UUID
 	if req.CategoryID != "" {
-		if id, err := uuid.Parse(req.CategoryID); err == nil {
+		if id, parseErr := uuid.Parse(req.CategoryID); parseErr == nil {
 			categoryID = toPgUUID(id)
 		}
 	}
@@ -386,7 +388,7 @@ func (h *BookHandler) CreateCopy(c *gin.Context) {
 
 	copy, err := h.queries.CreateCopy(c.Request.Context(), sqlcdb.CreateCopyParams{
 		BookID:     toPgUUID(bookID),
-		CopyNumber: int32(nextNum),
+		CopyNumber: nextNum,
 		QrCode:     qrCode,
 		Status:     sqlcdb.NullCopyStatus{CopyStatus: sqlcdb.CopyStatusAvailable, Valid: true},
 		Condition:  condition,

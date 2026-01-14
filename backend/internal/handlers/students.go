@@ -127,12 +127,12 @@ func (h *StudentHandler) GetStudent(c *gin.Context) {
 	authUser := middleware.GetAuthUser(c)
 	if authUser.Role == "student" {
 		// Get student's user ID to compare
-		student, err := h.queries.GetStudentByID(c.Request.Context(), studentID)
-		if err != nil {
+		authStudent, lookupErr := h.queries.GetStudentByID(c.Request.Context(), studentID)
+		if lookupErr != nil {
 			response.NotFound(c, "Student not found")
 			return
 		}
-		if fromPgUUID(student.UserID).String() != authUser.ID {
+		if fromPgUUID(authStudent.UserID).String() != authUser.ID {
 			response.Forbidden(c, "Cannot view other student's profile")
 			return
 		}
@@ -300,7 +300,7 @@ func (h *StudentHandler) UpdateStudent(c *gin.Context) {
 	}
 
 	var req UpdateStudentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		response.BadRequest(c, "Invalid request body")
 		return
 	}
@@ -378,8 +378,8 @@ func (h *StudentHandler) GetStudentLoans(c *gin.Context) {
 
 	authUser := middleware.GetAuthUser(c)
 	if authUser.Role == "student" {
-		student, err := h.queries.GetStudentByID(c.Request.Context(), studentID)
-		if err != nil || fromPgUUID(student.UserID).String() != authUser.ID {
+		authStudent, lookupErr := h.queries.GetStudentByID(c.Request.Context(), studentID)
+		if lookupErr != nil || fromPgUUID(authStudent.UserID).String() != authUser.ID {
 			response.Forbidden(c, "Cannot view other student's loans")
 			return
 		}
@@ -444,8 +444,8 @@ func (h *StudentHandler) GetStudentHistory(c *gin.Context) {
 
 	authUser := middleware.GetAuthUser(c)
 	if authUser.Role == "student" {
-		student, err := h.queries.GetStudentByID(c.Request.Context(), studentID)
-		if err != nil || fromPgUUID(student.UserID).String() != authUser.ID {
+		authStudent, lookupErr := h.queries.GetStudentByID(c.Request.Context(), studentID)
+		if lookupErr != nil || fromPgUUID(authStudent.UserID).String() != authUser.ID {
 			response.Forbidden(c, "Cannot view other student's history")
 			return
 		}
@@ -527,8 +527,8 @@ func (h *StudentHandler) GetStudentFines(c *gin.Context) {
 
 	authUser := middleware.GetAuthUser(c)
 	if authUser.Role == "student" {
-		student, err := h.queries.GetStudentByID(c.Request.Context(), studentID)
-		if err != nil || fromPgUUID(student.UserID).String() != authUser.ID {
+		authStudent, lookupErr := h.queries.GetStudentByID(c.Request.Context(), studentID)
+		if lookupErr != nil || fromPgUUID(authStudent.UserID).String() != authUser.ID {
 			response.Forbidden(c, "Cannot view other student's fines")
 			return
 		}
