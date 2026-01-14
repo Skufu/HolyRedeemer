@@ -8,6 +8,7 @@ import (
 	"github.com/holyredeemer/library-api/internal/middleware"
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/pkg/response"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type FineHandler struct {
@@ -27,7 +28,7 @@ func (h *FineHandler) ListFines(c *gin.Context) {
 	status := c.Query("status")
 	studentIDStr := c.Query("student_id")
 
-	var studentID = toPgUUIDNullable(uuid.Nil, false)
+	var studentID = pgtype.UUID{Valid: false}
 	if studentIDStr != "" {
 		if id, err := uuid.Parse(studentIDStr); err == nil {
 			studentID = toPgUUID(id)
@@ -141,7 +142,7 @@ func (h *FineHandler) PayFine(c *gin.Context) {
 	}
 
 	var req PayFineRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		response.BadRequest(c, "Invalid request body")
 		return
 	}
@@ -167,7 +168,7 @@ func (h *FineHandler) PayFine(c *gin.Context) {
 	authUser := middleware.GetAuthUser(c)
 	librarianUserID, _ := uuid.Parse(authUser.ID)
 	librarian, err := h.queries.GetLibrarianByUserID(c.Request.Context(), toPgUUID(librarianUserID))
-	var librarianID = toPgUUIDNullable(uuid.Nil, false)
+	var librarianID = pgtype.UUID{Valid: false}
 	if err == nil {
 		librarianID = toPgUUID(librarian.ID)
 	}

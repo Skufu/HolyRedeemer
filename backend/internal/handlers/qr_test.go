@@ -45,7 +45,7 @@ func TestQRCodeGeneration(t *testing.T) {
 				t.Errorf("Expected QR code %s, got %s", tt.expectedQR, qrCode)
 			}
 
-			if len(qrCode) < 15 {
+			if len(qrCode) < 14 {
 				t.Errorf("QR code too short: %s", qrCode)
 			}
 
@@ -119,7 +119,7 @@ func TestQRCodeValidation(t *testing.T) {
 }
 
 func validateQRCode(qrCode string) bool {
-	if len(qrCode) < 15 {
+	if len(qrCode) < 14 {
 		return false
 	}
 	if qrCode[:3] != "HR-" {

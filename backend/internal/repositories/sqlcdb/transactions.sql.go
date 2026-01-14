@@ -47,13 +47,28 @@ func (q *Queries) CountDueToday(ctx context.Context) (int64, error) {
 }
 
 const countOverdueLoans = `-- name: CountOverdueLoans :one
-SELECT COUNT(*) 
-FROM transactions 
+SELECT COUNT(*)
+FROM transactions
 WHERE status IN ('borrowed', 'overdue') AND due_date < CURRENT_DATE
 `
 
 func (q *Queries) CountOverdueLoans(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, countOverdueLoans)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countStudentOverdueLoans = `-- name: CountStudentOverdueLoans :one
+SELECT COUNT(*)
+FROM transactions
+WHERE student_id = $1
+  AND status IN ('borrowed', 'overdue')
+  AND due_date < CURRENT_DATE
+`
+
+func (q *Queries) CountStudentOverdueLoans(ctx context.Context, studentID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countStudentOverdueLoans, studentID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

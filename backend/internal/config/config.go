@@ -43,9 +43,9 @@ func Load() *Config {
 		// Database
 		DatabaseURL: getEnv("DATABASE_URL", ""),
 
-		// JWT
-		JWTAccessSecret:  getEnv("JWT_ACCESS_SECRET", "dev-access-secret-change-in-production"),
-		JWTRefreshSecret: getEnv("JWT_REFRESH_SECRET", "dev-refresh-secret-change-in-production"),
+		// JWT - No defaults, must be set via environment variables
+		JWTAccessSecret:  os.Getenv("JWT_ACCESS_SECRET"),
+		JWTRefreshSecret: os.Getenv("JWT_REFRESH_SECRET"),
 		JWTAccessExpiry:  getDurationEnv("JWT_ACCESS_EXPIRY", 15*time.Minute),
 		JWTRefreshExpiry: getDurationEnv("JWT_REFRESH_EXPIRY", 7*24*time.Hour),
 
@@ -65,18 +65,25 @@ func Load() *Config {
 	return cfg
 }
 
-// validateConfig ensures required configuration is present in production
+// validateConfig ensures required configuration is present in ALL environments
 func validateConfig(cfg *Config) {
-	if cfg.Environment == "production" {
-		if cfg.JWTAccessSecret == "" || cfg.JWTAccessSecret == "dev-access-secret-change-in-production" {
-			panic("JWT_ACCESS_SECRET environment variable must be set in production")
-		}
-		if cfg.JWTRefreshSecret == "" || cfg.JWTRefreshSecret == "dev-refresh-secret-change-in-production" {
-			panic("JWT_REFRESH_SECRET environment variable must be set in production")
-		}
-		if cfg.DatabaseURL == "" {
-			panic("DATABASE_URL environment variable must be set")
-		}
+	// JWT secrets must be set in ALL environments, not just production
+	if cfg.JWTAccessSecret == "" {
+		panic("JWT_ACCESS_SECRET environment variable must be set")
+	}
+	if cfg.JWTRefreshSecret == "" {
+		panic("JWT_REFRESH_SECRET environment variable must be set")
+	}
+	if cfg.DatabaseURL == "" {
+		panic("DATABASE_URL environment variable must be set")
+	}
+
+	// Validate JWT secret entropy (minimum 32 characters for reasonable security)
+	if len(cfg.JWTAccessSecret) < 32 {
+		panic("JWT_ACCESS_SECRET must be at least 32 characters long")
+	}
+	if len(cfg.JWTRefreshSecret) < 32 {
+		panic("JWT_REFRESH_SECRET must be at least 32 characters long")
 	}
 }
 

@@ -108,9 +108,16 @@ SELECT COUNT(*) FROM transactions
 WHERE student_id = $1 AND status IN ('borrowed', 'overdue');
 
 -- name: CountOverdueLoans :one
-SELECT COUNT(*) 
-FROM transactions 
+SELECT COUNT(*)
+FROM transactions
 WHERE status IN ('borrowed', 'overdue') AND due_date < CURRENT_DATE;
+
+-- name: CountStudentOverdueLoans :one
+SELECT COUNT(*)
+FROM transactions
+WHERE student_id = $1
+  AND status IN ('borrowed', 'overdue')
+  AND due_date < CURRENT_DATE;
 
 -- name: CountTodayCheckouts :one
 SELECT COUNT(*) FROM transactions WHERE DATE(checkout_date) = CURRENT_DATE;

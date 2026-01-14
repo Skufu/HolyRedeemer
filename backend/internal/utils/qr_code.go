@@ -84,7 +84,7 @@ func ParseQRCode(qrCode string) (bookID string, copyNumber int32, err error) {
 func parseCopyNumber(s string) int32 {
 	var result int32
 	for _, c := range s {
-		result = result*10 + int32(c-'0')
+		result = result*10 + (c - '0')
 	}
 	return result
 }

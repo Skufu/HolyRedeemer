@@ -20,6 +20,7 @@ type Querier interface {
 	CountFines(ctx context.Context, arg CountFinesParams) (int64, error)
 	CountFinesByStudent(ctx context.Context, studentID pgtype.UUID) (int64, error)
 	CountOverdueLoans(ctx context.Context) (int64, error)
+	CountStudentOverdueLoans(ctx context.Context, studentID pgtype.UUID) (int64, error)
 	CountStudents(ctx context.Context, arg CountStudentsParams) (int64, error)
 	CountTodayCheckouts(ctx context.Context) (int64, error)
 	CountTodayReturns(ctx context.Context) (int64, error)
