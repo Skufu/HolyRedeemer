@@ -153,14 +153,6 @@ run() {
     echo "Back in root: $(pwd)"
 
     echo "Starting Frontend..."
-    else
-        echo "Air not found, using go run..."
-        go run ./cmd/server &
-    fi
-    BACKEND_PID=$!
-    cd ..
-
-    echo "Starting Frontend..."
     cd frontend
     npm run dev &
     FRONTEND_PID=$!
