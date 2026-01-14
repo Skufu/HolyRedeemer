@@ -18,7 +18,7 @@ npm run build                   # Production build
 ### Backend (Go + Gin + PostgreSQL)
 ```bash
 cd backend
-make dev                        # Hot reload with Air (port 3847)
+make dev                        # Hot reload with Air (port 8080)
 make test                       # Run all Go tests
 make lint                       # golangci-lint
 make fmt                        # go fmt
@@ -149,8 +149,8 @@ func (h *Handler) MultiStepOperation(c *gin.Context) {
 ```
 
 ## Environment Variables
-Frontend: `VITE_API_URL=http://localhost:3847`
-Backend: `PORT=3847`, `DATABASE_URL=postgresql://...`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGINS`
+Frontend: `VITE_API_URL=http://localhost:8080`
+Backend: `PORT=8080`, `DATABASE_URL=postgresql://...`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGINS`
 
 ## Common Tasks
 - Add API: SQL query → `make sqlc` → handler → route → frontend types → frontend service
@@ -162,7 +162,7 @@ Frontend: React 18, TypeScript 5.8, Vite, Tailwind, shadcn/ui, TanStack Query, Z
 Backend: Go 1.24, Gin, PostgreSQL, sqlc, JWT, golangci-lint
 
 ## Important Notes
-- Frontend port 4127, Backend port 3847
+- Frontend port 4127, Backend port 8080
 - Never commit `.env` files
 - Run `make sqlc` after SQL changes
 - Use `@/` imports in frontend
