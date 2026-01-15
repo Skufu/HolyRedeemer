@@ -17,9 +17,16 @@ import (
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/internal/utils"
 	"github.com/holyredeemer/library-api/pkg/response"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Try to load .env from current directory or parent directory (for local dev convenience)
+	if err := godotenv.Load(); err != nil {
+		// If not found in current dir, try one level up (common when running from cmd/server)
+		_ = godotenv.Load("../../.env")
+	}
+
 	// Load configuration
 	cfg := config.Load()
 
