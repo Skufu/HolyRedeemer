@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/pkg/response"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type AuditHandler struct {
@@ -43,13 +45,18 @@ func (h *AuditHandler) ListAuditLogs(c *gin.Context) {
 	entityType := c.Query("entity_type")
 
 	params := sqlcdb.ListAuditLogsParams{
-		Limit:  toPgInt4(int32(perPage)),
-		Offset: toPgInt4(int32(offset)),
+		Limit:      pgtype.Int4{Int32: int32(perPage), Valid: true},
+		Offset:     pgtype.Int4{Int32: int32(offset), Valid: true},
+		FromDate:   pgtype.Timestamp{Valid: false},
+		ToDate:     pgtype.Timestamp{Valid: false},
+		UserID:     pgtype.UUID{Valid: false},
+		Action:     sqlcdb.NullAuditAction{Valid: false},
+		EntityType: nil,
 	}
 
 	if userIDStr != "" {
 		if uid, err := uuid.Parse(userIDStr); err == nil {
-			params.UserID = toPgUUID(uid)
+			params.UserID = pgtype.UUID{Bytes: uid, Valid: true}
 		}
 	}
 
@@ -63,6 +70,7 @@ func (h *AuditHandler) ListAuditLogs(c *gin.Context) {
 
 	logs, err := h.queries.ListAuditLogs(c.Request.Context(), params)
 	if err != nil {
+		log.Printf("ListAuditLogs error: %v", err)
 		response.InternalError(c, "Failed to fetch audit logs")
 		return
 	}
