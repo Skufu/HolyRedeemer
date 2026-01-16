@@ -12,6 +12,7 @@ import (
 )
 
 type Querier interface {
+	ApproveRequest(ctx context.Context, arg ApproveRequestParams) (BookRequest, error)
 	CountActiveLoans(ctx context.Context) (int64, error)
 	CountActiveTransactionsByStudent(ctx context.Context, studentID pgtype.UUID) (int64, error)
 	CountBooks(ctx context.Context, arg CountBooksParams) (int64, error)
@@ -20,6 +21,7 @@ type Querier interface {
 	CountFines(ctx context.Context, arg CountFinesParams) (int64, error)
 	CountFinesByStudent(ctx context.Context, studentID pgtype.UUID) (int64, error)
 	CountOverdueLoans(ctx context.Context) (int64, error)
+	CountPendingRequests(ctx context.Context) (int64, error)
 	CountStudentOverdueLoans(ctx context.Context, studentID pgtype.UUID) (int64, error)
 	CountStudents(ctx context.Context, arg CountStudentsParams) (int64, error)
 	CountTodayCheckouts(ctx context.Context) (int64, error)
@@ -37,6 +39,7 @@ type Querier interface {
 	CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error)
 	// Refresh Token queries
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
+	CreateRequest(ctx context.Context, arg CreateRequestParams) (BookRequest, error)
 	CreateSetting(ctx context.Context, arg CreateSettingParams) (LibrarySetting, error)
 	CreateStudent(ctx context.Context, arg CreateStudentParams) (Student, error)
 	CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error)
@@ -71,6 +74,7 @@ type Querier interface {
 	GetRecentActivity(ctx context.Context) ([]GetRecentActivityRow, error)
 	GetRecentAuditLogs(ctx context.Context, limit pgtype.Int4) ([]GetRecentAuditLogsRow, error)
 	GetRefreshToken(ctx context.Context, tokenHash string) (RefreshToken, error)
+	GetRequestByID(ctx context.Context, id uuid.UUID) (GetRequestByIDRow, error)
 	GetSetting(ctx context.Context, key pgtype.Text) (GetSettingRow, error)
 	GetStudentByID(ctx context.Context, id uuid.UUID) (GetStudentByIDRow, error)
 	GetStudentByRFID(ctx context.Context, rfidCode pgtype.Text) (GetStudentByRFIDRow, error)
@@ -103,6 +107,7 @@ type Querier interface {
 	ListOverdueTransactions(ctx context.Context, arg ListOverdueTransactionsParams) ([]ListOverdueTransactionsRow, error)
 	ListPaymentsByFine(ctx context.Context, fineID pgtype.UUID) ([]ListPaymentsByFineRow, error)
 	ListPaymentsByStudent(ctx context.Context, studentID pgtype.UUID) ([]ListPaymentsByStudentRow, error)
+	ListRequests(ctx context.Context, arg ListRequestsParams) ([]ListRequestsRow, error)
 	ListSettings(ctx context.Context, category pgtype.Text) ([]ListSettingsRow, error)
 	ListStudents(ctx context.Context, arg ListStudentsParams) ([]ListStudentsRow, error)
 	ListTransactionsByStudent(ctx context.Context, arg ListTransactionsByStudentParams) ([]ListTransactionsByStudentRow, error)
@@ -112,6 +117,7 @@ type Querier interface {
 	MarkNotificationRead(ctx context.Context, id uuid.UUID) (MarkNotificationReadRow, error)
 	MarkOverdueTransactions(ctx context.Context) error
 	RegisterStudentRFID(ctx context.Context, arg RegisterStudentRFIDParams) error
+	RejectRequest(ctx context.Context, arg RejectRequestParams) (BookRequest, error)
 	RenewTransaction(ctx context.Context, arg RenewTransactionParams) (Transaction, error)
 	UpdateBook(ctx context.Context, arg UpdateBookParams) (Book, error)
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (Category, error)

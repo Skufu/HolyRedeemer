@@ -153,3 +153,10 @@ func toPgFineStatus(s string) sqlcdb.NullFineStatus {
 	}
 	return sqlcdb.NullFineStatus{FineStatus: sqlcdb.FineStatus(s), Valid: true}
 }
+
+func toPgRequestStatus(s string) sqlcdb.NullRequestStatus {
+	if s == "" {
+		return sqlcdb.NullRequestStatus{}
+	}
+	return sqlcdb.NullRequestStatus{RequestStatus: sqlcdb.RequestStatus(s), Valid: true}
+}

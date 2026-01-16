@@ -64,8 +64,8 @@ backend/
 | Role | Username | Password |
 |------|----------|----------|
 | Admin | `admin` | `admin123` |
-| Librarian | `librarian` | `librarian123` |
-| Student | `student` | `student123` |
+| Librarian | `librarian` | `lib123` |
+| Student | `student001` | `student123` |
 
 ### JWT Tokens
 

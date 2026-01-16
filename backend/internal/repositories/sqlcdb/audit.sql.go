@@ -86,19 +86,19 @@ SELECT
     user_agent,
     created_at
 FROM audit_logs
-WHERE ($1::uuid IS NULL OR user_id = $1::uuid)
-  AND ($2::audit_action IS NULL OR action = $2::audit_action)
-  AND ($3 IS NULL OR entity_type = $3)
-  AND ($4::timestamp IS NULL OR created_at >= $4::timestamp)
-  AND ($5::timestamp IS NULL OR created_at <= $5::timestamp)
+WHERE $1::uuid IS NULL OR user_id = $1::uuid
+  AND $2::text::audit_action IS NULL OR action = $2::text::audit_action
+  AND $3::varchar IS NULL OR entity_type = $3::varchar
+  AND $4::timestamp IS NULL OR created_at >= $4::timestamp
+  AND $5::timestamp IS NULL OR created_at <= $5::timestamp
 ORDER BY created_at DESC
 LIMIT $7 OFFSET $6
 `
 
 type ListAuditLogsParams struct {
 	UserID     pgtype.UUID      `json:"user_id"`
-	Action     NullAuditAction  `json:"action"`
-	EntityType interface{}      `json:"entity_type"`
+	Action     pgtype.Text      `json:"action"`
+	EntityType pgtype.Text      `json:"entity_type"`
 	FromDate   pgtype.Timestamp `json:"from_date"`
 	ToDate     pgtype.Timestamp `json:"to_date"`
 	Offset     pgtype.Int4      `json:"offset"`

@@ -58,23 +58,7 @@ setup() {
     # Go Tidy
     go mod tidy
     
-    # Run Migrations (includes seed if 002_seed_data.sql is present)
-    echo "Running migrations..."
-    
-    # Load DATABASE_URL explicitly to avoid xargs issues on some shells
-    # We grab the line starting with DATABASE_URL= and strip the prefix
-    DATABASE_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2- | tr -d '\r' | tr -d '"' | tr -d "'")
-    
-    if [ -z "$DATABASE_URL" ]; then
-        echo "Error: Could not find DATABASE_URL in backend/.env"
-        exit 1
-    fi
-
-    echo "Using Database URL: $DATABASE_URL"
-    
-    # DIRECT COMMAND instead of make migrate-up
-    # We use the DATABASE_URL from environment
-    goose -dir internal/database/migrations postgres "$DATABASE_URL" up
+    reset_db
     
     cd ..
 
@@ -84,6 +68,31 @@ setup() {
     cd ..
 
     echo "Setup Complete! You can now run the app using './setup_and_run.sh --run'"
+}
+
+reset_db() {
+    echo "Resetting database and running migrations..."
+
+    DATABASE_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2- | tr -d '\r' | tr -d '"' | tr -d "'")
+
+    if [ -z "$DATABASE_URL" ]; then
+        echo "Error: Could not find DATABASE_URL in backend/.env"
+        exit 1
+    fi
+
+    echo "Using Database URL: $DATABASE_URL"
+
+    echo "Dropping and recreating public schema..."
+    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"
+
+    goose -dir internal/database/migrations postgres "$DATABASE_URL" up
+}
+
+seed() {
+    echo "Seeding database..."
+    cd backend
+    reset_db
+    cd ..
 }
 
 # Function for run
@@ -192,12 +201,16 @@ case "$1" in
     --setup)
         setup
         ;;
+    --seed|--reset)
+        seed
+        ;;
     --run)
         run
         ;;
     *)
-        echo "Usage: $0 {--setup|--run}"
-        echo "  --setup: Initialize env, start DB, run migrations/seeds."
+        echo "Usage: $0 {--setup|--run|--seed|--reset}"
+        echo "  --setup: Initialize env, start DB, reset schema, run migrations/seeds."
+        echo "  --seed/--reset: Reset schema and reseed database."
         echo "  --run:   Start backend and frontend services."
         ;;
 esac

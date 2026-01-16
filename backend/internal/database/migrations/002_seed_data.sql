@@ -28,27 +28,24 @@ INSERT INTO library_settings (key, value, description, category) VALUES
     ('reading_quota_per_year', '12', 'Required books per student per school year', 'quota');
 
 -- Create super admin user (password: admin123)
--- Hash: $2a$10$rPJjXpxPfLYHgk.NGJKMxe4Q9OM/YhPAYTxfIAqNBW9HZC1JFTaXa
 INSERT INTO users (id, username, password_hash, role, email, name) VALUES
-    ('a0000000-0000-0000-0000-000000000001', 'admin', '$2a$10$rPJjXpxPfLYHgk.NGJKMxe4Q9OM/YhPAYTxfIAqNBW9HZC1JFTaXa', 'admin', 'admin@holyredeemer.edu.ph', 'Dr. Maria Santos');
+    ('a0000000-0000-0000-0000-000000000001', 'admin', '$2a$10$o6Vuflqw9E5yELbLkgOw8.6B4qKkxLOQJpYwGuosB4aAh7SngQ0zC', 'admin', 'admin@holyredeemer.edu.ph', 'Dr. Maria Santos');
 
 -- Create admin staff record
 INSERT INTO librarians (id, user_id, employee_id, name, email, department) VALUES
     ('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'EMP-001', 'Dr. Maria Santos', 'admin@holyredeemer.edu.ph', 'Administration');
 
 -- Create librarian user (password: lib123)
--- Hash: $2a$10$LvWG4.M7.C6qO4GZ8C8Hnu3W3kB.Y.qZmJ2j5YfLN2rT1wL0xY6Gy
 INSERT INTO users (id, username, password_hash, role, email, name) VALUES
-    ('a0000000-0000-0000-0000-000000000002', 'librarian', '$2a$10$LvWG4.M7.C6qO4GZ8C8Hnu3W3kB.Y.qZmJ2j5YfLN2rT1wL0xY6Gy', 'librarian', 'areyes@holyredeemer.edu.ph', 'Ms. Ana Reyes');
+    ('a0000000-0000-0000-0000-000000000002', 'librarian', '$2a$10$2OZujduLf1qRTOqcenVQ6ek.VlaRzF/ZyW3kDEI9oCCIa65AxyeY2', 'librarian', 'areyes@holyredeemer.edu.ph', 'Ms. Ana Reyes');
 
 -- Create librarian staff record
 INSERT INTO librarians (id, user_id, employee_id, name, email, department) VALUES
     ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'EMP-010', 'Ms. Ana Reyes', 'areyes@holyredeemer.edu.ph', 'Library');
 
 -- Create student user (password: student123)
--- Hash: $2a$10$8KzY3nU8pW4tR6vX2sL0qO.A1bC3dE5fG7hI9jK1lM3nO5pQ7rS9u
 INSERT INTO users (id, username, password_hash, role, email, name) VALUES
-    ('a0000000-0000-0000-0000-000000000003', 'student001', '$2a$10$8KzY3nU8pW4tR6vX2sL0qO.A1bC3dE5fG7hI9jK1lM3nO5pQ7rS9u', 'student', 'jdelacruz@student.holyredeemer.edu.ph', 'Juan Dela Cruz');
+    ('a0000000-0000-0000-0000-000000000003', 'student001', '$2a$10$08loBCgmLNf14zUQIen8QeWbswqZNGOc4z/zZF5oCX7ekXQ/eJ4pm', 'student', 'jdelacruz@student.holyredeemer.edu.ph', 'Juan Dela Cruz');
 
 -- Create student record
 INSERT INTO students (id, user_id, student_id, grade_level, section, rfid_code, guardian_name, guardian_contact, status) VALUES

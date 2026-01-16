@@ -1,0 +1,36 @@
+# Binary and Executables
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment Variables
+.env
+backend/.env
+frontend/.env
+
+# Dependencies
+node_modules/
+vendor/
+
+# OS Files
+.DS_Store
+Thumbs.db
+nul
+backend/nul
+
+# IDEs
+.vscode/
+.idea/
+
+# Temp
+tmp/
+
+# Go
+backend/server
