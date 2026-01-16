@@ -126,6 +126,7 @@ func main() {
 		students := v1.Group("/students")
 		students.Use(middleware.Auth(jwtManager))
 		{
+			students.GET("/me", studentHandler.GetMe)
 			students.GET("", middleware.RequireRoles("admin", "super_admin", "librarian"), studentHandler.ListStudents)
 			students.GET("/:id", studentHandler.GetStudent)
 			students.POST("", middleware.RequireRoles("admin", "super_admin"), studentHandler.CreateStudent)
