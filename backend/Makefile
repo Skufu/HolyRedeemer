@@ -1,4 +1,4 @@
-.PHONY: build run dev test clean migrate-up migrate-down migrate-create sqlc install-tools
+.PHONY: build run dev test clean migrate-up migrate-down migrate-create sqlc install-tools reset-db
 
 # Build the application
 build:
@@ -47,9 +47,10 @@ migrate-create:
 seed:
 	goose -dir internal/database/migrations postgres "$(DATABASE_URL)" up
 
-# Reset database (down all + up all)
-migrate-reset:
-	goose -dir internal/database/migrations postgres "$(DATABASE_URL)" reset
+# Reset database (drop schema + migrate)
+reset-db:
+	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"
+	goose -dir internal/database/migrations postgres "$(DATABASE_URL)" up
 
 # Tidy dependencies
 tidy:

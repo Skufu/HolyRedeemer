@@ -50,8 +50,8 @@ func (h *AuditHandler) ListAuditLogs(c *gin.Context) {
 		FromDate:   pgtype.Timestamp{Valid: false},
 		ToDate:     pgtype.Timestamp{Valid: false},
 		UserID:     pgtype.UUID{Valid: false},
-		Action:     sqlcdb.NullAuditAction{Valid: false},
-		EntityType: nil,
+		Action:     pgtype.Text{Valid: false},
+		EntityType: pgtype.Text{Valid: false},
 	}
 
 	if userIDStr != "" {
@@ -61,11 +61,11 @@ func (h *AuditHandler) ListAuditLogs(c *gin.Context) {
 	}
 
 	if action != "" {
-		params.Action = sqlcdb.NullAuditAction{AuditAction: sqlcdb.AuditAction(action), Valid: true}
+		params.Action = pgtype.Text{String: action, Valid: true}
 	}
 
 	if entityType != "" {
-		params.EntityType = entityType
+		params.EntityType = pgtype.Text{String: entityType, Valid: true}
 	}
 
 	logs, err := h.queries.ListAuditLogs(c.Request.Context(), params)

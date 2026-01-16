@@ -66,6 +66,7 @@ func main() {
 	auditHandler := handlers.NewAuditHandler(queries)
 	librarianHandler := handlers.NewLibrarianHandler(queries)
 	settingsHandler := handlers.NewSettingsHandler(queries)
+	requestHandler := handlers.NewRequestHandler(queries)
 
 	// Initialize router
 	router := gin.New()
@@ -202,6 +203,17 @@ func main() {
 			settings.PUT("", middleware.RequireRoles("admin", "super_admin"), settingsHandler.UpdateSettings)
 			settings.GET("/borrowing", settingsHandler.GetBorrowingSettings)
 			settings.GET("/fines", settingsHandler.GetFineSettings)
+		}
+
+		// Request routes
+		requests := v1.Group("/requests")
+		requests.Use(middleware.Auth(jwtManager))
+		{
+			requests.GET("", middleware.RequireRoles("admin", "super_admin", "librarian"), requestHandler.ListRequests)
+			requests.POST("", requestHandler.CreateRequest)
+			requests.GET("/pending-count", requestHandler.GetPendingCount)
+			requests.PUT("/:id/approve", middleware.RequireRoles("librarian", "admin", "super_admin"), requestHandler.ApproveRequest)
+			requests.PUT("/:id/reject", middleware.RequireRoles("librarian", "admin", "super_admin"), requestHandler.RejectRequest)
 		}
 	}
 
