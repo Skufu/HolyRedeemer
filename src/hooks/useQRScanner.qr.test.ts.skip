@@ -1,0 +1,110 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Html5Qrcode } from 'html5-qrcode';
+import { useQRScanner } from './useQRScanner';
+
+describe('useQRScanner Hook', () => {
+  let mockStart: ReturnType<typeof vi.fn>;
+  let mockStop: ReturnType<typeof vi.fn>;
+  let mockClear: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockStart = vi.fn().mockResolvedValue(undefined);
+    mockStop = vi.fn().mockResolvedValue(undefined);
+    mockClear = vi.fn().mockResolvedValue(undefined);
+
+    vi.mock('html5-qrcode', () => ({
+      Html5Qrcode: vi.fn().mockImplementation(() => ({
+        start: mockStart,
+        stop: mockStop,
+        clear: mockClear,
+      })),
+    }));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('initializes with correct default values', () => {
+    const onScanMock = vi.fn();
+    const onErrorMock = vi.fn();
+
+    const { result } = renderHook(() => useQRScanner({ onScan: onScanMock, onError: onErrorMock }));
+
+    expect(result.current.isScanning).toBe(false);
+    expect(result.current.hasPermission).toBe(null);
+  });
+
+  it('starts scanning when startScanning is called', async () => {
+    const onScanMock = vi.fn();
+    const onErrorMock = vi.fn();
+
+    const { result } = renderHook(() => useQRScanner({ onScan: onScanMock, onError: onErrorMock }));
+
+    await result.current.startScanning('test-element');
+
+    expect(Html5Qrcode).toHaveBeenCalledWith('test-element');
+    expect(mockStart).toHaveBeenCalled();
+    expect(result.current.isScanning).toBe(true);
+    expect(result.current.hasPermission).toBe(true);
+  });
+
+  it('stops scanning when stopScanning is called', async () => {
+    const onScanMock = vi.fn();
+    const onErrorMock = vi.fn();
+
+    const { result } = renderHook(() => useQRScanner({ onScan: onScanMock, onError: onErrorMock }));
+
+    await result.current.startScanning('test-element');
+    await result.current.stopScanning();
+
+    expect(mockStop).toHaveBeenCalled();
+    expect(mockClear).toHaveBeenCalled();
+    expect(result.current.isScanning).toBe(false);
+  });
+
+  it('calls onScan when QR code is detected', async () => {
+    const onScanMock = vi.fn();
+    const onErrorMock = vi.fn();
+
+    const { result } = renderHook(() => useQRScanner({ onScan: onScanMock, onError: onErrorMock }));
+
+    await result.current.startScanning('test-element');
+
+    expect(mockStart).toHaveBeenCalled();
+    const onDecodedCallback = mockStart.mock.calls[0][2];
+    onDecodedCallback('HR-TEST-123');
+
+    expect(onScanMock).toHaveBeenCalledWith('HR-TEST-123');
+  });
+
+  it('calls onError when scanning fails', async () => {
+    const onScanMock = vi.fn();
+    const onErrorMock = vi.fn();
+    const errorMessage = 'Permission denied';
+    mockStart.mockRejectedValue(new Error(errorMessage));
+
+    const { result } = renderHook(() => useQRScanner({ onScan: onScanMock, onError: onErrorMock }));
+
+    await result.current.startScanning('test-element');
+
+    expect(onErrorMock).toHaveBeenCalledWith(errorMessage);
+    expect(result.current.hasPermission).toBe(false);
+  });
+
+  it('cleans up scanner on unmount', async () => {
+    const onScanMock = vi.fn();
+    const onErrorMock = vi.fn();
+
+    const { unmount } = renderHook(() => useQRScanner({ onScan: onScanMock, onError: onErrorMock }));
+
+    await renderHook(() => useQRScanner({ onScan: onScanMock, onError: onErrorMock })).result.current.startScanning('test-element');
+
+    unmount();
+
+    expect(mockStop).toHaveBeenCalled();
+  });
+});
