@@ -30,11 +30,13 @@ import {
   Loader2,
   Filter,
   CheckCircle,
-  History
+  History,
 } from 'lucide-react';
 import { useBooks, useCategories } from '@/hooks/useBooks';
 import { Book, Category } from '@/services/books';
+import { studentsService } from '@/services/students';
 import BookCover from '@/components/BookCover';
+import { toast } from 'sonner';
 
 const StudentCatalog = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,6 +44,8 @@ const StudentCatalog = () => {
   const [availabilityFilter, setAvailabilityFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [notes, setNotes] = useState('');
+  const [isReserving, setIsReserving] = useState(false);
 
   const { data: booksData, isLoading: booksLoading } = useBooks({
     search: searchQuery || undefined,
@@ -67,6 +71,27 @@ const StudentCatalog = () => {
       return <Badge className="bg-amber-500 hover:bg-amber-600">{available} left</Badge>;
     }
     return <Badge variant="secondary">{available} available</Badge>;
+  };
+
+  const handleReserveBook = async () => {
+    if (!selectedBook) return;
+
+    setIsReserving(true);
+    try {
+      await studentsService.reserveBook(selectedBook.id, notes);
+      toast.success('Book reserved successfully!', {
+        description: `${selectedBook.title} has been added to your reservations.`,
+      });
+      setSelectedBook(null);
+      setNotes('');
+    } catch (error) {
+      console.error('Error reserving book:', error);
+      toast.error('Failed to reserve book', {
+        description: 'Please try again or contact the librarian.',
+      });
+    } finally {
+      setIsReserving(false);
+    }
   };
 
   return (
@@ -193,7 +218,12 @@ const StudentCatalog = () => {
         </div>
       )}
 
-      <Dialog open={!!selectedBook} onOpenChange={() => setSelectedBook(null)}>
+      <Dialog open={!!selectedBook} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedBook(null);
+          setNotes('');
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
           <DialogHeader>
             <DialogTitle className="font-display text-lg sm:text-xl pr-4">{selectedBook?.title}</DialogTitle>
@@ -249,6 +279,18 @@ const StudentCatalog = () => {
                 </div>
               )}
 
+              {(selectedBook.availableCopies || 0) > 0 && (
+                <div>
+                  <h4 className="font-semibold mb-2 text-sm sm:text-base">Reservation Notes (Optional)</h4>
+                  <Input
+                    placeholder="Add a note for the librarian (e.g., needed for research project)"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="min-h-[80px]"
+                  />
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t">
                 <div>
                   <span className="text-sm text-muted-foreground">Availability: </span>
@@ -257,8 +299,19 @@ const StudentCatalog = () => {
                   </span>
                 </div>
                 {(selectedBook.availableCopies || 0) > 0 ? (
-                  <Button className="bg-primary hover:bg-primary/90 w-full sm:w-auto">
-                    Reserve Book
+                  <Button
+                    onClick={handleReserveBook}
+                    disabled={isReserving}
+                    className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
+                  >
+                    {isReserving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Reserving...
+                      </>
+                    ) : (
+                      'Reserve Book'
+                    )}
                   </Button>
                 ) : (
                   <Button variant="outline" disabled className="w-full sm:w-auto">

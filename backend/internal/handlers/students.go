@@ -583,6 +583,113 @@ func getTransactionStatus(s sqlcdb.NullTransactionStatus) string {
 	return "borrowed"
 }
 
+// ReserveBookRequest represents the reserve book request
+type ReserveBookRequest struct {
+	BookID string `json:"book_id" binding:"required"`
+	Notes  string `json:"notes"`
+}
+
+// ReserveBook creates a book reservation for a student
+func (h *StudentHandler) ReserveBook(c *gin.Context) {
+	authUser := middleware.GetAuthUser(c)
+	if authUser == nil {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	var req ReserveBookRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
+
+	// Validate book ID
+	bookID, err := uuid.Parse(req.BookID)
+	if err != nil {
+		response.BadRequest(c, "Invalid book ID")
+		return
+	}
+
+	// Get authenticated user's student record
+	userID, err := uuid.Parse(authUser.ID)
+	if err != nil {
+		response.InternalError(c, "Invalid user ID")
+		return
+	}
+
+	student, err := h.queries.GetStudentByUserID(c.Request.Context(), toPgUUID(userID))
+	if err != nil {
+		response.NotFound(c, "Student profile not found")
+		return
+	}
+
+	// Check if student account is active
+	if !isStudentStatusActive(student.Status) {
+		response.BadRequest(c, "Student account is not active")
+		return
+	}
+
+	// Check student's current loans (limit total active loans + reservations)
+	currentLoans, _ := h.queries.GetStudentCurrentLoans(c.Request.Context(), toPgUUID(student.ID))
+	if currentLoans >= 5 { // Assuming max 5 active reservations/loans combined
+		response.BadRequest(c, "You have reached the maximum limit for loans and reservations")
+		return
+	}
+
+	// Check if the book exists
+	book, err := h.queries.GetBookByID(c.Request.Context(), bookID)
+	if err != nil {
+		response.NotFound(c, "Book not found")
+		return
+	}
+
+	// Check if book is active
+	if book.Status.Valid && book.Status.BookStatus != sqlcdb.BookStatusActive {
+		response.BadRequest(c, "Book is not available for reservation")
+		return
+	}
+
+	// Check if there are available copies
+	copies, err := h.queries.ListCopiesByBook(c.Request.Context(), toPgUUID(bookID))
+	if err != nil || len(copies) == 0 {
+		response.NotFound(c, "No copies available for this book")
+		return
+	}
+
+	// Check if student already has an active reservation for this book
+	activeRequests, _ := h.queries.ListRequests(c.Request.Context(), sqlcdb.ListRequestsParams{
+		Limit:     1000,
+		Offset:    0,
+		Status:    sqlcdb.NullRequestStatus{RequestStatus: sqlcdb.RequestStatusPending, Valid: true},
+		StudentID: toPgUUID(student.ID),
+	})
+	for _, r := range activeRequests {
+		if r.BookID == toPgUUID(bookID) && r.RequestType == sqlcdb.RequestTypeReservation {
+			response.BadRequest(c, "You already have a pending reservation for this book")
+			return
+		}
+	}
+
+	// Create the reservation request
+	request, err := h.queries.CreateRequest(c.Request.Context(), sqlcdb.CreateRequestParams{
+		StudentID:   toPgUUID(student.ID),
+		BookID:      toPgUUID(bookID),
+		RequestType: sqlcdb.RequestTypeReservation,
+		Notes:       toPgText(req.Notes),
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to create reservation")
+		return
+	}
+
+	response.Success(c, gin.H{
+		"id":           request.ID.String(),
+		"book_title":   book.Title,
+		"request_type": "reservation",
+		"status":       "pending",
+	}, "Book reservation created successfully")
+}
+
 // Helper function for fine status
 func getFineStatus(s sqlcdb.NullFineStatus) string {
 	if s.Valid {
