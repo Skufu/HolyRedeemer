@@ -17,7 +17,8 @@ import {
   RefreshCw,
   Camera,
   XCircle,
-  Loader2
+  Loader2,
+  Keyboard
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import QRScannerModal from '@/components/circulation/QRScannerModal';
@@ -54,6 +55,7 @@ const Circulation: React.FC = () => {
   const [scannedBooks, setScannedBooks] = useState<ScannedBook[]>([]);
   const [studentSearch, setStudentSearch] = useState('');
   const [bookSearch, setBookSearch] = useState('');
+  const [manualBookQR, setManualBookQR] = useState('');
   
   const { toast } = useToast();
 
@@ -87,8 +89,10 @@ const Circulation: React.FC = () => {
 
   const studentLoans = studentLoansData?.data || [];
 
-  const handleQRScan = async (qrCode: string) => {
-    if (scanTarget === 'student') {
+  const handleQRScan = async (qrCode: string, targetOverride?: 'student' | 'book') => {
+    const target = targetOverride || scanTarget;
+
+    if (target === 'student') {
       // RFID lookup for student
       try {
         const result = await rfidLookup.mutateAsync(qrCode);
@@ -154,6 +158,12 @@ const Circulation: React.FC = () => {
         });
       }
     }
+  };
+
+  const handleManualBookSubmit = async () => {
+    if (!manualBookQR.trim()) return;
+    await handleQRScan(manualBookQR.trim(), 'book');
+    setManualBookQR('');
   };
 
   const handleStudentSelect = (student: Student) => {
@@ -235,6 +245,7 @@ const Circulation: React.FC = () => {
     setScannedBooks([]);
     setStudentSearch('');
     setBookSearch('');
+    setManualBookQR('');
   };
 
   const isProcessing = checkoutMutation.isPending || returnMutation.isPending;
@@ -412,6 +423,32 @@ const Circulation: React.FC = () => {
                     </Button>
                   </div>
 
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Manual QR entry (e.g. HR-B001-C1)"
+                        value={manualBookQR}
+                        onChange={(e) => setManualBookQR(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleManualBookSubmit()}
+                        className="pl-9"
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleManualBookSubmit}
+                      variant="secondary"
+                      className="gap-2 shrink-0"
+                      disabled={!manualBookQR.trim() || copyByQRMutation.isPending}
+                    >
+                      {copyByQRMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Keyboard className="h-4 w-4" />
+                      )}
+                      Submit
+                    </Button>
+                  </div>
+
                   {/* Book Search Results */}
                   {filteredBooks.length > 0 && (
                     <div className="border rounded-lg divide-y bg-card">
@@ -586,6 +623,32 @@ const Circulation: React.FC = () => {
                       <Camera className="h-4 w-4" />
                     )}
                     Scan QR
+                  </Button>
+                </div>
+
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Manual QR entry (e.g. HR-B001-C1)"
+                      value={manualBookQR}
+                      onChange={(e) => setManualBookQR(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleManualBookSubmit()}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleManualBookSubmit}
+                    variant="secondary"
+                    className="gap-2 shrink-0"
+                    disabled={!manualBookQR.trim() || copyByQRMutation.isPending}
+                  >
+                    {copyByQRMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Keyboard className="h-4 w-4" />
+                    )}
+                    Submit
                   </Button>
                 </div>
 

@@ -34,9 +34,8 @@ import {
 } from 'lucide-react';
 import { useBooks, useCategories } from '@/hooks/useBooks';
 import { Book, Category } from '@/services/books';
-import { studentsService } from '@/services/students';
+import { useReserveBook } from '@/hooks/useStudents';
 import BookCover from '@/components/BookCover';
-import { toast } from 'sonner';
 
 const StudentCatalog = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,6 +45,8 @@ const StudentCatalog = () => {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [notes, setNotes] = useState('');
   const [isReserving, setIsReserving] = useState(false);
+
+  const reserveBook = useReserveBook();
 
   const { data: booksData, isLoading: booksLoading } = useBooks({
     search: searchQuery || undefined,
@@ -78,17 +79,9 @@ const StudentCatalog = () => {
 
     setIsReserving(true);
     try {
-      await studentsService.reserveBook(selectedBook.id, notes);
-      toast.success('Book reserved successfully!', {
-        description: `${selectedBook.title} has been added to your reservations.`,
-      });
+      await reserveBook.mutateAsync({ bookId: selectedBook.id, notes });
       setSelectedBook(null);
       setNotes('');
-    } catch (error) {
-      console.error('Error reserving book:', error);
-      toast.error('Failed to reserve book', {
-        description: 'Please try again or contact the librarian.',
-      });
     } finally {
       setIsReserving(false);
     }
