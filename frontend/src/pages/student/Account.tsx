@@ -38,7 +38,7 @@ import { format, parseISO } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { useMyProfile, useStudentLoans, useStudentHistory, useStudentFines, useStudentRequests } from '@/hooks/useStudents';
 import { useRenew } from '@/hooks/useCirculation';
-import { StudentFine } from '@/services/students';
+import { StudentFine, StudentRequest } from '@/services/students';
 
 const StudentAccount = () => {
   const [payFineModalOpen, setPayFineModalOpen] = useState(false);
@@ -363,7 +363,7 @@ const StudentAccount = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {myReservations.map((reservation: any) => (
+                    {myReservations.map((reservation: StudentRequest) => (
                       <TableRow key={reservation.id}>
                         <TableCell>
                           <div>

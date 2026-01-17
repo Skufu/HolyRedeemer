@@ -45,6 +45,10 @@ export const useApproveRequest = () => {
     mutationFn: (id: string) => requestsService.approve(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['requests'] });
+      queryClient.invalidateQueries({ queryKey: ['loans'] });
+      queryClient.invalidateQueries({ queryKey: ['student-loans'] });
+      queryClient.invalidateQueries({ queryKey: ['books'] });
+      queryClient.invalidateQueries({ queryKey: ['student-requests'] });
       toast({ title: 'Success', description: 'Request approved' });
     },
     onError: (error: unknown) => {

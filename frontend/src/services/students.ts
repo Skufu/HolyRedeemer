@@ -53,6 +53,21 @@ export interface StudentLoan {
   bookIsbn?: string;
 }
 
+export interface StudentRequest {
+  id: string;
+  studentId: string;
+  studentCode: string;
+  studentName: string;
+  bookId: string;
+  bookTitle: string;
+  bookAuthor: string;
+  requestType: 'reservation' | 'request';
+  status: 'pending' | 'approved' | 'rejected' | 'fulfilled' | 'cancelled';
+  notes?: string;
+  requestDate: string;
+  processedAt?: string;
+}
+
 export interface StudentFine {
   id: string;
   studentId: string;
@@ -126,6 +141,14 @@ export const studentsService = {
 
   getFines: async (id: string): Promise<ApiResponse<StudentFine[]>> => {
     const response = await api.get<ApiResponse<StudentFine[]>>(`/students/${id}/fines`);
+    return response.data;
+  },
+
+  getRequests: async (
+    id: string,
+    params?: { page?: number; per_page?: number; status?: string; request_type?: 'reservation' | 'request' }
+  ): Promise<ApiResponse<StudentRequest[]>> => {
+    const response = await api.get<ApiResponse<StudentRequest[]>>(`/students/${id}/requests`, { params });
     return response.data;
   },
 

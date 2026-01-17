@@ -66,7 +66,7 @@ func main() {
 	auditHandler := handlers.NewAuditHandler(queries)
 	librarianHandler := handlers.NewLibrarianHandler(queries)
 	settingsHandler := handlers.NewSettingsHandler(queries)
-	requestHandler := handlers.NewRequestHandler(queries)
+	requestHandler := handlers.NewRequestHandler(queries, cfg, db.Pool)
 
 	// Initialize router
 	router := gin.New()
@@ -134,6 +134,7 @@ func main() {
 			students.POST("/reserve", studentHandler.ReserveBook)
 			students.GET("/:id/loans", studentHandler.GetStudentLoans)
 			students.GET("/:id/history", studentHandler.GetStudentHistory)
+			students.GET("/:id/requests", studentHandler.GetStudentRequests)
 			students.GET("/:id/fines", studentHandler.GetStudentFines)
 		}
 

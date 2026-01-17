@@ -1,5 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { studentsService, ListStudentsParams, CreateStudentRequest, Student } from '@/services/students';
+import {
+  studentsService,
+  ListStudentsParams,
+  CreateStudentRequest,
+  Student,
+} from '@/services/students';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/services/api';
 
@@ -46,6 +51,47 @@ export const useStudentFines = (id: string) => {
     queryKey: ['student-fines', id],
     queryFn: () => studentsService.getFines(id),
     enabled: !!id,
+  });
+};
+
+export const useStudentRequests = (
+  id: string,
+  params?: { page?: number; per_page?: number; status?: string; request_type?: 'reservation' | 'request' }
+) => {
+  return useQuery({
+    queryKey: ['student-requests', id, params],
+    queryFn: () => studentsService.getRequests(id, params),
+    enabled: !!id,
+  });
+};
+
+export const useReserveBook = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({ bookId, notes }: { bookId: string; notes?: string }) =>
+      studentsService.reserveBook(bookId, notes),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['books'] });
+      queryClient.invalidateQueries({ queryKey: ['student-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['student-loans'] });
+      queryClient.invalidateQueries({ queryKey: ['student-history'] });
+      toast({
+        title: 'Success',
+        description: 'Book reserved successfully',
+      });
+      if (variables?.bookId) {
+        queryClient.invalidateQueries({ queryKey: ['book', variables.bookId] });
+      }
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Reservation Failed',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
+    },
   });
 };
 
