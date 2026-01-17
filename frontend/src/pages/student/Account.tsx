@@ -31,11 +31,12 @@ import {
   CreditCard,
   CheckCircle2,
   AlertTriangle,
-  Clock
+  Clock,
+  CalendarClock
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
-import { useMyProfile, useStudentLoans, useStudentHistory, useStudentFines } from '@/hooks/useStudents';
+import { useMyProfile, useStudentLoans, useStudentHistory, useStudentFines, useStudentRequests } from '@/hooks/useStudents';
 import { useRenew } from '@/hooks/useCirculation';
 import { StudentFine } from '@/services/students';
 
@@ -49,12 +50,14 @@ const StudentAccount = () => {
   const { data: loansResponse, isLoading: loansLoading } = useStudentLoans(profile?.id || '');
   const { data: historyResponse, isLoading: historyLoading } = useStudentHistory(profile?.id || '');
   const { data: finesResponse, isLoading: finesLoading } = useStudentFines(profile?.id || '');
+  const { data: reservationsResponse, isLoading: reservationsLoading } = useStudentRequests(profile?.id || '', { request_type: 'reservation' });
 
   const renewLoan = useRenew();
 
   const activeLoans = loansResponse?.data?.filter(l => l.status === 'borrowed' || l.status === 'overdue') || [];
   const history = historyResponse?.data?.filter(l => l.status === 'returned') || [];
   const myFines = finesResponse?.data || [];
+  const myReservations = reservationsResponse?.data || [];
   const pendingFines = myFines.filter(f => f.status === 'pending');
   const totalPending = pendingFines.reduce((acc, f) => acc + f.amount, 0);
 
@@ -84,6 +87,15 @@ const StudentAccount = () => {
         return <Badge variant="destructive">Overdue</Badge>;
       case 'returned':
         return <Badge className="bg-green-600 hover:bg-green-700">Returned</Badge>;
+      case 'pending':
+        return <Badge variant="secondary" className="bg-yellow-500/15 text-yellow-700 hover:bg-yellow-500/25 border-yellow-500/20">Pending</Badge>;
+      case 'approved':
+        return <Badge className="bg-green-600 hover:bg-green-700">Approved</Badge>;
+      case 'rejected':
+      case 'cancelled':
+        return <Badge variant="destructive">Cancelled</Badge>;
+      case 'fulfilled':
+        return <Badge variant="outline" className="border-green-600 text-green-600">Fulfilled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -204,6 +216,10 @@ const StudentAccount = () => {
             <Clock className="h-4 w-4" />
             Borrowing History
           </TabsTrigger>
+          <TabsTrigger value="reservations" className="flex items-center gap-2">
+            <CalendarClock className="h-4 w-4" />
+            Reservations
+          </TabsTrigger>
           <TabsTrigger value="fines" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
             Fines ({pendingFines.length})
@@ -312,6 +328,56 @@ const StudentAccount = () => {
                           {loan.returnDate ? format(parseISO(loan.returnDate), 'MMM dd, yyyy') : '-'}
                         </TableCell>
                         <TableCell>{getStatusBadge(loan.status)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Reservations Tab */}
+        <TabsContent value="reservations">
+          <Card>
+            <CardContent className="p-0">
+              {reservationsLoading ? (
+                <div className="p-4 space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : myReservations.length === 0 ? (
+                <div className="text-center py-12">
+                  <CalendarClock className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
+                  <p className="text-muted-foreground">No active reservations</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Book</TableHead>
+                      <TableHead>Request Date</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {myReservations.map((reservation: any) => (
+                      <TableRow key={reservation.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{reservation.bookTitle}</p>
+                            <p className="text-xs text-muted-foreground">{reservation.bookAuthor}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {reservation.requestDate ? format(parseISO(reservation.requestDate), 'MMM dd, yyyy') : '-'}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate text-muted-foreground">
+                          {reservation.notes || '-'}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(reservation.status)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
