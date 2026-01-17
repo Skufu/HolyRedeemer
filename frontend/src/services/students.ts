@@ -128,4 +128,12 @@ export const studentsService = {
     const response = await api.get<ApiResponse<StudentFine[]>>(`/students/${id}/fines`);
     return response.data;
   },
+
+  reserveBook: async (bookId: string, notes?: string): Promise<ApiResponse<{ id: string }>> => {
+    const response = await api.post<ApiResponse<{ id: string }>>('/students/reserve', {
+      book_id: bookId,
+      notes: notes || undefined,
+    });
+    return response.data;
+  },
 };

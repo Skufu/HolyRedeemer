@@ -131,6 +131,7 @@ func main() {
 			students.GET("/:id", studentHandler.GetStudent)
 			students.POST("", middleware.RequireRoles("admin", "super_admin"), studentHandler.CreateStudent)
 			students.PUT("/:id", middleware.RequireRoles("admin", "super_admin", "librarian"), studentHandler.UpdateStudent)
+			students.POST("/reserve", studentHandler.ReserveBook)
 			students.GET("/:id/loans", studentHandler.GetStudentLoans)
 			students.GET("/:id/history", studentHandler.GetStudentHistory)
 			students.GET("/:id/fines", studentHandler.GetStudentFines)
