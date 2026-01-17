@@ -1,0 +1,458 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Holy Redeemer School Library Management System
+   A warm, scholarly aesthetic inspired by classic libraries
+   
+   Primary: Deep Maroon #6B1528 (HSL: 348 68% 25%)
+   Secondary: Antique Gold #C9A227 (HSL: 47 70% 47%)
+   Accents: Mahogany, Parchment, Forest Green
+*/
+
+@layer base {
+  :root {
+    /* Core palette - warm library aesthetic */
+    --background: 35 30% 96%;
+    --foreground: 25 25% 15%;
+
+    --card: 38 35% 97%;
+    --card-foreground: 25 25% 15%;
+
+    --popover: 38 35% 97%;
+    --popover-foreground: 25 25% 15%;
+
+    /* Deep maroon - like aged leather */
+    --primary: 348 68% 25%;
+    --primary-foreground: 40 30% 95%;
+
+    /* Antique gold - brass fixtures, gilded spines */
+    --secondary: 47 70% 47%;
+    --secondary-foreground: 25 30% 12%;
+
+    /* Muted tones - aged paper */
+    --muted: 35 20% 90%;
+    --muted-foreground: 25 15% 40%;
+
+    /* Accent - warm highlight */
+    --accent: 35 45% 88%;
+    --accent-foreground: 348 60% 22%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders - subtle warmth */
+    --border: 35 25% 82%;
+    --input: 35 25% 85%;
+    --ring: 348 68% 30%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar - deep mahogany */
+    --sidebar-background: 348 65% 18%;
+    --sidebar-foreground: 40 30% 95%;
+    --sidebar-primary: 47 70% 52%;
+    --sidebar-primary-foreground: 25 30% 12%;
+    --sidebar-accent: 348 55% 25%;
+    --sidebar-accent-foreground: 40 30% 95%;
+    --sidebar-border: 348 45% 25%;
+    --sidebar-ring: 47 70% 52%;
+
+    /* Custom semantic colors */
+    --gold: 47 70% 47%;
+    --gold-light: 45 55% 85%;
+    --gold-dark: 43 75% 35%;
+    --maroon-light: 348 40% 94%;
+    --mahogany: 15 55% 25%;
+    --parchment: 40 40% 94%;
+    --forest: 150 35% 30%;
+
+    /* Status colors */
+    --success: 150 50% 35%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 85% 50%;
+    --warning-foreground: 25 30% 12%;
+    --info: 200 60% 40%;
+    --info-foreground: 0 0% 100%;
+
+    /* Texture overlays */
+    --texture-opacity: 0.03;
+
+    /* Shadows with warmth */
+    --shadow-warm: 0 4px 20px -4px hsl(25 40% 20% / 0.12);
+    --shadow-glow: 0 0 30px hsl(47 70% 47% / 0.15);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  }
+
+  /* Headings use Playfair Display */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .font-display {
+    font-family: 'Playfair Display', Georgia, serif;
+    @apply tracking-tight;
+  }
+
+  /* Subtle paper texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.025;
+    z-index: 9999;
+  }
+}
+
+@layer components {
+
+  /* Status badges */
+  .status-badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium tracking-wide;
+  }
+
+  .status-active {
+    @apply bg-success/15 text-success border border-success/20;
+  }
+
+  .status-overdue {
+    @apply bg-destructive/15 text-destructive border border-destructive/20;
+  }
+
+  .status-pending {
+    @apply bg-warning/15 text-warning border border-warning/20;
+  }
+
+  .status-returned {
+    @apply bg-info/15 text-info border border-info/20;
+  }
+
+  /* Stat cards with depth */
+  .card-stat {
+    @apply bg-card rounded-xl border p-6 transition-all duration-300;
+    box-shadow: var(--shadow-warm);
+  }
+
+  .card-stat:hover {
+    @apply border-secondary/30;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-warm), var(--shadow-glow);
+  }
+
+  /* Navigation links */
+  .nav-link {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-foreground/80 transition-all duration-200 font-medium text-sm;
+  }
+
+  .nav-link:hover {
+    @apply bg-sidebar-accent/60 text-sidebar-foreground;
+  }
+
+  .nav-link-active {
+    @apply bg-sidebar-accent text-sidebar-foreground;
+    box-shadow: inset 3px 0 0 hsl(var(--sidebar-primary));
+  }
+
+  /* Library card aesthetic */
+  .library-card {
+    @apply relative bg-card rounded-xl border overflow-hidden;
+    box-shadow: var(--shadow-warm);
+  }
+
+  .library-card::before {
+    content: '';
+    @apply absolute inset-0 pointer-events-none;
+    background: linear-gradient(135deg, hsl(47 70% 47% / 0.05) 0%, transparent 50%);
+  }
+
+  /* Decorative book spine pattern */
+  .book-spine-pattern {
+    background-image: repeating-linear-gradient(90deg,
+        hsl(var(--border)) 0px,
+        hsl(var(--border)) 1px,
+        transparent 1px,
+        transparent 24px);
+  }
+
+  /* Gold accent border */
+  .gold-border-top {
+    border-top: 3px solid hsl(var(--secondary));
+  }
+
+  /* Parchment background */
+  .bg-parchment {
+    background: linear-gradient(180deg,
+        hsl(var(--parchment)) 0%,
+        hsl(35 35% 92%) 100%);
+  }
+
+  /* Warm gradient backgrounds */
+  .bg-library-gradient {
+    background: linear-gradient(135deg,
+        hsl(var(--background)) 0%,
+        hsl(35 25% 94%) 50%,
+        hsl(40 30% 95%) 100%);
+  }
+
+  /* Scholarly header */
+  .scholarly-header {
+    @apply relative;
+    background: linear-gradient(180deg,
+        hsl(var(--card)) 0%,
+        hsl(var(--background)) 100%);
+  }
+}
+
+@layer utilities {
+
+  /* Staggered fade-in animations */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.5s ease-out forwards;
+  }
+
+  /* Stagger delays for lists */
+  .stagger-1 {
+    animation-delay: 0.05s;
+  }
+
+  .stagger-2 {
+    animation-delay: 0.1s;
+  }
+
+  .stagger-3 {
+    animation-delay: 0.15s;
+  }
+
+  .stagger-4 {
+    animation-delay: 0.2s;
+  }
+
+  .stagger-5 {
+    animation-delay: 0.25s;
+  }
+
+  .stagger-6 {
+    animation-delay: 0.3s;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(0);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Slide animations */
+  .animate-slide-in {
+    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Scale animations */
+  .animate-scale-in {
+    animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.92);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Page turn effect */
+  .animate-page-turn {
+    animation: pageTurn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: left center;
+  }
+
+  @keyframes pageTurn {
+    from {
+      opacity: 0;
+      transform: perspective(1000px) rotateY(-15deg);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Success pulse for confirmations */
+  .animate-success-pulse {
+    animation: successPulse 0.6s ease-out;
+  }
+
+  @keyframes successPulse {
+    0% {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+
+    50% {
+      transform: scale(1.05);
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Scan line animation */
+  .animate-scan-line {
+    animation: scanLine 2s ease-in-out infinite;
+  }
+
+  @keyframes scanLine {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(100%);
+    }
+  }
+
+  /* Gentle hover lift */
+  .hover-lift {
+    @apply transition-all duration-300;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-warm);
+  }
+
+  /* Gold shimmer effect */
+  .gold-shimmer {
+    @apply relative overflow-hidden;
+  }
+
+  .gold-shimmer::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full;
+    background: linear-gradient(90deg,
+        transparent,
+        hsl(47 70% 60% / 0.2),
+        transparent);
+    animation: shimmer 3s infinite;
+  }
+
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Text selection with brand colors */
+  ::selection {
+    background: hsl(var(--secondary) / 0.3);
+    color: hsl(var(--foreground));
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 5px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 5px;
+    border: 2px solid hsl(var(--muted));
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Focus ring with gold accent */
+  .focus-gold:focus-visible {
+    @apply outline-none ring-2 ring-offset-2;
+    ring-color: hsl(var(--secondary));
+    ring-offset-color: hsl(var(--background));
+  }
+}

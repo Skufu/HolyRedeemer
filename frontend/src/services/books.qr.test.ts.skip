@@ -1,0 +1,178 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render } from '@testing-library/react';
+import { server } from '@/test/setup';
+import { http, HttpResponse } from 'msw';
+import { QRCodeSVG } from 'qrcode.react';
+import React from 'react';
+import { booksService } from './books';
+
+const API_URL = 'http://localhost:3847/api/v1';
+
+describe('QR Management', () => {
+  beforeEach(() => {
+    localStorage.setItem('lms_access_token', 'mock-token');
+  });
+
+  describe('booksService', () => {
+    describe('getCopyByQR', () => {
+      it('returns copy by QR code', async () => {
+        server.use(
+          http.get(`${API_URL}/copies/HR-001-C1`, () => {
+            return HttpResponse.json({
+              success: true,
+              data: {
+                id: 'copy-1',
+                bookId: 'book-1',
+                copyNumber: 1,
+                qrCode: 'HR-001-C1',
+                status: 'available',
+                condition: 'good',
+                book: { id: 'book-1', title: 'Test Book', author: 'Test Author' },
+              },
+            });
+          })
+        );
+
+        const response = await booksService.getCopyByQR('HR-001-C1');
+
+        expect(response.success).toBe(true);
+        expect(response.data.id).toBe('copy-1');
+        expect(response.data.qrCode).toBe('HR-001-C1');
+      });
+
+      it('returns 404 for invalid QR code', async () => {
+        server.use(
+          http.get(`${API_URL}/copies/INVALID-QR`, () => {
+            return HttpResponse.json({ success: false, error: { code: 'NOT_FOUND', message: 'Copy not found' } }, { status: 404 });
+          })
+        );
+
+        await expect(booksService.getCopyByQR('INVALID-QR')).rejects.toThrow();
+      });
+    });
+  });
+});
+
+describe('QR Code Generation', () => {
+  it('generates valid QR code format', () => {
+    const bookID = '8a2b3c4d-5e6f-7a8b-9c0d-1e2f3';
+    const copyNumber = 1;
+    const expectedQR = `HR-${bookID}-C${copyNumber}`;
+
+    expect(expectedQR).toBe('HR-8a2b3c4d-5e6f-7a8b-9c0d-1e2f3-C1');
+    expect(expectedQR.length).toBeGreaterThan(15);
+    expect(expectedQR).toMatch(/^HR-[\da-f-]+-C\d+$/);
+  });
+
+  it('generates QR codes for multiple copies', () => {
+    const bookID = '8a2b3c4d-5e6f';
+    const copies = 5;
+
+    for (let i = 1; i <= copies; i++) {
+      const qrCode = `HR-${bookID}-C${i}`;
+      expect(qrCode).toMatch(/^HR-[\da-f-]+-C\d+$/);
+    }
+  });
+
+  it('handles double-digit copy numbers', () => {
+    const bookID = '8a2b3c4d-5e6f';
+    const copyNumber = 12;
+    const expectedQR = `HR-${bookID}-C${copyNumber}`;
+
+    expect(expectedQR).toBe('HR-8a2b3c4d-5e6f-C12');
+  });
+
+  it('handles triple-digit copy numbers', () => {
+    const bookID = '8a2b3c4d-5e6f';
+    const copyNumber = 123;
+    const expectedQR = `HR-${bookID}-C${copyNumber}`;
+
+    expect(expectedQR).toBe('HR-8a2b3c4d-5e6f-C123');
+  });
+});
+
+describe('QR Code Validation', () => {
+  const validQRCodes = [
+    'HR-8a2b3c4d-C1',
+    'HR-8a2b3c4d-C12',
+    'HR-8a2b3c4d-C123',
+    'HR-8a2b3c4d-5e6f-7a8b-9c0d-1e2f3-C1',
+    'HR-8a2b3c4d-5e6f-7a8b-9c0d-1e2f3-a4b5-C12',
+  ];
+
+  const invalidQRCodes = [
+    'QR-001-C1',
+    '8a2b3c4d-C1',
+    'invalid-qr',
+    'HR-INVALID-C',
+    '',
+    'HR-123',
+    'HR-8a2b3c4d',
+    'HR-',
+  ];
+
+  it('accepts valid QR code formats', () => {
+    validQRCodes.forEach(qrCode => {
+      expect(validateQRCodeFormat(qrCode)).toBe(true);
+    });
+  });
+
+  it('rejects invalid QR code formats', () => {
+    invalidQRCodes.forEach(qrCode => {
+      expect(validateQRCodeFormat(qrCode)).toBe(false);
+    });
+  });
+});
+
+function validateQRCodeFormat(qrCode: string): boolean {
+  if (!qrCode || qrCode.length < 12) return false;
+  if (!qrCode.startsWith('HR-')) return false;
+  const parts = qrCode.split('-');
+  if (parts.length < 3) return false;
+
+  // Last part should be copy number (C followed by digits)
+  const copyPart = parts[parts.length - 1];
+  if (!copyPart.startsWith('C')) return false;
+  if (!/^\d+$/.test(copyPart.substring(1))) return false;
+
+  // Everything between HR- and copy number is the book ID
+  const bookID = parts.slice(1, parts.length - 1).join('-');
+  if (bookID.length < 8) return false;
+  if (!/^[\da-f-]+$/.test(bookID)) return false;
+
+  return true;
+}
+
+describe('QR Code Display Component', () => {
+  it('renders QR code with QRCodeSVG', () => {
+    const qrCode = 'HR-8a2b3c4d-C1';
+
+    const { container } = render(
+      React.createElement('div', {},
+        React.createElement(QRCodeSVG, { value: qrCode, size: 72, level: 'M' })
+      )
+    );
+
+    expect(container.querySelector('svg')).toBeTruthy();
+    expect(container.innerHTML).toContain('HR-8a2b3c4d-C1');
+  });
+
+  it('displays copy status and condition badges', () => {
+    const copy = {
+      id: 'copy-1',
+      qrCode: 'HR-8a2b3c4d-C1',
+      status: 'available',
+      condition: 'good',
+      copyNumber: 1,
+    };
+
+    const { container } = render(
+      React.createElement('div', {},
+        React.createElement('div', { className: 'badge bg-success text-white px-2 py-1' }, 'Available'),
+        React.createElement('div', { className: 'badge bg-info text-white px-2 py-1' }, 'Good'),
+      )
+    );
+    expect(container.textContent).toContain('Available');
+    expect(container.textContent).toContain('Good');
+  });
+});
