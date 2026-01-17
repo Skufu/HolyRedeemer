@@ -111,13 +111,26 @@ cd backend && go test ./internal/handlers -v -run TestQRCode
 ```bash
 cd frontend
 npm run build
-# Result: built in 12.80s - no errors
+# Result: built in 4.86s - no errors
+# Note: Node 21.7.0 warning about Vite version requirements
 ```
 
 **Build Output:**
-- Total bundles: 33 JavaScript files
-- Largest bundle: 473.70 KB (index.js)
-- Total build time: 12.80s
+- Build completed successfully (Vite v7.3.1)
+- Node.js version warning shown (requires 20.19+ or 22.12+)
+
+### 2.2 UX Flow Enhancements (January 17, 2026)
+
+**Student Experience Updates:**
+- **Catalog**: Added list view, pagination controls, and “Clear filters” empty-state action.
+- **Dashboard**: “Pay Now” deep-links to fines tab; “Renew” now triggers renew action with fallback to account page.
+- **Notifications**: Added per-notification “View details” links to the relevant account tabs.
+- **Account Tabs**: Account page now honors `?tab=` query parameter to open the correct tab.
+
+**Librarian Experience Updates:**
+- **Circulation**: Added manual student ID entry and improved batch checkout/return to handle partial failures.
+- **Daily Operations**: Added “Go to Checkout” action in pending requests and a toast quick-action after approval.
+- **Student Lookup**: Added fine actions (pay/waive) and quick navigation to Circulation.
 - Build mode: Production
 - Gzipped: All files optimized with gzip
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,12 +16,14 @@ import {
   Phone,
   Mail,
   Camera,
-  Loader2
+  Loader2,
+  ArrowRight
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import QRScannerModal from '@/components/circulation/QRScannerModal';
 import { useToast } from '@/hooks/use-toast';
 import { useStudents, useStudentLoans, useStudentHistory, useStudentFines } from '@/hooks/useStudents';
+import { usePayFine, useWaiveFine } from '@/hooks/useFines';
 import { useRfidLookup } from '@/hooks/useCirculation';
 
 interface Student {
@@ -43,8 +46,11 @@ const StudentLookup: React.FC = () => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const rfidLookup = useRfidLookup();
+  const payFine = usePayFine();
+  const waiveFine = useWaiveFine();
 
   const { data: studentsData, isLoading: studentsLoading } = useStudents({
     search: search.length >= 2 ? search : undefined,
@@ -208,9 +214,19 @@ const StudentLookup: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <Button variant="outline" onClick={() => setSelectedStudent(null)}>
-                  Clear
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="default" 
+                    onClick={() => navigate(`/librarian/circulation?student_id=${selectedStudent.id}`)}
+                    className="gap-2"
+                  >
+                    Go to Circulation
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" onClick={() => setSelectedStudent(null)}>
+                    Clear
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -362,11 +378,44 @@ const StudentLookup: React.FC = () => {
                               <p className="font-medium">{fine.book_title}</p>
                               <p className="text-sm text-muted-foreground">{fine.reason}</p>
                             </div>
-                            <div className="text-right">
-                              <p className="font-bold text-lg">{fine.amount}</p>
-                              <Badge variant={fine.status === 'pending' ? 'destructive' : 'outline'}>
-                                {fine.status}
-                              </Badge>
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <p className="font-bold text-lg">{fine.amount}</p>
+                                <Badge variant={fine.status === 'pending' ? 'destructive' : 'outline'}>
+                                  {fine.status}
+                                </Badge>
+                              </div>
+                              {fine.status === 'pending' && (
+                                <div className="flex gap-2">
+                                  <Button 
+                                    size="sm" 
+                                    onClick={() => {
+                                      if (confirm(`Confirm payment of ₱${fine.amount}?`)) {
+                                        payFine.mutate({ 
+                                          id: fine.id, 
+                                          payment: { amount: fine.amount, payment_method: 'cash' } 
+                                        });
+                                      }
+                                    }}
+                                    disabled={payFine.isPending}
+                                  >
+                                    Pay
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => {
+                                      const reason = prompt("Enter reason for waiving:");
+                                      if (reason) {
+                                        waiveFine.mutate({ id: fine.id, reason });
+                                      }
+                                    }}
+                                    disabled={waiveFine.isPending}
+                                  >
+                                    Waive
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>

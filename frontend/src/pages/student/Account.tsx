@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,15 @@ import { StudentFine, StudentRequest } from '@/services/students';
 const StudentAccount = () => {
   const [payFineModalOpen, setPayFineModalOpen] = useState(false);
   const [selectedFine, setSelectedFine] = useState<StudentFine | null>(null);
+  const [searchParams] = useSearchParams();
+  const defaultTab = useMemo(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'current-loans') return 'current';
+    if (tab === 'history') return 'history';
+    if (tab === 'reservations') return 'reservations';
+    if (tab === 'fines') return 'fines';
+    return 'current';
+  }, [searchParams]);
 
   const { data: profileResponse, isLoading: profileLoading } = useMyProfile();
   const profile = profileResponse?.data;
@@ -206,7 +216,7 @@ const StudentAccount = () => {
       </Card>
 
       {/* Tabs for History and Fines */}
-      <Tabs defaultValue="current" className="space-y-4">
+      <Tabs defaultValue={defaultTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="current" className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />

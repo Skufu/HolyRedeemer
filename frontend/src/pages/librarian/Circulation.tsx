@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +26,7 @@ import QRScannerModal from '@/components/circulation/QRScannerModal';
 import { format, addDays } from 'date-fns';
 import { useRfidLookup, useCheckout, useReturn } from '@/hooks/useCirculation';
 import { useCopyByQRMutation, useBooks } from '@/hooks/useBooks';
-import { useStudents, useStudentLoans } from '@/hooks/useStudents';
+import { useStudents, useStudentLoans, useStudent } from '@/hooks/useStudents';
 import { Book as BookType, BookCopy } from '@/services/books';
 
 type CirculationMode = 'checkout' | 'return';
@@ -49,6 +50,7 @@ const Circulation: React.FC = () => {
   const [mode, setMode] = useState<CirculationMode>('checkout');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanTarget, setScanTarget] = useState<'student' | 'book'>('student');
+  const [searchParams] = useSearchParams();
   
   // Selected items
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -56,6 +58,7 @@ const Circulation: React.FC = () => {
   const [studentSearch, setStudentSearch] = useState('');
   const [bookSearch, setBookSearch] = useState('');
   const [manualBookQR, setManualBookQR] = useState('');
+  const [manualStudentId, setManualStudentId] = useState('');
   
   const { toast } = useToast();
 
@@ -65,6 +68,17 @@ const Circulation: React.FC = () => {
   const checkoutMutation = useCheckout();
   const returnMutation = useReturn();
   
+  // URL Param Student
+  // URL Param Student
+  const studentIdParam = searchParams.get('student_id');
+  const { data: paramStudent } = useStudent(studentIdParam || '');
+
+  useEffect(() => {
+    if (paramStudent?.data) {
+      setSelectedStudent(paramStudent.data as unknown as Student);
+    }
+  }, [paramStudent]);
+
   // Search queries
   const { data: studentsData } = useStudents({ 
     search: studentSearch, 
@@ -166,6 +180,13 @@ const Circulation: React.FC = () => {
     setManualBookQR('');
   };
 
+  const handleManualStudentSubmit = async () => {
+    const trimmed = manualStudentId.trim();
+    if (!trimmed) return;
+    setStudentSearch(trimmed);
+    setManualStudentId('');
+  };
+
   const handleStudentSelect = (student: Student) => {
     setSelectedStudent(student);
     setStudentSearch('');
@@ -197,7 +218,9 @@ const Circulation: React.FC = () => {
     if (!selectedStudent || scannedBooks.length === 0) return;
 
     const dueDate = addDays(new Date(), 14).toISOString();
-    
+    const successfulIds: string[] = [];
+    let failureCount = 0;
+
     // Process each book checkout
     for (const { copy } of scannedBooks) {
       try {
@@ -206,19 +229,32 @@ const Circulation: React.FC = () => {
           copy_id: copy.id,
           due_date: dueDate,
         });
-      } catch {
-        // Error is handled by the mutation hook
-        return;
+        successfulIds.push(copy.id);
+      } catch (error) {
+        failureCount++;
       }
     }
-    
-    // Reset after successful checkout
-    setScannedBooks([]);
-    setSelectedStudent(null);
+
+    if (successfulIds.length > 0) {
+      setScannedBooks(prev => prev.filter(sb => !successfulIds.includes(sb.copy.id)));
+
+      if (failureCount === 0) {
+        setSelectedStudent(null);
+      } else {
+        toast({
+          title: 'Partial Checkout Complete',
+          description: `${successfulIds.length} books checked out. ${failureCount} failed.`,
+          variant: 'default',
+        });
+      }
+    }
   };
 
   const handleReturn = async () => {
     if (scannedBooks.length === 0) return;
+
+    const successfulIds: string[] = [];
+    let failureCount = 0;
 
     // Process each book return
     for (const { copy } of scannedBooks) {
@@ -226,13 +262,23 @@ const Circulation: React.FC = () => {
         await returnMutation.mutateAsync({
           copy_id: copy.id,
         });
-      } catch {
-        // Error is handled by the mutation hook
-        return;
+        successfulIds.push(copy.id);
+      } catch (error) {
+        failureCount++;
       }
     }
-    
-    setScannedBooks([]);
+
+    if (successfulIds.length > 0) {
+      setScannedBooks(prev => prev.filter(sb => !successfulIds.includes(sb.copy.id)));
+
+      if (failureCount > 0) {
+        toast({
+          title: 'Partial Return Complete',
+          description: `${successfulIds.length} books returned. ${failureCount} failed.`,
+          variant: 'default',
+        });
+      }
+    }
   };
 
   const openScanner = (target: 'student' | 'book') => {
@@ -316,6 +362,33 @@ const Circulation: React.FC = () => {
                       )}
                       <span className="sm:hidden">Scan</span>
                       <span className="hidden sm:inline">Scan ID</span>
+                    </Button>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Manual Student ID (e.g. 2023-0001)"
+                        value={manualStudentId}
+                        onChange={(e) => setManualStudentId(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleManualStudentSubmit()}
+                        className="pl-9"
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleManualStudentSubmit}
+                      variant="secondary"
+                      className="gap-2 shrink-0"
+                       disabled={!manualStudentId.trim()}
+
+                    >
+                      {rfidLookup.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Keyboard className="h-4 w-4" />
+                      )}
+                      Submit
                     </Button>
                   </div>
 

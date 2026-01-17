@@ -13,13 +13,16 @@ import {
   Loader2
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMyProfile, useStudentLoans, useStudentFines, useStudentHistory } from '@/hooks/useStudents';
+import { useRenew } from '@/hooks/useCirculation';
 import { StudentLoan } from '@/services/students';
 import BookCover from '@/components/BookCover';
 
 const StudentDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const renewLoan = useRenew();
 
   // First fetch the student profile to get the student ID
   const { data: profileData, isLoading: profileLoading } = useMyProfile();
@@ -71,8 +74,9 @@ const StudentDashboard = () => {
                 </div>
               </div>
               <Button variant="destructive" size="sm" asChild>
-                <Link to="/student/account">Pay Now</Link>
+                <Link to="/student/account?tab=fines">Pay Now</Link>
               </Button>
+
             </div>
           </CardContent>
         </Card>
@@ -232,10 +236,27 @@ const StudentDashboard = () => {
                         </Badge>
                       )}
                       {(loan.renewCount || 0) < 2 && !isOverdue && (
-                        <Button variant="ghost" size="sm" className="mt-2 text-xs">
-                          Renew
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-2 text-xs"
+                          onClick={() => {
+                            if (studentId) {
+                              renewLoan.mutate(loan.id, {
+                                onError: () => {
+                                  navigate('/student/account?tab=current-loans');
+                                },
+                              });
+                            } else {
+                              navigate('/student/account?tab=current-loans');
+                            }
+                          }}
+                          disabled={renewLoan.isPending}
+                        >
+                          {renewLoan.isPending ? 'Renewing...' : 'Renew'}
                         </Button>
                       )}
+
                     </div>
                   </div>
                 );
