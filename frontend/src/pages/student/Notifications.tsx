@@ -12,11 +12,13 @@ import {
   CreditCard,
   Bookmark,
   Check,
-  Loader2
+  Loader2,
+  ExternalLink
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useNotifications, useUnreadNotificationsCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from '@/hooks/useNotifications';
 import { Notification } from '@/services/notifications';
+import { Link } from 'react-router-dom';
 
 const StudentNotifications = () => {
   const { data: notificationsData, isLoading } = useNotifications();
@@ -70,50 +72,78 @@ const StudentNotifications = () => {
     markAllAsReadMutation.mutate();
   };
 
+  const getNotificationActionLink = (type: string) => {
+    switch (type) {
+      case 'overdue':
+      case 'due_reminder':
+        return '/student/account?tab=current-loans';
+      case 'fine':
+        return '/student/account?tab=fines';
+      case 'request_update':
+        return '/student/account?tab=reservations';
+      default:
+        return null;
+    }
+  };
+
   const NotificationCard = ({ notification, showMarkAsRead = false }: { 
     notification: Notification, 
     showMarkAsRead?: boolean 
-  }) => (
-    <Card className={`transition-all ${!notification.isRead ? 'border-primary/30 bg-primary/5' : ''}`}>
-      <CardContent className="p-4">
-        <div className="flex gap-4">
-          <div className="flex-shrink-0 mt-1">
-            <div className={`p-2 rounded-full ${!notification.isRead ? 'bg-primary/10' : 'bg-muted'}`}>
-              {getNotificationIcon(notification.type)}
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="font-semibold">{notification.title}</h4>
-                  {getNotificationBadge(notification.type)}
-                  {!notification.isRead && (
-                    <span className="w-2 h-2 rounded-full bg-primary" />
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
+  }) => {
+    const actionLink = getNotificationActionLink(notification.type);
+    
+    return (
+      <Card className={`transition-all ${!notification.isRead ? 'border-primary/30 bg-primary/5' : ''}`}>
+        <CardContent className="p-4">
+          <div className="flex gap-4">
+            <div className="flex-shrink-0 mt-1">
+              <div className={`p-2 rounded-full ${!notification.isRead ? 'bg-primary/10' : 'bg-muted'}`}>
+                {getNotificationIcon(notification.type)}
               </div>
-              {showMarkAsRead && !notification.isRead && (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => markAsRead(notification.id)}
-                  disabled={markAsReadMutation.isPending}
-                >
-                  <Check className="h-4 w-4" />
-                </Button>
-              )}
             </div>
-            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-              <Calendar className="h-3 w-3" />
-              {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-semibold">{notification.title}</h4>
+                    {getNotificationBadge(notification.type)}
+                    {!notification.isRead && (
+                      <span className="w-2 h-2 rounded-full bg-primary" />
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
+                </div>
+                {showMarkAsRead && !notification.isRead && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => markAsRead(notification.id)}
+                    disabled={markAsReadMutation.isPending}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Calendar className="h-3 w-3" />
+                  {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                </div>
+                
+                {actionLink && (
+                  <Button variant="link" size="sm" className="h-auto p-0 text-primary" asChild>
+                    <Link to={actionLink} className="flex items-center gap-1">
+                      View details <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  };
 
   if (isLoading) {
     return (

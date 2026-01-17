@@ -16,6 +16,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Search,
@@ -31,6 +39,9 @@ import {
   Filter,
   CheckCircle,
   History,
+  ChevronLeft,
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { useBooks, useCategories } from '@/hooks/useBooks';
 import { Book, Category } from '@/services/books';
@@ -45,6 +56,7 @@ const StudentCatalog = () => {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [notes, setNotes] = useState('');
   const [isReserving, setIsReserving] = useState(false);
+  const [page, setPage] = useState(1);
 
   const reserveBook = useReserveBook();
 
@@ -52,17 +64,32 @@ const StudentCatalog = () => {
     search: searchQuery || undefined,
     category_id: categoryFilter !== 'all' ? categoryFilter : undefined,
     available_only: availabilityFilter === 'available' ? true : undefined,
+    page,
+    per_page: 12
   });
 
   const { data: categoriesData } = useCategories();
 
   const books = booksData?.data || [];
+  const meta = booksData?.meta;
   const categories = categoriesData?.data || [];
 
   const filteredBooks = books.filter((book) => {
     if (availabilityFilter === 'unavailable' && (book.availableCopies || 0) > 0) return false;
     return true;
   });
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setCategoryFilter('all');
+    setAvailabilityFilter('all');
+    setPage(1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const getAvailabilityBadge = (available: number, total: number) => {
     if (available === 0) {
@@ -170,6 +197,56 @@ const StudentCatalog = () => {
         <div className="flex justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
+      ) : viewMode === 'list' ? (
+        <div className="rounded-md border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[80px]">Cover</TableHead>
+                <TableHead>Title</TableHead>
+                <TableHead className="hidden md:table-cell">Author</TableHead>
+                <TableHead className="hidden sm:table-cell">Category</TableHead>
+                <TableHead>Availability</TableHead>
+                <TableHead className="text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredBooks.map((book) => (
+                <TableRow key={book.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedBook(book)}>
+                  <TableCell>
+                    <div className="w-12 h-16 bg-muted rounded overflow-hidden">
+                      <BookCover
+                        title={book.title}
+                        author={book.author}
+                        coverImage={book.coverImage}
+                        isbn={book.isbn}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex flex-col">
+                      <span>{book.title}</span>
+                      <span className="md:hidden text-xs text-muted-foreground">{book.author}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">{book.author}</TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <Badge variant="outline" className="font-normal">
+                      {book.category || 'Uncategorized'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {getAvailabilityBadge(book.availableCopies || 0, book.totalCopies || 0)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm">View</Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
           {filteredBooks.map((book) => (
@@ -207,7 +284,39 @@ const StudentCatalog = () => {
         <div className="text-center py-8 sm:py-12">
           <BookOpen className="h-12 w-12 sm:h-16 sm:w-16 mx-auto text-muted-foreground/30 mb-4" />
           <h3 className="text-base sm:text-lg font-semibold text-muted-foreground">No books found</h3>
-          <p className="text-sm text-muted-foreground">Try adjusting your search or filters</p>
+          <p className="text-sm text-muted-foreground mb-4">Try adjusting your search or filters</p>
+          <Button variant="outline" onClick={handleClearFilters} className="gap-2">
+            <X className="h-4 w-4" />
+            Clear filters
+          </Button>
+        </div>
+      )}
+
+      {!booksLoading && filteredBooks.length > 0 && meta && meta.total_pages > 1 && (
+        <div className="flex items-center justify-between py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(page - 1)}
+            disabled={page <= 1}
+            className="gap-1"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {meta.page} of {meta.total_pages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(page + 1)}
+            disabled={page >= meta.total_pages}
+            className="gap-1"
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
       )}
 

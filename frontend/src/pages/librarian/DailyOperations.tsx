@@ -1,12 +1,16 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ToastAction } from '@/components/ui/toast';
+import { useToast } from '@/hooks/use-toast';
 import {
   Calendar,
   Clock,
+  ExternalLink,
   BookOpen,
   AlertTriangle,
   Bell,
@@ -21,6 +25,8 @@ import { useQueryClient } from '@tanstack/react-query';
 
 const DailyOperations: React.FC = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   const { data: currentLoansResponse, isLoading: loansLoading, isFetching: loansFetching } = useCurrentLoans();
   const { data: overdueLoansResponse, isLoading: overdueLoading, isFetching: overdueFetching } = useOverdueLoans();
@@ -58,7 +64,23 @@ const DailyOperations: React.FC = () => {
   };
 
   const handleApprove = (requestId: string) => {
-    approveRequest.mutate(requestId);
+    const request = pendingRequests.find((r: { id: string }) => r.id === requestId);
+    approveRequest.mutate(requestId, {
+      onSuccess: () => {
+        toast({
+          title: "Request Approved",
+          description: "Student can now check out the book.",
+          action: (
+            <ToastAction 
+              altText="Go to Checkout" 
+              onClick={() => navigate(`/librarian/circulation?student_id=${request?.studentId}`)}
+            >
+              Go to Checkout
+            </ToastAction>
+          )
+        });
+      }
+    });
   };
 
   const handleReject = (requestId: string) => {
@@ -285,6 +307,15 @@ const DailyOperations: React.FC = () => {
                             disabled={rejectRequest.isPending}
                           >
                             <XCircle className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-primary hover:text-primary"
+                            onClick={() => navigate(`/librarian/circulation?student_id=${req.studentId}`)}
+                            title="Go to Checkout"
+                          >
+                            <ExternalLink className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
