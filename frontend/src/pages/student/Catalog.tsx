@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,8 @@ const StudentCatalog = () => {
   const [isReserving, setIsReserving] = useState(false);
   const [page, setPage] = useState(1);
 
+  const navigate = useNavigate();
+
   const reserveBook = useReserveBook();
 
   const { data: booksData, isLoading: booksLoading } = useBooks({
@@ -109,6 +112,7 @@ const StudentCatalog = () => {
       await reserveBook.mutateAsync({ bookId: selectedBook.id, notes });
       setSelectedBook(null);
       setNotes('');
+      navigate('/student/account?tab=reservations');
     } finally {
       setIsReserving(false);
     }

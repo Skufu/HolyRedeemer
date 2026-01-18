@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,18 +29,48 @@ import { useRfidLookup, useCheckout, useReturn } from '@/hooks/useCirculation';
 import { useCopyByQRMutation, useBooks } from '@/hooks/useBooks';
 import { useStudents, useStudentLoans, useStudent } from '@/hooks/useStudents';
 import { Book as BookType, BookCopy } from '@/services/books';
+import { StudentLookup as RfidStudentLookup } from '@/services/auth';
+import { Student as ApiStudent } from '@/services/students';
 
 type CirculationMode = 'checkout' | 'return';
 
-interface Student {
+type StudentDisplay = {
   id: string;
   name: string;
-  student_number: string;
-  grade_level: string;
+  studentNumber: string;
+  gradeLevel: number;
   section: string;
   status: string;
-  total_fines?: number;
-}
+  totalFines?: number;
+};
+
+const normalizeStudent = (student: ApiStudent): StudentDisplay => ({
+  id: student.id,
+  name: student.name,
+  studentNumber: student.student_id,
+  gradeLevel: student.gradeLevel,
+  section: student.section,
+  status: student.status,
+  totalFines: student.total_fines,
+});
+
+const normalizeLookupStudent = (student: RfidStudentLookup): StudentDisplay => ({
+  id: student.id,
+  name: student.name,
+  studentNumber: student.student_id,
+  gradeLevel: student.grade_level,
+  section: student.section,
+  status: student.status,
+  totalFines: student.total_fines,
+});
+
+
+
+
+
+type BookSearchResult = BookType & { available_copies?: number };
+
+type BookCopyResponse = BookCopy & { copy_number?: number; qr_code?: string };
 
 interface ScannedBook {
   copy: BookCopy;
@@ -53,7 +84,7 @@ const Circulation: React.FC = () => {
   const [searchParams] = useSearchParams();
   
   // Selected items
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<StudentDisplay | null>(null);
   const [scannedBooks, setScannedBooks] = useState<ScannedBook[]>([]);
   const [studentSearch, setStudentSearch] = useState('');
   const [bookSearch, setBookSearch] = useState('');
@@ -69,13 +100,13 @@ const Circulation: React.FC = () => {
   const returnMutation = useReturn();
   
   // URL Param Student
-  // URL Param Student
   const studentIdParam = searchParams.get('student_id');
   const { data: paramStudent } = useStudent(studentIdParam || '');
 
   useEffect(() => {
     if (paramStudent?.data) {
-      setSelectedStudent(paramStudent.data as unknown as Student);
+      const normalizedStudent = normalizeStudent(paramStudent.data);
+      setSelectedStudent(normalizedStudent);
     }
   }, [paramStudent]);
 
@@ -93,13 +124,22 @@ const Circulation: React.FC = () => {
   // Get student loans when student is selected
   const { data: studentLoansData } = useStudentLoans(selectedStudent?.id || '');
 
-  const filteredStudents = studentSearch.length >= 2 
-    ? (studentsData?.data || []).slice(0, 5)
+  const filteredStudents: ApiStudent[] = studentSearch.length >= 2
+    ? studentsData?.data ?? []
     : [];
+
+  const normalizedStudents: StudentDisplay[] = filteredStudents
+    .slice(0, 5)
+    .map(normalizeStudent);
 
   const filteredBooks = bookSearch.length >= 2 
     ? (booksData?.data || []).slice(0, 5)
     : [];
+
+  const normalizedBooks: BookType[] = filteredBooks.map((book) => ({
+    ...book,
+    availableCopies: (book as BookSearchResult).available_copies ?? book.availableCopies,
+  }));
 
   const studentLoans = studentLoansData?.data || [];
 
@@ -110,12 +150,13 @@ const Circulation: React.FC = () => {
       // RFID lookup for student
       try {
         const result = await rfidLookup.mutateAsync(qrCode);
-        if (result.data) {
-          const student = result.data as unknown as Student;
-          setSelectedStudent(student);
+        if (result.data?.student) {
+          const student = result.data.student as RfidStudentLookup;
+          const normalizedStudent = normalizeLookupStudent(student);
+          setSelectedStudent(normalizedStudent);
           toast({
             title: 'Student Found',
-            description: `${student.name} (${student.student_number})`,
+            description: `${normalizedStudent.name} (${normalizedStudent.studentNumber})`,
           });
         }
       } catch {
@@ -124,12 +165,18 @@ const Circulation: React.FC = () => {
     } else {
       // QR code lookup for book copy
       try {
-        const result = await copyByQRMutation.mutateAsync(qrCode);
+          const result = await copyByQRMutation.mutateAsync(qrCode);
         if (result.data) {
-          const { book, ...copy } = result.data;
+          const { book, ...copy } = result.data as { book: BookType } & BookCopyResponse;
+          const normalizedCopy: BookCopy = {
+            ...copy,
+            copyNumber: copy.copy_number ?? copy.copyNumber,
+            qrCode: copy.qr_code ?? copy.qrCode,
+          };
+
           
           // Check if already scanned
-          if (scannedBooks.some(sb => sb.copy.id === copy.id)) {
+          if (scannedBooks.some(sb => sb.copy.id === normalizedCopy.id)) {
             toast({
               title: 'Already Scanned',
               description: 'This book copy has already been scanned.',
@@ -139,17 +186,17 @@ const Circulation: React.FC = () => {
           }
 
           // For checkout mode, check if available
-          if (mode === 'checkout' && copy.status !== 'available') {
+          if (mode === 'checkout' && normalizedCopy.status !== 'available') {
             toast({
               title: 'Book Not Available',
-              description: `This copy is currently ${copy.status}.`,
+              description: `This copy is currently ${normalizedCopy.status}.`,
               variant: 'destructive',
             });
             return;
           }
 
           // For return mode, check if borrowed
-          if (mode === 'return' && copy.status !== 'borrowed') {
+          if (mode === 'return' && normalizedCopy.status !== 'borrowed') {
             toast({
               title: 'Not Borrowed',
               description: 'This book is not currently borrowed.',
@@ -158,11 +205,13 @@ const Circulation: React.FC = () => {
             return;
           }
           
-          setScannedBooks(prev => [...prev, { copy, book }]);
+          setScannedBooks(prev => [...prev, { copy: normalizedCopy, book }]);
           toast({
             title: 'Book Scanned',
-            description: `${book.title} (Copy #${copy.copy_number})`,
+            description: `${book.title} (Copy #${normalizedCopy.copyNumber})`,
           });
+
+
         }
       } catch {
         toast({
@@ -187,13 +236,13 @@ const Circulation: React.FC = () => {
     setManualStudentId('');
   };
 
-  const handleStudentSelect = (student: Student) => {
+  const handleStudentSelect = (student: StudentDisplay) => {
     setSelectedStudent(student);
     setStudentSearch('');
   };
 
   const handleBookSelect = async (book: BookType) => {
-    if (book.available_copies <= 0) {
+    if ((book.availableCopies || 0) <= 0) {
       toast({
         title: 'No Copies Available',
         description: 'All copies of this book are currently borrowed.',
@@ -380,8 +429,7 @@ const Circulation: React.FC = () => {
                       onClick={handleManualStudentSubmit}
                       variant="secondary"
                       className="gap-2 shrink-0"
-                       disabled={!manualStudentId.trim()}
-
+                      disabled={!manualStudentId.trim()}
                     >
                       {rfidLookup.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -393,9 +441,10 @@ const Circulation: React.FC = () => {
                   </div>
 
                   {/* Search Results */}
-                  {filteredStudents.length > 0 && (
-                    <div className="border rounded-lg divide-y bg-card">
-                      {filteredStudents.map((student: Student) => (
+                   {normalizedStudents.length > 0 && (
+                     <div className="border rounded-lg divide-y bg-card">
+                       {normalizedStudents.map((student) => (
+
                         <button
                           key={student.id}
                           onClick={() => handleStudentSelect(student)}
@@ -403,7 +452,8 @@ const Circulation: React.FC = () => {
                         >
                           <div>
                             <p className="font-medium">{student.name}</p>
-                            <p className="text-sm text-muted-foreground">{student.student_number} - Grade {student.grade_level}</p>
+                              <p className="text-sm text-muted-foreground">{student.studentNumber} - Grade {student.gradeLevel}</p>
+
                           </div>
                           <Badge variant={student.status === 'active' ? 'default' : 'secondary'}>
                             {student.status}
@@ -424,7 +474,7 @@ const Circulation: React.FC = () => {
                           <div className="min-w-0">
                             <p className="font-medium text-sm sm:text-base truncate">{selectedStudent.name}</p>
                             <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                              {selectedStudent.student_number} - {selectedStudent.section}
+                              {selectedStudent.studentNumber} - {selectedStudent.section}
                             </p>
                           </div>
                         </div>
@@ -443,16 +493,16 @@ const Circulation: React.FC = () => {
                         <div>
                           <p className="text-muted-foreground text-[10px] sm:text-xs">Fines</p>
                           <p className="font-bold text-base sm:text-lg text-warning-foreground">
-                            {selectedStudent.total_fines ? `₱${selectedStudent.total_fines}` : '₱0'}
+                            {selectedStudent.totalFines ? `₱${selectedStudent.totalFines}` : '₱0'}
                           </p>
                         </div>
                         <div>
                           <p className="text-muted-foreground text-[10px] sm:text-xs">Status</p>
                           <Badge 
-                            variant={(selectedStudent.total_fines || 0) > 200 ? 'destructive' : 'default'} 
+                            variant={(selectedStudent.totalFines || 0) > 200 ? 'destructive' : 'default'} 
                             className="text-[10px] sm:text-xs mt-0.5"
                           >
-                            {(selectedStudent.total_fines || 0) > 200 ? 'Blocked' : 'Active'}
+                            {(selectedStudent.totalFines || 0) > 200 ? 'Blocked' : 'Active'}
                           </Badge>
                         </div>
                       </div>
@@ -523,25 +573,28 @@ const Circulation: React.FC = () => {
                   </div>
 
                   {/* Book Search Results */}
-                  {filteredBooks.length > 0 && (
-                    <div className="border rounded-lg divide-y bg-card">
-                      {filteredBooks.map((book: BookType) => (
-                        <button
-                          key={book.id}
-                          onClick={() => handleBookSelect(book)}
-                          className="w-full p-3 text-left hover:bg-muted/50 transition-colors flex items-center justify-between"
-                        >
-                          <div>
-                            <p className="font-medium">{book.title}</p>
-                            <p className="text-sm text-muted-foreground">{book.author}</p>
-                          </div>
-                          <Badge variant={book.available_copies > 0 ? 'default' : 'secondary'}>
-                            {book.available_copies} available
-                          </Badge>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                   {normalizedBooks.length > 0 && (
+                     <div className="border rounded-lg divide-y bg-card">
+                       {normalizedBooks.map((book) => (
+                         <button
+                           key={book.id}
+                           onClick={() => handleBookSelect(book)}
+                           className="w-full p-3 text-left hover:bg-muted/50 transition-colors flex items-center justify-between"
+                         >
+                           <div>
+                             <p className="font-medium">{book.title}</p>
+                           <p className="text-sm text-muted-foreground">{book.author}</p>
+                         </div>
+                        <Badge variant={book.availableCopies > 0 ? 'default' : 'secondary'}>
+                          {book.availableCopies} available
+                        </Badge>
+
+ 
+                         </button>
+                       ))}
+                     </div>
+                   )}
+
 
                   {/* Scanned Books List */}
                   {scannedBooks.length > 0 && (
@@ -559,9 +612,10 @@ const Circulation: React.FC = () => {
                               </div>
                               <div className="min-w-0">
                                 <p className="font-medium text-xs sm:text-sm truncate">{book.title}</p>
-                                <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                                  Copy #{copy.copy_number}
-                                </p>
+                              <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                                Copy #{copy.copyNumber}
+                              </p>
+
                               </div>
                             </div>
                             <Button 
@@ -633,12 +687,12 @@ const Circulation: React.FC = () => {
                   <Separator />
 
                   {/* Warnings */}
-                  {selectedStudent && (selectedStudent.total_fines || 0) > 0 && (
+                  {selectedStudent && (selectedStudent.totalFines || 0) > 0 && (
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 text-warning-foreground text-sm">
                       <AlertTriangle className="h-4 w-4 mt-0.5" />
                       <div>
                         <p className="font-medium">Outstanding Fines</p>
-                        <p>Student has ₱{selectedStudent.total_fines} in unpaid fines.</p>
+                        <p>Student has ₱{selectedStudent.totalFines} in unpaid fines.</p>
                       </div>
                     </div>
                   )}
@@ -737,7 +791,7 @@ const Circulation: React.FC = () => {
                           <div>
                             <p className="font-medium">{book.title}</p>
                             <p className="text-sm text-muted-foreground">
-                              Copy #{copy.copy_number} - {copy.qr_code}
+                              Copy #{copy.copyNumber} - {copy.qrCode}
                             </p>
                           </div>
                           <Button 
