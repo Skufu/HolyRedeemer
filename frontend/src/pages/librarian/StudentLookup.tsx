@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Search, 
-  User, 
-  BookOpen, 
+import {
+  Search,
+  User,
+  BookOpen,
   DollarSign,
   Clock,
   AlertTriangle,
@@ -17,7 +18,7 @@ import {
   Mail,
   Camera,
   Loader2,
-  ArrowRight
+  ArrowRight,
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import QRScannerModal from '@/components/circulation/QRScannerModal';
@@ -26,24 +27,54 @@ import { useStudents, useStudentLoans, useStudentHistory, useStudentFines } from
 import { usePayFine, useWaiveFine } from '@/hooks/useFines';
 import { useRfidLookup } from '@/hooks/useCirculation';
 
-interface Student {
+import type { StudentLookup as RfidStudentLookup } from '@/services/auth';
+import type { Student as ApiStudent } from '@/services/students';
+
+type StudentDisplay = {
   id: string;
   name: string;
-  student_number: string;
+  studentNumber: string;
   email: string;
-  grade_level: string;
+  gradeLevel: string;
   section: string;
   status: string;
-  rfid_code?: string;
-  guardian_name?: string;
-  guardian_contact?: string;
-  total_fines?: number;
-  active_loans?: number;
-}
+  rfidCode?: string;
+  guardianName?: string;
+  guardianContact?: string;
+  totalFines?: number;
+  activeLoans?: number;
+};
+
+const normalizeStudent = (student: ApiStudent): StudentDisplay => ({
+  id: student.id,
+  name: student.name,
+  studentNumber: student.student_id,
+  email: student.email ?? '',
+  gradeLevel: String(student.gradeLevel),
+  section: student.section,
+  status: student.status,
+  rfidCode: student.rfid,
+  guardianName: student.guardian_name,
+  guardianContact: student.guardian_contact,
+  totalFines: student.total_fines,
+  activeLoans: student.current_loans,
+});
+
+const normalizeLookupStudent = (student: RfidStudentLookup): StudentDisplay => ({
+  id: student.id,
+  name: student.name,
+  studentNumber: student.student_id,
+  email: '',
+  gradeLevel: String(student.grade_level),
+  section: student.section,
+  status: student.status,
+  totalFines: student.total_fines,
+  activeLoans: student.current_loans,
+});
 
 const StudentLookup: React.FC = () => {
   const [search, setSearch] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<StudentDisplay | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -61,23 +92,26 @@ const StudentLookup: React.FC = () => {
   const { data: historyData, isLoading: historyLoading } = useStudentHistory(selectedStudent?.id || '', { per_page: 10 });
   const { data: finesData, isLoading: finesLoading } = useStudentFines(selectedStudent?.id || '');
 
-  const filteredStudents = search.length >= 2 ? (studentsData?.data || []) : [];
+  const normalizedStudents: StudentDisplay[] = search.length >= 2
+    ? (studentsData?.data ?? []).map((student) => normalizeStudent(student))
+    : [];
   const studentLoans = loansData?.data || [];
   const studentHistory = historyData?.data || [];
   const studentFines = finesData?.data || [];
 
-  const activeLoans = studentLoans.filter((t: { status: string }) => t.status === 'active' || t.status === 'overdue');
+  const activeLoans = studentLoans.filter((t: { status: string }) => t.status === 'borrowed' || t.status === 'overdue');
   const overdueLoans = studentLoans.filter((t: { status: string }) => t.status === 'overdue');
   const pendingFines = studentFines.filter((f: { status: string }) => f.status === 'pending');
 
   const handleQRScan = async (qrCode: string) => {
     try {
       const result = await rfidLookup.mutateAsync(qrCode);
-      if (result.data) {
-        const student = result.data as unknown as Student;
-        setSelectedStudent(student);
+      if (result.data?.student) {
+        const student = result.data.student as RfidStudentLookup;
+        const normalizedStudent = normalizeLookupStudent(student);
+        setSelectedStudent(normalizedStudent);
         setSearch('');
-        toast({ title: 'Student Found', description: student.name });
+        toast({ title: 'Student Found', description: normalizedStudent.name });
       }
     } catch {
       toast({ title: 'Not Found', description: 'No student found with this ID', variant: 'destructive' });
@@ -124,9 +158,10 @@ const StudentLookup: React.FC = () => {
             </div>
           )}
 
-          {filteredStudents.length > 0 && !selectedStudent && (
+          {normalizedStudents.length > 0 && !selectedStudent && (
             <div className="mt-4 border rounded-lg divide-y">
-              {filteredStudents.slice(0, 8).map((student: Student) => (
+                      {normalizedStudents.slice(0, 8).map((student) => (
+
                 <button
                   key={student.id}
                   onClick={() => { setSelectedStudent(student); setSearch(''); }}
@@ -139,13 +174,13 @@ const StudentLookup: React.FC = () => {
                     <div>
                       <p className="font-medium">{student.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {student.student_number} - Grade {student.grade_level} - {student.section}
+                        {student.studentNumber} - Grade {student.gradeLevel} - {student.section}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {(student.total_fines || 0) > 0 && (
-                      <Badge variant="destructive">{student.total_fines}</Badge>
+                    {(student.totalFines || 0) > 0 && (
+                      <Badge variant="destructive">{student.totalFines}</Badge>
                     )}
                     <Badge variant={student.status === 'active' ? 'default' : 'secondary'}>
                       {student.status}
@@ -175,11 +210,11 @@ const StudentLookup: React.FC = () => {
                       <Badge variant={selectedStudent.status === 'active' ? 'default' : 'secondary'}>
                         {selectedStudent.status}
                       </Badge>
-                      {(selectedStudent.total_fines || 0) > 200 && (
+                      {(selectedStudent.totalFines || 0) > 200 && (
                         <Badge variant="destructive">Blocked</Badge>
                       )}
                     </div>
-                    <p className="text-muted-foreground">{selectedStudent.student_number}</p>
+                    <p className="text-muted-foreground">{selectedStudent.studentNumber}</p>
                   </div>
                   
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -187,7 +222,7 @@ const StudentLookup: React.FC = () => {
                       <p className="text-xs text-muted-foreground">Grade & Section</p>
                       <p className="font-medium flex items-center gap-1">
                         <GraduationCap className="h-4 w-4" />
-                        Grade {selectedStudent.grade_level} - {selectedStudent.section}
+                        Grade {selectedStudent.gradeLevel} - {selectedStudent.section}
                       </p>
                     </div>
                     <div>
@@ -197,19 +232,19 @@ const StudentLookup: React.FC = () => {
                         <span className="truncate">{selectedStudent.email}</span>
                       </p>
                     </div>
-                    {selectedStudent.guardian_contact && (
+                    {selectedStudent.guardianContact && (
                       <div>
                         <p className="text-xs text-muted-foreground">Guardian Contact</p>
                         <p className="font-medium flex items-center gap-1">
                           <Phone className="h-4 w-4" />
-                          {selectedStudent.guardian_contact}
+                          {selectedStudent.guardianContact}
                         </p>
                       </div>
                     )}
-                    {selectedStudent.rfid_code && (
+                    {selectedStudent.rfidCode && (
                       <div>
                         <p className="text-xs text-muted-foreground">RFID</p>
-                        <p className="font-medium text-sm">{selectedStudent.rfid_code}</p>
+                        <p className="font-medium text-sm">{selectedStudent.rfidCode}</p>
                       </div>
                     )}
                   </div>
@@ -289,9 +324,9 @@ const StudentLookup: React.FC = () => {
                     </div>
                   ) : activeLoans.length > 0 ? (
                     <div className="space-y-3">
-                      {activeLoans.map((loan: { id: string; book_title: string; checkout_date: string; due_date: string; status: string }) => {
+                      {activeLoans.map((loan) => {
                         const isOverdue = loan.status === 'overdue';
-                        const daysRemaining = differenceInDays(new Date(loan.due_date), new Date());
+                        const daysRemaining = differenceInDays(new Date(loan.dueDate), new Date());
                         
                         return (
                           <div 
@@ -300,9 +335,9 @@ const StudentLookup: React.FC = () => {
                           >
                             <div className="flex items-center justify-between">
                               <div>
-                                <p className="font-medium">{loan.book_title}</p>
+                                <p className="font-medium">{loan.bookTitle}</p>
                                 <p className="text-sm text-muted-foreground">
-                                  Borrowed: {format(new Date(loan.checkout_date), 'MMM d, yyyy')}
+                                  Borrowed: {format(new Date(loan.checkoutDate), 'MMM d, yyyy')}
                                 </p>
                               </div>
                               <div className="text-right">
@@ -310,7 +345,7 @@ const StudentLookup: React.FC = () => {
                                   {isOverdue ? `${Math.abs(daysRemaining)} days overdue` : `${daysRemaining} days left`}
                                 </Badge>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  Due: {format(new Date(loan.due_date), 'MMM d')}
+                                  Due: {format(new Date(loan.dueDate), 'MMM d')}
                                 </p>
                               </div>
                             </div>
@@ -337,12 +372,12 @@ const StudentLookup: React.FC = () => {
                     </div>
                   ) : studentHistory.length > 0 ? (
                     <div className="space-y-3">
-                      {studentHistory.map((txn: { id: string; book_title: string; checkout_date: string; return_date?: string }) => (
+                      {studentHistory.map((txn) => (
                         <div key={txn.id} className="p-3 rounded-lg bg-muted/50 flex items-center justify-between">
                           <div>
-                            <p className="font-medium text-sm">{txn.book_title}</p>
+                            <p className="font-medium text-sm">{txn.bookTitle}</p>
                             <p className="text-xs text-muted-foreground">
-                              {format(new Date(txn.checkout_date), 'MMM d')} - {txn.return_date && format(new Date(txn.return_date), 'MMM d, yyyy')}
+                              {format(new Date(txn.checkoutDate), 'MMM d')} - {txn.returnDate && format(new Date(txn.returnDate), 'MMM d, yyyy')}
                             </p>
                           </div>
                           <Badge variant="outline">Returned</Badge>
@@ -368,15 +403,15 @@ const StudentLookup: React.FC = () => {
                     </div>
                   ) : studentFines.length > 0 ? (
                     <div className="space-y-3">
-                      {studentFines.map((fine: { id: string; book_title: string; reason: string; amount: number; status: string }) => (
+                      {studentFines.map((fine) => (
                         <div 
                           key={fine.id} 
                           className={`p-4 rounded-lg border ${fine.status === 'pending' ? 'border-warning/50 bg-warning/5' : 'bg-muted/50'}`}
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="font-medium">{fine.book_title}</p>
-                              <p className="text-sm text-muted-foreground">{fine.reason}</p>
+                              <p className="font-medium">{fine.bookTitle || 'Unknown Book'}</p>
+                              <p className="text-sm text-muted-foreground">{fine.reason || fine.description || ''}</p>
                             </div>
                             <div className="flex items-center gap-4">
                               <div className="text-right">
@@ -434,7 +469,7 @@ const StudentLookup: React.FC = () => {
         </div>
       )}
 
-      {!selectedStudent && filteredStudents.length === 0 && (
+      {!selectedStudent && normalizedStudents.length === 0 && (
         <Card>
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">

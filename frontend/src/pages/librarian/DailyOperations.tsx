@@ -8,7 +8,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Calendar,
   Clock,
   ExternalLink,
   BookOpen,
@@ -105,7 +104,27 @@ const DailyOperations: React.FC = () => {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <Card className={pendingRequests.length > 0 ? 'border-orange-500/50 shadow-sm' : ''}>
+          <CardContent className="pt-6 text-center">
+            <div className="relative inline-block">
+              <Bell className={`h-6 w-6 mx-auto mb-2 ${pendingRequests.length > 0 ? 'text-orange-600' : 'text-muted-foreground'}`} />
+              {pendingRequests.length > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                </span>
+              )}
+            </div>
+            {requestsLoading ? (
+              <Skeleton className="h-8 w-8 mx-auto mb-1" />
+            ) : (
+              <p className={`text-2xl font-bold ${pendingRequests.length > 0 ? 'text-orange-600' : ''}`}>{pendingRequests.length}</p>
+            )}
+            <p className={`text-sm ${pendingRequests.length > 0 ? 'text-orange-600/80 font-medium' : 'text-muted-foreground'}`}>Pending Requests</p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardContent className="pt-6 text-center">
             <BookOpen className="h-6 w-6 mx-auto mb-2 text-success" />
@@ -163,8 +182,8 @@ const DailyOperations: React.FC = () => {
             <AlertTriangle className="h-4 w-4" />
             Overdue ({overdueBooks.length})
           </TabsTrigger>
-          <TabsTrigger value="requests" className="gap-2">
-            <Bell className="h-4 w-4" />
+          <TabsTrigger value="requests" className={`gap-2 ${pendingRequests.length > 0 ? "text-orange-600 font-medium" : ""}`}>
+            <Bell className={`h-4 w-4 ${pendingRequests.length > 0 ? "text-orange-600 fill-orange-600" : ""}`} />
             Requests ({pendingRequests.length})
           </TabsTrigger>
         </TabsList>
@@ -177,7 +196,8 @@ const DailyOperations: React.FC = () => {
               <CardDescription>These books should be returned today</CardDescription>
             </CardHeader>
             <CardContent>
-              {loansLoading ? (
+            {isLoading ? (
+
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
                     <Skeleton key={i} className="h-16 w-full" />
@@ -267,13 +287,14 @@ const DailyOperations: React.FC = () => {
 
         {/* Requests */}
         <TabsContent value="requests" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-display">Pending Requests</CardTitle>
+          <Card className={pendingRequests.length > 0 ? "border-orange-200 shadow-md" : ""}>
+            <CardHeader className={pendingRequests.length > 0 ? "bg-orange-50/50 rounded-t-lg border-b border-orange-100" : ""}>
+              <CardTitle className={`font-display ${pendingRequests.length > 0 ? "text-orange-800" : ""}`}>Pending Requests</CardTitle>
               <CardDescription>Book reservations awaiting approval</CardDescription>
             </CardHeader>
             <CardContent>
-              {requestsLoading ? (
+            {isLoading ? (
+
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
                     <Skeleton key={i} className="h-20 w-full" />
