@@ -132,3 +132,24 @@ SELECT COUNT(*) FROM transactions WHERE due_date = CURRENT_DATE AND status IN ('
 UPDATE transactions 
 SET status = 'overdue' 
 WHERE status = 'borrowed' AND due_date < CURRENT_DATE;
+
+-- name: GetActiveLoanByCopyForUpdate :one
+SELECT t.* FROM transactions t
+WHERE t.copy_id = $1 AND t.status IN ('borrowed', 'overdue')
+FOR UPDATE;
+
+
+-- name: GetTransactionByIDForUpdate :one
+SELECT t.*, 
+       b.title as book_title, b.author as book_author,
+       bc.copy_number, bc.qr_code,
+       s.student_id as student_number,
+       u.name as student_name
+FROM transactions t
+JOIN book_copies bc ON t.copy_id = bc.id
+JOIN books b ON bc.book_id = b.id
+JOIN students s ON t.student_id = s.id
+JOIN users u ON s.user_id = u.id
+WHERE t.id = $1
+FOR UPDATE;
+

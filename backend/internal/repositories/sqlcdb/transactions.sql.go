@@ -184,6 +184,35 @@ func (q *Queries) GetActiveLoanByCopy(ctx context.Context, copyID pgtype.UUID) (
 	return i, err
 }
 
+const getActiveLoanByCopyForUpdate = `-- name: GetActiveLoanByCopyForUpdate :one
+SELECT t.id, t.student_id, t.copy_id, t.librarian_id, t.checkout_date, t.due_date, t.return_date, t.returned_by, t.status, t.checkout_method, t.renewal_count, t.return_condition, t.notes, t.created_at, t.updated_at FROM transactions t
+WHERE t.copy_id = $1 AND t.status IN ('borrowed', 'overdue')
+FOR UPDATE
+`
+
+func (q *Queries) GetActiveLoanByCopyForUpdate(ctx context.Context, copyID pgtype.UUID) (Transaction, error) {
+	row := q.db.QueryRow(ctx, getActiveLoanByCopyForUpdate, copyID)
+	var i Transaction
+	err := row.Scan(
+		&i.ID,
+		&i.StudentID,
+		&i.CopyID,
+		&i.LibrarianID,
+		&i.CheckoutDate,
+		&i.DueDate,
+		&i.ReturnDate,
+		&i.ReturnedBy,
+		&i.Status,
+		&i.CheckoutMethod,
+		&i.RenewalCount,
+		&i.ReturnCondition,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getTransactionByID = `-- name: GetTransactionByID :one
 SELECT t.id, t.student_id, t.copy_id, t.librarian_id, t.checkout_date, t.due_date, t.return_date, t.returned_by, t.status, t.checkout_method, t.renewal_count, t.return_condition, t.notes, t.created_at, t.updated_at, 
        b.title as book_title, b.author as book_author,
@@ -225,6 +254,74 @@ type GetTransactionByIDRow struct {
 func (q *Queries) GetTransactionByID(ctx context.Context, id uuid.UUID) (GetTransactionByIDRow, error) {
 	row := q.db.QueryRow(ctx, getTransactionByID, id)
 	var i GetTransactionByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.StudentID,
+		&i.CopyID,
+		&i.LibrarianID,
+		&i.CheckoutDate,
+		&i.DueDate,
+		&i.ReturnDate,
+		&i.ReturnedBy,
+		&i.Status,
+		&i.CheckoutMethod,
+		&i.RenewalCount,
+		&i.ReturnCondition,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BookTitle,
+		&i.BookAuthor,
+		&i.CopyNumber,
+		&i.QrCode,
+		&i.StudentNumber,
+		&i.StudentName,
+	)
+	return i, err
+}
+
+const getTransactionByIDForUpdate = `-- name: GetTransactionByIDForUpdate :one
+SELECT t.id, t.student_id, t.copy_id, t.librarian_id, t.checkout_date, t.due_date, t.return_date, t.returned_by, t.status, t.checkout_method, t.renewal_count, t.return_condition, t.notes, t.created_at, t.updated_at, 
+       b.title as book_title, b.author as book_author,
+       bc.copy_number, bc.qr_code,
+       s.student_id as student_number,
+       u.name as student_name
+FROM transactions t
+JOIN book_copies bc ON t.copy_id = bc.id
+JOIN books b ON bc.book_id = b.id
+JOIN students s ON t.student_id = s.id
+JOIN users u ON s.user_id = u.id
+WHERE t.id = $1
+FOR UPDATE
+`
+
+type GetTransactionByIDForUpdateRow struct {
+	ID              uuid.UUID             `json:"id"`
+	StudentID       pgtype.UUID           `json:"student_id"`
+	CopyID          pgtype.UUID           `json:"copy_id"`
+	LibrarianID     pgtype.UUID           `json:"librarian_id"`
+	CheckoutDate    pgtype.Timestamp      `json:"checkout_date"`
+	DueDate         pgtype.Date           `json:"due_date"`
+	ReturnDate      pgtype.Timestamp      `json:"return_date"`
+	ReturnedBy      pgtype.UUID           `json:"returned_by"`
+	Status          NullTransactionStatus `json:"status"`
+	CheckoutMethod  NullCheckoutMethod    `json:"checkout_method"`
+	RenewalCount    pgtype.Int4           `json:"renewal_count"`
+	ReturnCondition NullCopyCondition     `json:"return_condition"`
+	Notes           pgtype.Text           `json:"notes"`
+	CreatedAt       pgtype.Timestamp      `json:"created_at"`
+	UpdatedAt       pgtype.Timestamp      `json:"updated_at"`
+	BookTitle       string                `json:"book_title"`
+	BookAuthor      string                `json:"book_author"`
+	CopyNumber      int32                 `json:"copy_number"`
+	QrCode          string                `json:"qr_code"`
+	StudentNumber   string                `json:"student_number"`
+	StudentName     string                `json:"student_name"`
+}
+
+func (q *Queries) GetTransactionByIDForUpdate(ctx context.Context, id uuid.UUID) (GetTransactionByIDForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getTransactionByIDForUpdate, id)
+	var i GetTransactionByIDForUpdateRow
 	err := row.Scan(
 		&i.ID,
 		&i.StudentID,

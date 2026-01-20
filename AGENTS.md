@@ -10,7 +10,8 @@ cd frontend
 npm run dev                    # Start dev server (http://localhost:4127)
 npm run test                    # Run Vitest tests (watch mode)
 npm run test:run                # Run tests once
-npx vitest run <pattern>        # Run single test file
+npm run test:coverage           # Run tests with coverage
+npx vitest run <pattern>        # Run specific test file (e.g., books.test.ts)
 npm run lint                    # ESLint
 npm run build                   # Production build
 ```
@@ -20,11 +21,14 @@ npm run build                   # Production build
 cd backend
 make dev                        # Hot reload with Air (port 8080)
 make test                       # Run all Go tests
+go test ./internal/handlers/... -v  # Run tests for specific package
 make lint                       # golangci-lint
 make fmt                        # go fmt
 make sqlc                       # Regenerate sqlc code after query changes
 make migrate-up                 # Apply migrations
 make migrate-down               # Rollback migration
+make migrate-status             # Check migration status
+make reset-db                   # Drop schema and re-migrate
 ```
 
 ## Code Style Guidelines
@@ -48,6 +52,7 @@ make migrate-down               # Rollback migration
 - **Testing**: `*_test.go` files, use `assert.Equal(t, expected, actual)` from testify
 - **Code Quality**: Run `make fmt` before commit, `make lint` (golangci-lint) must pass
 - **Database Transactions**: CRITICAL - Always use transactions for multi-step operations (see pattern below)
+- **Helper Functions**: Use `toPg*`/`fromPg*` functions from `handlers/helpers.go` for pgtype conversions
 
 ## Key Patterns
 
@@ -58,6 +63,29 @@ export const booksService = {
     const response = await api.get<ApiResponse<Book[]>>('/books', { params });
     return response.data;
   },
+};
+```
+
+**Frontend Hook Example**:
+```typescript
+export const useCreateBook = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (book: CreateBookRequest) => booksService.create(book),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['books'] });
+      toast({ title: 'Success', description: 'Book created successfully' });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Error',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
+    },
+  });
 };
 ```
 
@@ -121,36 +149,31 @@ func (h *Handler) MultiStepOperation(c *gin.Context) {
 }
 ```
 
-**When to Use Transactions**:
-- ✅ Checkout (Create transaction + Update copy status)
-- ✅ Return (Update transaction return info + Update copy status)
-- ✅ Renew (Update transaction + Change status if needed)
-- ✅ Create Book (Create book + Create multiple copies)
-- ✅ Any operation modifying multiple related tables
+**When to Use Transactions**: Checkout, Return, Renew, Create Book with copies, any multi-table write.
 
 **Transaction Rules**:
-1. Always include `*pgxpool.Pool` in handler struct
-2. Pass `db.Pool` from `main.go` to handler constructors
-3. Use `defer tx.Rollback(ctx)` immediately after Begin
-4. Use `queries.WithTx(tx)` for all transactional operations
-5. Return immediately on error to trigger rollback
-6. Commit only after all operations succeed
-7. Log commit failures for debugging
-8. Never ignore errors in transactions (no `_ =`)
+1. Include `*pgxpool.Pool` in handler struct
+2. Pass `db.Pool` from `main.go` to constructor
+3. Use `defer tx.Rollback(ctx)` after Begin
+4. Use `queries.WithTx(tx)` for transactional ops
+5. Return on error (triggers rollback)
+6. Commit only after all succeed
+7. Log commit failures
+8. Never ignore errors (no `_ =`)
 
 ## Authentication
-- Frontend: Access token in `localStorage.getItem('lms_access_token')` (15 min), refresh token (7 days), auto-refresh on 401 in `services/api.ts`
-- Backend: JWT middleware, access token 15 min, refresh token 7 days, roles: `super_admin`, `admin`, `librarian`, `student`
+- Frontend: Access token `localStorage.getItem('lms_access_token')` (15min), refresh token (7 days), auto-refresh on 401 in `services/api.ts`
+- Backend: JWT middleware, access token 15min, refresh token 7 days, roles: `super_admin`, `admin`, `librarian`, `student`
 
 ## API Response Format
 ```json
 { "success": true, "data": {...}, "meta": { "page": 1, "total": 100 } }
-{ "success": false, "error": { "code": "ERROR", "message": "...", "details": [...] } }
+{ "success": false, "error": { "code": "ERROR", "message": "..." } }
 ```
 
 ## Environment Variables
 Frontend: `VITE_API_URL=http://localhost:8080`
-Backend: `PORT=8080`, `DATABASE_URL=postgresql://...`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGINS`
+Backend: `PORT=8080`, `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGINS`
 
 ## Common Tasks
 - Add API: SQL query → `make sqlc` → handler → route → frontend types → frontend service
@@ -162,10 +185,6 @@ Frontend: React 18, TypeScript 5.8, Vite, Tailwind, shadcn/ui, TanStack Query, Z
 Backend: Go 1.24, Gin, PostgreSQL, sqlc, JWT, golangci-lint
 
 ## Important Notes
-- Frontend port 4127, Backend port 8080
-- Never commit `.env` files
-- Run `make sqlc` after SQL changes
-- Use `@/` imports in frontend
-- Visual/styling changes → delegate to `frontend-ui-ux-engineer`
-- QR format: `HR-{book_id_short}-C{copy_number}`
-- Date format: Backend `"2006-01-02"`, Frontend `date-fns`
+- Ports: Frontend 4127, Backend 8080. Never commit `.env` files. Run `make sqlc` after SQL changes
+- Use `@/` imports in frontend. Visual changes → delegate to `frontend-ui-ux-engineer`
+- QR format: `HR-{book_id_short}-C{copy_number}`. Date format: Backend `"2006-01-02"`, Frontend `date-fns`
