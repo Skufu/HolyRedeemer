@@ -51,6 +51,7 @@ type Querier interface {
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteUserRefreshTokens(ctx context.Context, userID pgtype.UUID) error
 	GetActiveLoanByCopy(ctx context.Context, copyID pgtype.UUID) (Transaction, error)
+	GetActiveLoanByCopyForUpdate(ctx context.Context, copyID pgtype.UUID) (Transaction, error)
 	GetAvailableCopy(ctx context.Context, bookID pgtype.UUID) (BookCopy, error)
 	GetBookByID(ctx context.Context, id uuid.UUID) (GetBookByIDRow, error)
 	GetBookByISBN(ctx context.Context, isbn pgtype.Text) (GetBookByISBNRow, error)
@@ -59,6 +60,7 @@ type Querier interface {
 	GetCategoryByID(ctx context.Context, id uuid.UUID) (Category, error)
 	GetCategoryByName(ctx context.Context, name string) (Category, error)
 	GetCopyByID(ctx context.Context, id uuid.UUID) (GetCopyByIDRow, error)
+	GetCopyByIDForUpdate(ctx context.Context, id uuid.UUID) (GetCopyByIDForUpdateRow, error)
 	GetCopyByQRCode(ctx context.Context, qrCode string) (GetCopyByQRCodeRow, error)
 	// Dashboard Statistics
 	GetDashboardStats(ctx context.Context) (GetDashboardStatsRow, error)
@@ -88,6 +90,7 @@ type Querier interface {
 	GetTotalPaidForFine(ctx context.Context, fineID pgtype.UUID) (float64, error)
 	GetTotalPendingFines(ctx context.Context) (float64, error)
 	GetTransactionByID(ctx context.Context, id uuid.UUID) (GetTransactionByIDRow, error)
+	GetTransactionByIDForUpdate(ctx context.Context, id uuid.UUID) (GetTransactionByIDForUpdateRow, error)
 	// Transaction status distribution
 	GetTransactionStatusDistribution(ctx context.Context) ([]GetTransactionStatusDistributionRow, error)
 	GetUnreadCount(ctx context.Context, userID pgtype.UUID) (int64, error)

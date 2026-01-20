@@ -52,3 +52,11 @@ GROUP BY status;
 
 -- name: DeleteCopy :exec
 UPDATE book_copies SET status = 'retired' WHERE id = $1;
+
+-- name: GetCopyByIDForUpdate :one
+SELECT bc.*, b.title as book_title, b.author as book_author, b.isbn as book_isbn
+FROM book_copies bc
+JOIN books b ON bc.book_id = b.id
+WHERE bc.id = $1
+FOR UPDATE;
+

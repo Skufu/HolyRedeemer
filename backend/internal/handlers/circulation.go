@@ -75,6 +75,13 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 
 	// Get librarian ID from auth
 	authUser := middleware.GetAuthUser(c)
+	
+	// Explicit role check for defense-in-depth
+	if authUser.Role != "librarian" && authUser.Role != "admin" && authUser.Role != "super_admin" {
+		response.Forbidden(c, "Insufficient permissions")
+		return
+	}
+	
 	librarianUserID, _ := uuid.Parse(authUser.ID)
 	librarian, err := h.queries.GetLibrarianByUserID(c.Request.Context(), toPgUUID(librarianUserID))
 	librarianID := pgtype.UUID{Valid: false}
@@ -82,8 +89,21 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 		librarianID = toPgUUID(librarian.ID)
 	}
 
+	// Begin transaction BEFORE validation
+	tx, err := h.db.Begin(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to begin transaction")
+		return
+	}
+	defer func() {
+	_ = tx.Rollback(c.Request.Context())
+	}()
+
+	// Use transactional queries
+	queries := h.queries.WithTx(tx)
+
 	// Validate student
-	student, err := h.queries.GetStudentByID(c.Request.Context(), studentID)
+	student, err := queries.GetStudentByID(c.Request.Context(), studentID)
 	if err != nil {
 		response.NotFound(c, "Student not found")
 		return
@@ -94,22 +114,30 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 		return
 	}
 
-	// Check student's current loans
-	currentLoans, _ := h.queries.GetStudentCurrentLoans(c.Request.Context(), toPgUUID(studentID))
+	// Check student's current loans within transaction
+	currentLoans, err := queries.GetStudentCurrentLoans(c.Request.Context(), toPgUUID(studentID))
+	if err != nil {
+		response.InternalError(c, "Failed to check current loans")
+		return
+	}
 	if currentLoans >= int64(h.config.DefaultMaxBooks) {
 		response.BadRequest(c, "Student has reached maximum allowed loans")
 		return
 	}
 
-	// Check student's fines
-	totalFines, _ := h.queries.GetStudentTotalFines(c.Request.Context(), toPgUUID(studentID))
+	// Check student's fines within transaction
+	totalFines, err := queries.GetStudentTotalFines(c.Request.Context(), toPgUUID(studentID))
+	if err != nil {
+		response.InternalError(c, "Failed to check fines")
+		return
+	}
 	if totalFines >= h.config.DefaultBlockThreshold {
 		response.BadRequest(c, "Student is blocked due to unpaid fines")
 		return
 	}
 
-	// Validate copy
-	copy, err := h.queries.GetCopyByID(c.Request.Context(), copyID)
+	// Validate copy with row lock
+	copy, err := queries.GetCopyByIDForUpdate(c.Request.Context(), copyID)
 	if err != nil {
 		response.NotFound(c, "Book copy not found")
 		return
@@ -127,19 +155,6 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 			dueDate = parsed
 		}
 	}
-
-	// Begin transaction
-	tx, err := h.db.Begin(c.Request.Context())
-	if err != nil {
-		response.InternalError(c, "Failed to begin transaction")
-		return
-	}
-	defer func() {
-		_ = tx.Rollback(c.Request.Context())
-	}()
-
-	// Use transactional queries
-	queries := h.queries.WithTx(tx)
 
 	// Create transaction
 	txn, err := queries.CreateTransaction(c.Request.Context(), sqlcdb.CreateTransactionParams{
@@ -222,15 +237,36 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 
 	// Get librarian ID from auth
 	authUser := middleware.GetAuthUser(c)
+	
+	// Explicit role check for defense-in-depth
+	if authUser.Role != "librarian" && authUser.Role != "admin" && authUser.Role != "super_admin" {
+		response.Forbidden(c, "Insufficient permissions")
+		return
+	}
+	
 	librarianUserID, _ := uuid.Parse(authUser.ID)
-	librarian, err := h.queries.GetLibrarianByUserID(c.Request.Context(), toPgUUID(librarianUserID))
 	librarianID := pgtype.UUID{Valid: false}
+	
+	// Begin transaction BEFORE validation
+	tx, err := h.db.Begin(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to begin transaction")
+		return
+	}
+	defer func() {
+	_ = tx.Rollback(c.Request.Context())
+	}()
+
+	// Use transactional queries
+	queries := h.queries.WithTx(tx)
+
+	librarian, err := queries.GetLibrarianByUserID(c.Request.Context(), toPgUUID(librarianUserID))
 	if err == nil {
 		librarianID = toPgUUID(librarian.ID)
 	}
 
-	// Find active loan for this copy
-	loan, err := h.queries.GetActiveLoanByCopy(c.Request.Context(), toPgUUID(copyID))
+	// Find active loan for this copy WITH row lock
+	loan, err := queries.GetActiveLoanByCopyForUpdate(c.Request.Context(), toPgUUID(copyID))
 	if err != nil {
 		response.NotFound(c, "No active loan found for this copy")
 		return
@@ -241,19 +277,6 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 	if req.Condition != "" {
 		returnCondition = sqlcdb.NullCopyCondition{CopyCondition: sqlcdb.CopyCondition(req.Condition), Valid: true}
 	}
-
-	// Begin transaction
-	tx, err := h.db.Begin(c.Request.Context())
-	if err != nil {
-		response.InternalError(c, "Failed to begin transaction")
-		return
-	}
-	defer func() {
-		_ = tx.Rollback(c.Request.Context())
-	}()
-
-	// Use transactional queries
-	queries := h.queries.WithTx(tx)
 
 	// Update transaction
 	now := time.Now()
@@ -357,8 +380,21 @@ func (h *CirculationHandler) Renew(c *gin.Context) {
 		return
 	}
 
-	// Get transaction
-	txn, err := h.queries.GetTransactionByID(c.Request.Context(), txnID)
+	// Begin transaction BEFORE validation
+	tx, err := h.db.Begin(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to begin transaction")
+		return
+	}
+	defer func() {
+	_ = tx.Rollback(c.Request.Context())
+	}()
+
+	// Use transactional queries
+	queries := h.queries.WithTx(tx)
+
+	// Get transaction WITH row lock
+	txn, err := queries.GetTransactionByIDForUpdate(c.Request.Context(), txnID)
 	if err != nil {
 		response.NotFound(c, "Transaction not found")
 		return
@@ -367,8 +403,9 @@ func (h *CirculationHandler) Renew(c *gin.Context) {
 	// Check authorization
 	authUser := middleware.GetAuthUser(c)
 	if authUser.Role == "student" {
-		student, _ := h.queries.GetStudentByUserID(c.Request.Context(), toPgUUID(uuid.MustParse(authUser.ID)))
-		if student.ID != txn.ID {
+		student, _ := queries.GetStudentByUserID(c.Request.Context(), toPgUUID(uuid.MustParse(authUser.ID)))
+		// ✅ CORRECT: Compare student IDs, not student ID vs transaction ID
+		if student.ID != fromPgUUID(txn.StudentID) {
 			response.Forbidden(c, "Cannot renew other student's loans")
 			return
 		}
@@ -388,19 +425,6 @@ func (h *CirculationHandler) Renew(c *gin.Context) {
 
 	// Calculate new due date
 	newDueDate := time.Now().AddDate(0, 0, h.config.DefaultLoanDays)
-
-	// Begin transaction
-	tx, err := h.db.Begin(c.Request.Context())
-	if err != nil {
-		response.InternalError(c, "Failed to begin transaction")
-		return
-	}
-	defer func() {
-		_ = tx.Rollback(c.Request.Context())
-	}()
-
-	// Use transactional queries
-	queries := h.queries.WithTx(tx)
 
 	_, err = queries.RenewTransaction(c.Request.Context(), sqlcdb.RenewTransactionParams{
 		ID:      txnID,

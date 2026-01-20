@@ -169,6 +169,53 @@ func (q *Queries) GetCopyByID(ctx context.Context, id uuid.UUID) (GetCopyByIDRow
 	return i, err
 }
 
+const getCopyByIDForUpdate = `-- name: GetCopyByIDForUpdate :one
+SELECT bc.id, bc.book_id, bc.copy_number, bc.qr_code, bc.barcode, bc.status, bc.condition, bc.acquisition_date, bc.notes, bc.created_at, bc.updated_at, b.title as book_title, b.author as book_author, b.isbn as book_isbn
+FROM book_copies bc
+JOIN books b ON bc.book_id = b.id
+WHERE bc.id = $1
+FOR UPDATE
+`
+
+type GetCopyByIDForUpdateRow struct {
+	ID              uuid.UUID         `json:"id"`
+	BookID          pgtype.UUID       `json:"book_id"`
+	CopyNumber      int32             `json:"copy_number"`
+	QrCode          string            `json:"qr_code"`
+	Barcode         pgtype.Text       `json:"barcode"`
+	Status          NullCopyStatus    `json:"status"`
+	Condition       NullCopyCondition `json:"condition"`
+	AcquisitionDate pgtype.Date       `json:"acquisition_date"`
+	Notes           pgtype.Text       `json:"notes"`
+	CreatedAt       pgtype.Timestamp  `json:"created_at"`
+	UpdatedAt       pgtype.Timestamp  `json:"updated_at"`
+	BookTitle       string            `json:"book_title"`
+	BookAuthor      string            `json:"book_author"`
+	BookIsbn        pgtype.Text       `json:"book_isbn"`
+}
+
+func (q *Queries) GetCopyByIDForUpdate(ctx context.Context, id uuid.UUID) (GetCopyByIDForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getCopyByIDForUpdate, id)
+	var i GetCopyByIDForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.BookID,
+		&i.CopyNumber,
+		&i.QrCode,
+		&i.Barcode,
+		&i.Status,
+		&i.Condition,
+		&i.AcquisitionDate,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BookTitle,
+		&i.BookAuthor,
+		&i.BookIsbn,
+	)
+	return i, err
+}
+
 const getCopyByQRCode = `-- name: GetCopyByQRCode :one
 SELECT bc.id, bc.book_id, bc.copy_number, bc.qr_code, bc.barcode, bc.status, bc.condition, bc.acquisition_date, bc.notes, bc.created_at, bc.updated_at, b.title as book_title, b.author as book_author, b.isbn as book_isbn, b.id as book_id
 FROM book_copies bc
