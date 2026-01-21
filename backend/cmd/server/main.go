@@ -66,7 +66,7 @@ func main() {
 	auditHandler := handlers.NewAuditHandler(queries)
 	librarianHandler := handlers.NewLibrarianHandler(queries, db.Pool)
 	settingsHandler := handlers.NewSettingsHandler(queries)
-	requestHandler := handlers.NewRequestHandler(queries)
+	requestHandler := handlers.NewRequestHandler(queries, cfg, db.Pool)
 	adminHandler := handlers.NewAdminHandler(queries, db.Pool)
 
 	// Initialize router
@@ -132,8 +132,10 @@ func main() {
 			students.GET("/:id", studentHandler.GetStudent)
 			students.POST("", middleware.RequireRoles("admin", "super_admin"), studentHandler.CreateStudent)
 			students.PUT("/:id", middleware.RequireRoles("admin", "super_admin", "librarian"), studentHandler.UpdateStudent)
+			students.POST("/reserve", studentHandler.ReserveBook)
 			students.GET("/:id/loans", studentHandler.GetStudentLoans)
 			students.GET("/:id/history", studentHandler.GetStudentHistory)
+			students.GET("/:id/requests", studentHandler.GetStudentRequests)
 			students.GET("/:id/fines", studentHandler.GetStudentFines)
 		}
 
