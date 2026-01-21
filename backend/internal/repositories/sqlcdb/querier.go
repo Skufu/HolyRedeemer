@@ -15,6 +15,7 @@ type Querier interface {
 	ApproveRequest(ctx context.Context, arg ApproveRequestParams) (BookRequest, error)
 	CountActiveLoans(ctx context.Context) (int64, error)
 	CountActiveTransactionsByStudent(ctx context.Context, studentID pgtype.UUID) (int64, error)
+	CountAdmins(ctx context.Context) (int64, error)
 	CountBooks(ctx context.Context, arg CountBooksParams) (int64, error)
 	CountCopiesByStatus(ctx context.Context) ([]CountCopiesByStatusRow, error)
 	CountDueToday(ctx context.Context) (int64, error)
@@ -29,6 +30,7 @@ type Querier interface {
 	CountTransactionsByStudent(ctx context.Context, studentID pgtype.UUID) (int64, error)
 	CountUserNotifications(ctx context.Context, arg CountUserNotificationsParams) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
+	CreateAdmin(ctx context.Context, arg CreateAdminParams) (User, error)
 	CreateBook(ctx context.Context, arg CreateBookParams) (Book, error)
 	CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error)
 	CreateCopy(ctx context.Context, arg CreateCopyParams) (BookCopy, error)
@@ -44,14 +46,17 @@ type Querier interface {
 	CreateStudent(ctx context.Context, arg CreateStudentParams) (Student, error)
 	CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteAdmin(ctx context.Context, id uuid.UUID) error
 	DeleteBook(ctx context.Context, id uuid.UUID) error
 	DeleteCategory(ctx context.Context, id uuid.UUID) error
 	DeleteCopy(ctx context.Context, id uuid.UUID) error
+	DeleteLibrarian(ctx context.Context, id uuid.UUID) error
 	DeleteRefreshToken(ctx context.Context, tokenHash string) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteUserRefreshTokens(ctx context.Context, userID pgtype.UUID) error
 	GetActiveLoanByCopy(ctx context.Context, copyID pgtype.UUID) (Transaction, error)
 	GetActiveLoanByCopyForUpdate(ctx context.Context, copyID pgtype.UUID) (Transaction, error)
+	GetAdminByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetAvailableCopy(ctx context.Context, bookID pgtype.UUID) (BookCopy, error)
 	GetBookByID(ctx context.Context, id uuid.UUID) (GetBookByIDRow, error)
 	GetBookByISBN(ctx context.Context, isbn pgtype.Text) (GetBookByISBNRow, error)
@@ -66,6 +71,7 @@ type Querier interface {
 	GetDashboardStats(ctx context.Context) (GetDashboardStatsRow, error)
 	GetFineByID(ctx context.Context, id uuid.UUID) (GetFineByIDRow, error)
 	GetLibrarianByID(ctx context.Context, id uuid.UUID) (Librarian, error)
+	GetLibrarianByIDWithUser(ctx context.Context, id uuid.UUID) (GetLibrarianByIDWithUserRow, error)
 	// Librarian queries
 	GetLibrarianByUserID(ctx context.Context, userID pgtype.UUID) (Librarian, error)
 	// Monthly trends (last 6 months)
@@ -97,6 +103,8 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	ListActiveTransactions(ctx context.Context, arg ListActiveTransactionsParams) ([]ListActiveTransactionsRow, error)
+	// Admin queries - Admins are users with role 'admin' or 'super_admin'
+	ListAdmins(ctx context.Context, arg ListAdminsParams) ([]User, error)
 	ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([]ListAuditLogsRow, error)
 	ListBooks(ctx context.Context, arg ListBooksParams) ([]ListBooksRow, error)
 	ListBooksAvailableOnly(ctx context.Context, arg ListBooksAvailableOnlyParams) ([]ListBooksAvailableOnlyRow, error)
@@ -122,12 +130,14 @@ type Querier interface {
 	RegisterStudentRFID(ctx context.Context, arg RegisterStudentRFIDParams) error
 	RejectRequest(ctx context.Context, arg RejectRequestParams) (BookRequest, error)
 	RenewTransaction(ctx context.Context, arg RenewTransactionParams) (Transaction, error)
+	UpdateAdmin(ctx context.Context, arg UpdateAdminParams) (User, error)
 	UpdateBook(ctx context.Context, arg UpdateBookParams) (Book, error)
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (Category, error)
 	UpdateCopy(ctx context.Context, arg UpdateCopyParams) (BookCopy, error)
 	UpdateCopyQRCode(ctx context.Context, arg UpdateCopyQRCodeParams) (BookCopy, error)
 	UpdateCopyStatus(ctx context.Context, arg UpdateCopyStatusParams) error
 	UpdateFineStatus(ctx context.Context, arg UpdateFineStatusParams) (Fine, error)
+	UpdateLibrarian(ctx context.Context, arg UpdateLibrarianParams) (Librarian, error)
 	UpdateSetting(ctx context.Context, arg UpdateSettingParams) error
 	UpdateStudent(ctx context.Context, arg UpdateStudentParams) (Student, error)
 	UpdateTransactionReturn(ctx context.Context, arg UpdateTransactionReturnParams) (Transaction, error)

@@ -10,14 +10,16 @@ import (
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/internal/utils"
 	"github.com/holyredeemer/library-api/pkg/response"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type StudentHandler struct {
 	queries *sqlcdb.Queries
+	db      *pgxpool.Pool
 }
 
-func NewStudentHandler(queries *sqlcdb.Queries) *StudentHandler {
-	return &StudentHandler{queries: queries}
+func NewStudentHandler(queries *sqlcdb.Queries, db *pgxpool.Pool) *StudentHandler {
+	return &StudentHandler{queries: queries, db: db}
 }
 
 // StudentResponse represents a student in API responses (matches frontend types.ts)
@@ -234,8 +236,18 @@ func (h *StudentHandler) CreateStudent(c *gin.Context) {
 		return
 	}
 
+	// Begin transaction for atomic user+student creation
+	tx, err := h.db.Begin(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to begin transaction")
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	queries := h.queries.WithTx(tx)
+
 	// Create user first
-	user, err := h.queries.CreateUser(c.Request.Context(), sqlcdb.CreateUserParams{
+	user, err := queries.CreateUser(c.Request.Context(), sqlcdb.CreateUserParams{
 		Username:     req.Username,
 		PasswordHash: passwordHash,
 		Role:         sqlcdb.UserRoleStudent,
@@ -249,7 +261,7 @@ func (h *StudentHandler) CreateStudent(c *gin.Context) {
 	}
 
 	// Create student record
-	student, err := h.queries.CreateStudent(c.Request.Context(), sqlcdb.CreateStudentParams{
+	student, err := queries.CreateStudent(c.Request.Context(), sqlcdb.CreateStudentParams{
 		UserID:          toPgUUID(user.ID),
 		StudentID:       req.StudentID,
 		GradeLevel:      req.GradeLevel,
@@ -261,12 +273,11 @@ func (h *StudentHandler) CreateStudent(c *gin.Context) {
 		Status:          sqlcdb.NullStudentStatus{StudentStatus: sqlcdb.StudentStatusActive, Valid: true},
 	})
 	if err != nil {
-		// Rollback user creation
-		err = h.queries.DeleteUser(c.Request.Context(), user.ID)
-		if err != nil {
-			// User cleanup failed - log but continue with error response
-			_ = err
-		}
+		response.InternalError(c, "Failed to create student")
+		return
+	}
+
+	if err := tx.Commit(c.Request.Context()); err != nil {
 		response.InternalError(c, "Failed to create student")
 		return
 	}
@@ -312,9 +323,19 @@ func (h *StudentHandler) UpdateStudent(c *gin.Context) {
 		return
 	}
 
+	// Begin transaction for atomic user+student update
+	tx, err := h.db.Begin(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to begin transaction")
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	queries := h.queries.WithTx(tx)
+
 	// Update user record if name or email provided
 	if req.Name != "" || req.Email != "" {
-		_, err = h.queries.UpdateUser(c.Request.Context(), sqlcdb.UpdateUserParams{
+		_, err = queries.UpdateUser(c.Request.Context(), sqlcdb.UpdateUserParams{
 			ID:    fromPgUUID(existing.UserID),
 			Name:  toPgText(req.Name),
 			Email: toPgText(req.Email),
@@ -326,7 +347,7 @@ func (h *StudentHandler) UpdateStudent(c *gin.Context) {
 	}
 
 	// Update student record
-	_, err = h.queries.UpdateStudent(c.Request.Context(), sqlcdb.UpdateStudentParams{
+	_, err = queries.UpdateStudent(c.Request.Context(), sqlcdb.UpdateStudentParams{
 		ID:              studentID,
 		GradeLevel:      toPgInt4(req.GradeLevel),
 		Section:         toPgText(req.Section),
@@ -337,6 +358,11 @@ func (h *StudentHandler) UpdateStudent(c *gin.Context) {
 		Status:          toPgStudentStatus(req.Status),
 	})
 	if err != nil {
+		response.InternalError(c, "Failed to update student")
+		return
+	}
+
+	if err := tx.Commit(c.Request.Context()); err != nil {
 		response.InternalError(c, "Failed to update student")
 		return
 	}
