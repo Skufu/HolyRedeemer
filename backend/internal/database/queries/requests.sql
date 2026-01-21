@@ -47,6 +47,18 @@ WHERE (sqlc.narg('status')::request_status IS NULL OR br.status = sqlc.narg('sta
 ORDER BY br.request_date DESC
 LIMIT $1 OFFSET $2;
 
+-- name: ListRequestsByStudentAndType :many
+SELECT br.*, s.student_id, u.name as student_name, b.title as book_title, b.author as book_author
+FROM book_requests br
+JOIN students s ON br.student_id = s.id
+JOIN users u ON s.user_id = u.id
+JOIN books b ON br.book_id = b.id
+WHERE br.student_id = sqlc.arg('student_id')
+  AND br.request_type = sqlc.arg('request_type')
+  AND (sqlc.narg('status')::request_status IS NULL OR br.status = sqlc.narg('status'))
+ORDER BY br.request_date DESC
+LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+
 -- name: CountPendingRequests :one
 SELECT COUNT(*)
 FROM book_requests

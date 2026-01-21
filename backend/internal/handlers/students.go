@@ -522,6 +522,78 @@ func (h *StudentHandler) GetStudentHistory(c *gin.Context) {
 	})
 }
 
+func (h *StudentHandler) GetStudentRequests(c *gin.Context) {
+	studentID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid student ID")
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
+	if perPage > 100 {
+		perPage = 100
+	}
+	offset := (page - 1) * perPage
+
+	status := c.Query("status")
+	requestType := c.DefaultQuery("request_type", string(sqlcdb.RequestTypeReservation))
+	if requestType != string(sqlcdb.RequestTypeReservation) && requestType != string(sqlcdb.RequestTypeRequest) {
+		response.BadRequest(c, "Invalid request type")
+		return
+	}
+
+	authUser := middleware.GetAuthUser(c)
+	if authUser.Role == "student" {
+		authStudent, lookupErr := h.queries.GetStudentByID(c.Request.Context(), studentID)
+		if lookupErr != nil || fromPgUUID(authStudent.UserID).String() != authUser.ID {
+			response.Forbidden(c, "Cannot view other student's requests")
+			return
+		}
+	}
+
+	requests, err := h.queries.ListRequestsByStudentAndType(c.Request.Context(), sqlcdb.ListRequestsByStudentAndTypeParams{
+		StudentID:   toPgUUID(studentID),
+		RequestType: sqlcdb.RequestType(requestType),
+		Status:      toPgRequestStatus(status),
+		Offset:      int32(offset),
+		Limit:       int32(perPage),
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to fetch requests")
+		return
+	}
+
+	requestResponses := make([]gin.H, len(requests))
+	for i, r := range requests {
+		requestStatus := "pending"
+		if r.Status.Valid {
+			requestStatus = string(r.Status.RequestStatus)
+		}
+
+		requestResponses[i] = gin.H{
+			"id":          r.ID.String(),
+			"studentId":   r.StudentID.String(),
+			"studentCode": r.StudentID_2,
+			"studentName": r.StudentName,
+			"bookId":      r.BookID.String(),
+			"bookTitle":   r.BookTitle,
+			"bookAuthor":  r.BookAuthor,
+			"requestType": string(r.RequestType),
+			"status":      requestStatus,
+			"notes":       fromPgText(r.Notes),
+			"requestDate": fromPgTimestamp(r.RequestDate).Format("2006-01-02T15:04:05Z07:00"),
+			"processedAt": formatPgTimestamp(r.ProcessedAt, "2006-01-02T15:04:05Z07:00"),
+		}
+	}
+
+	response.SuccessWithMeta(c, requestResponses, &response.Meta{
+		Page:    page,
+		PerPage: perPage,
+		Total:   int64(len(requestResponses)),
+	})
+}
+
 // FineResponse represents a fine in API responses
 type FineResponse struct {
 	ID            string    `json:"id"`
@@ -607,6 +679,113 @@ func getTransactionStatus(s sqlcdb.NullTransactionStatus) string {
 		return string(s.TransactionStatus)
 	}
 	return "borrowed"
+}
+
+// ReserveBookRequest represents the reserve book request
+type ReserveBookRequest struct {
+	BookID string `json:"book_id" binding:"required"`
+	Notes  string `json:"notes"`
+}
+
+// ReserveBook creates a book reservation for a student
+func (h *StudentHandler) ReserveBook(c *gin.Context) {
+	authUser := middleware.GetAuthUser(c)
+	if authUser == nil {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	var req ReserveBookRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
+
+	// Validate book ID
+	bookID, err := uuid.Parse(req.BookID)
+	if err != nil {
+		response.BadRequest(c, "Invalid book ID")
+		return
+	}
+
+	// Get authenticated user's student record
+	userID, err := uuid.Parse(authUser.ID)
+	if err != nil {
+		response.InternalError(c, "Invalid user ID")
+		return
+	}
+
+	student, err := h.queries.GetStudentByUserID(c.Request.Context(), toPgUUID(userID))
+	if err != nil {
+		response.NotFound(c, "Student profile not found")
+		return
+	}
+
+	// Check if student account is active
+	if !isStudentStatusActive(student.Status) {
+		response.BadRequest(c, "Student account is not active")
+		return
+	}
+
+	// Check student's current loans (limit total active loans + reservations)
+	currentLoans, _ := h.queries.GetStudentCurrentLoans(c.Request.Context(), toPgUUID(student.ID))
+	if currentLoans >= 5 { // Assuming max 5 active reservations/loans combined
+		response.BadRequest(c, "You have reached the maximum limit for loans and reservations")
+		return
+	}
+
+	// Check if the book exists
+	book, err := h.queries.GetBookByID(c.Request.Context(), bookID)
+	if err != nil {
+		response.NotFound(c, "Book not found")
+		return
+	}
+
+	// Check if book is active
+	if book.Status.Valid && book.Status.BookStatus != sqlcdb.BookStatusActive {
+		response.BadRequest(c, "Book is not available for reservation")
+		return
+	}
+
+	// Check if there are available copies
+	copies, err := h.queries.ListCopiesByBook(c.Request.Context(), toPgUUID(bookID))
+	if err != nil || len(copies) == 0 {
+		response.NotFound(c, "No copies available for this book")
+		return
+	}
+
+	// Check if student already has an active reservation for this book
+	activeRequests, _ := h.queries.ListRequests(c.Request.Context(), sqlcdb.ListRequestsParams{
+		Limit:     1000,
+		Offset:    0,
+		Status:    sqlcdb.NullRequestStatus{RequestStatus: sqlcdb.RequestStatusPending, Valid: true},
+		StudentID: toPgUUID(student.ID),
+	})
+	for _, r := range activeRequests {
+		if r.BookID == toPgUUID(bookID) && r.RequestType == sqlcdb.RequestTypeReservation {
+			response.BadRequest(c, "You already have a pending reservation for this book")
+			return
+		}
+	}
+
+	// Create the reservation request
+	request, err := h.queries.CreateRequest(c.Request.Context(), sqlcdb.CreateRequestParams{
+		StudentID:   toPgUUID(student.ID),
+		BookID:      toPgUUID(bookID),
+		RequestType: sqlcdb.RequestTypeReservation,
+		Notes:       toPgText(req.Notes),
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to create reservation")
+		return
+	}
+
+	response.Success(c, gin.H{
+		"id":           request.ID.String(),
+		"book_title":   book.Title,
+		"request_type": "reservation",
+		"status":       "pending",
+	}, "Book reservation created successfully")
 }
 
 // Helper function for fine status
