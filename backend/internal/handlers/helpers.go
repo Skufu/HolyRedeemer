@@ -139,6 +139,21 @@ func getStudentStatusFromNull(status sqlcdb.NullStudentStatus) string {
 	return "active"
 }
 
+func containsSubstring(str, substr string) bool {
+	if str == "" || substr == "" {
+		return false
+	}
+	if len(str) < len(substr) {
+		return false
+	}
+	for i := 0; i <= len(str)-len(substr); i++ {
+		if str[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 // Nullable status helpers
 func toPgStudentStatus(s string) sqlcdb.NullStudentStatus {
 	if s == "" {
@@ -159,4 +174,18 @@ func toPgRequestStatus(s string) sqlcdb.NullRequestStatus {
 		return sqlcdb.NullRequestStatus{}
 	}
 	return sqlcdb.NullRequestStatus{RequestStatus: sqlcdb.RequestStatus(s), Valid: true}
+}
+
+func toPgUserStatus(s string) sqlcdb.NullUserStatus {
+	if s == "" {
+		return sqlcdb.NullUserStatus{}
+	}
+	return sqlcdb.NullUserStatus{UserStatus: sqlcdb.UserStatus(s), Valid: true}
+}
+
+func getUserStatus(status sqlcdb.NullUserStatus) string {
+	if status.Valid {
+		return string(status.UserStatus)
+	}
+	return "active"
 }

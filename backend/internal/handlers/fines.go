@@ -9,14 +9,16 @@ import (
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/pkg/response"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type FineHandler struct {
 	queries *sqlcdb.Queries
+	db      *pgxpool.Pool
 }
 
-func NewFineHandler(queries *sqlcdb.Queries) *FineHandler {
-	return &FineHandler{queries: queries}
+func NewFineHandler(queries *sqlcdb.Queries, db *pgxpool.Pool) *FineHandler {
+	return &FineHandler{queries: queries, db: db}
 }
 
 // ListFines returns paginated list of fines
@@ -173,8 +175,18 @@ func (h *FineHandler) PayFine(c *gin.Context) {
 		librarianID = toPgUUID(librarian.ID)
 	}
 
+	// Begin transaction for atomic payment + status update
+	tx, err := h.db.Begin(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to begin transaction")
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	queries := h.queries.WithTx(tx)
+
 	// Create payment
-	payment, err := h.queries.CreatePayment(c.Request.Context(), sqlcdb.CreatePaymentParams{
+	payment, err := queries.CreatePayment(c.Request.Context(), sqlcdb.CreatePaymentParams{
 		FineID:          toPgUUID(fineID),
 		StudentID:       fine.StudentID,
 		Amount:          toPgNumeric(req.Amount),
@@ -189,26 +201,31 @@ func (h *FineHandler) PayFine(c *gin.Context) {
 	}
 
 	// Check if fine is fully paid
-	totalPaid, _ := h.queries.GetTotalPaidForFine(c.Request.Context(), toPgUUID(fineID))
+	totalPaid, _ := queries.GetTotalPaidForFine(c.Request.Context(), toPgUUID(fineID))
 	fineAmount := fromPgNumeric(fine.Amount)
 	if totalPaid >= fineAmount {
-		_, err := h.queries.UpdateFineStatus(c.Request.Context(), sqlcdb.UpdateFineStatusParams{
+		_, err := queries.UpdateFineStatus(c.Request.Context(), sqlcdb.UpdateFineStatusParams{
 			ID:     fineID,
 			Status: sqlcdb.NullFineStatus{FineStatus: sqlcdb.FineStatusPaid, Valid: true},
 		})
 		if err != nil {
-			// Log error but don't fail the response - payment was recorded
-			_ = err
+			response.InternalError(c, "Failed to update fine status")
+			return
 		}
 	} else if totalPaid > 0 {
-		_, err := h.queries.UpdateFineStatus(c.Request.Context(), sqlcdb.UpdateFineStatusParams{
+		_, err := queries.UpdateFineStatus(c.Request.Context(), sqlcdb.UpdateFineStatusParams{
 			ID:     fineID,
 			Status: sqlcdb.NullFineStatus{FineStatus: sqlcdb.FineStatusPartial, Valid: true},
 		})
 		if err != nil {
-			// Log error but don't fail the response - payment was recorded
-			_ = err
+			response.InternalError(c, "Failed to update fine status")
+			return
 		}
+	}
+
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		response.InternalError(c, "Failed to record payment")
+		return
 	}
 
 	response.Success(c, gin.H{

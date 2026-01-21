@@ -270,6 +270,24 @@ func (h *AuthHandler) RegisterRFID(c *gin.Context) {
 		return
 	}
 
+	// Check if RFID is already assigned to another student
+	existingStudent, err := h.queries.GetStudentByRFID(c.Request.Context(), toPgText(req.RFIDCode))
+	if err == nil && existingStudent.ID != uuid.Nil {
+		response.Conflict(c, "RFID already assigned to another student")
+		return
+	}
+
+	// Check if user already has an RFID registered
+	currentStudent, err := h.queries.GetStudentByUserID(c.Request.Context(), toPgUUID(userID))
+	if err != nil {
+		response.NotFound(c, "Student record not found")
+		return
+	}
+	if currentStudent.RfidCode.Valid && currentStudent.RfidCode.String != "" {
+		response.Conflict(c, "You already have an RFID registered")
+		return
+	}
+
 	err = h.queries.RegisterStudentRFID(c.Request.Context(), sqlcdb.RegisterStudentRFIDParams{
 		UserID:   toPgUUID(userID),
 		RfidCode: toPgText(req.RFIDCode),

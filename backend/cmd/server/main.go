@@ -58,15 +58,16 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(queries, jwtManager)
 	bookHandler := handlers.NewBookHandler(queries, db.Pool)
-	studentHandler := handlers.NewStudentHandler(queries)
+	studentHandler := handlers.NewStudentHandler(queries, db.Pool)
 	circulationHandler := handlers.NewCirculationHandler(queries, cfg, db.Pool)
 	reportHandler := handlers.NewReportHandler(queries)
-	fineHandler := handlers.NewFineHandler(queries)
+	fineHandler := handlers.NewFineHandler(queries, db.Pool)
 	notificationHandler := handlers.NewNotificationHandler(queries)
 	auditHandler := handlers.NewAuditHandler(queries)
-	librarianHandler := handlers.NewLibrarianHandler(queries)
+	librarianHandler := handlers.NewLibrarianHandler(queries, db.Pool)
 	settingsHandler := handlers.NewSettingsHandler(queries)
 	requestHandler := handlers.NewRequestHandler(queries)
+	adminHandler := handlers.NewAdminHandler(queries, db.Pool)
 
 	// Initialize router
 	router := gin.New()
@@ -193,6 +194,21 @@ func main() {
 		librarians.Use(middleware.Auth(jwtManager), middleware.RequireRoles("admin", "super_admin"))
 		{
 			librarians.GET("", librarianHandler.ListLibrarians)
+			librarians.POST("", librarianHandler.CreateLibrarian)
+			librarians.GET("/:id", librarianHandler.GetLibrarian)
+			librarians.PUT("/:id", librarianHandler.UpdateLibrarian)
+			librarians.DELETE("/:id", librarianHandler.DeleteLibrarian)
+		}
+
+		// Admin routes
+		admins := v1.Group("/admins")
+		admins.Use(middleware.Auth(jwtManager), middleware.RequireRoles("super_admin"))
+		{
+			admins.GET("", adminHandler.ListAdmins)
+			admins.POST("", adminHandler.CreateAdmin)
+			admins.GET("/:id", adminHandler.GetAdmin)
+			admins.PUT("/:id", adminHandler.UpdateAdmin)
+			admins.DELETE("/:id", adminHandler.DeleteAdmin)
 		}
 
 		// Settings routes
