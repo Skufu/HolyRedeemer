@@ -175,7 +175,7 @@ const UsersManagement: React.FC = () => {
     setLibrarianFormData({
       username: librarian.username || '',
       password: '',
-      employee_id: librarian.employee_id || '',
+      employee_id: librarian.employeeId || '',
       name: librarian.name || '',
       email: librarian.email || '',
       phone: librarian.phone || '',

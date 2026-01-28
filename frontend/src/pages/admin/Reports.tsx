@@ -123,11 +123,11 @@ const Reports: React.FC = () => {
                 <TableRow key={book.id}>
                   <TableCell className="font-medium">{book.title}</TableCell>
                   <TableCell>{book.author}</TableCell>
-                  <TableCell>{book.category?.name || '—'}</TableCell>
+                  <TableCell>{book.category || '—'}</TableCell>
                   <TableCell className="font-mono text-sm">{book.isbn || '—'}</TableCell>
-                  <TableCell className="text-center">{book.total_copies}</TableCell>
-                  <TableCell className="text-center">{book.available_copies}</TableCell>
-                  <TableCell>{book.shelf_location || '—'}</TableCell>
+                  <TableCell className="text-center">{book.totalCopies}</TableCell>
+                  <TableCell className="text-center">{book.availableCopies}</TableCell>
+                  <TableCell>{book.shelfLocation || '—'}</TableCell>
                 </TableRow>
               ))}
               {books.length === 0 && (
@@ -172,10 +172,10 @@ const Reports: React.FC = () => {
                   <TableCell>
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${loan.status === 'active'
-                          ? 'bg-info/20 text-info-foreground'
-                          : loan.status === 'returned'
-                            ? 'bg-success/20 text-success'
-                            : 'bg-destructive/20 text-destructive'
+                        ? 'bg-info/20 text-info-foreground'
+                        : loan.status === 'returned'
+                          ? 'bg-success/20 text-success'
+                          : 'bg-destructive/20 text-destructive'
                         }`}
                     >
                       {loan.status}
@@ -266,10 +266,10 @@ const Reports: React.FC = () => {
                   <TableCell>
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${fine.status === 'paid'
-                          ? 'bg-success/20 text-success'
-                          : fine.status === 'pending'
-                            ? 'bg-warning/20 text-warning-foreground'
-                            : 'bg-muted text-muted-foreground'
+                        ? 'bg-success/20 text-success'
+                        : fine.status === 'pending'
+                          ? 'bg-warning/20 text-warning-foreground'
+                          : 'bg-muted text-muted-foreground'
                         }`}
                     >
                       {fine.status}
