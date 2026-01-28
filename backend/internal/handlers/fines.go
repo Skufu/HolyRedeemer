@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"math"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -56,19 +58,19 @@ func (h *FineHandler) ListFines(c *gin.Context) {
 	fineResponses := make([]gin.H, len(fines))
 	for i, f := range fines {
 		fineResponses[i] = gin.H{
-			"id":            f.ID.String(),
-			"studentId":     fromPgUUID(f.StudentID).String(),
-			"studentName":   f.StudentName,
-			"studentNumber": f.StudentNumber,
-			"bookTitle":     fromPgText(f.BookTitle),
-			"amount":        fromPgNumeric(f.Amount),
-			"type":          string(f.FineType),
-			"description":   fromPgText(f.Description),
-			"status":        getFineStatus(f.Status),
-			"createdAt":     fromPgTimestamp(f.CreatedAt),
+			"id":             f.ID.String(),
+			"student_id":     fromPgUUID(f.StudentID).String(),
+			"student_name":   f.StudentName,
+			"student_number": f.StudentNumber,
+			"book_title":     fromPgText(f.BookTitle),
+			"amount":         fromPgNumeric(f.Amount),
+			"fine_type":      string(f.FineType),
+			"description":    fromPgText(f.Description),
+			"status":         getFineStatus(f.Status),
+			"created_at":     fromPgTimestamp(f.CreatedAt),
 		}
 		if f.TransactionID.Valid {
-			fineResponses[i]["transactionId"] = uuid.UUID(f.TransactionID.Bytes).String()
+			fineResponses[i]["transaction_id"] = uuid.UUID(f.TransactionID.Bytes).String()
 		}
 	}
 
@@ -130,7 +132,7 @@ func (h *FineHandler) GetFine(c *gin.Context) {
 // PayFineRequest represents the payment request
 type PayFineRequest struct {
 	Amount          float64 `json:"amount" binding:"required"`
-	PaymentMethod   string  `json:"payment_method" binding:"required"`
+	PaymentMethod   string  `json:"payment_method"`
 	ReferenceNumber string  `json:"reference_number"`
 	Notes           string  `json:"notes"`
 }
@@ -146,6 +148,26 @@ func (h *FineHandler) PayFine(c *gin.Context) {
 	var req PayFineRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		response.BadRequest(c, "Invalid request body")
+		return
+	}
+
+	authUser := middleware.GetAuthUser(c)
+	if authUser == nil {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	method := strings.ToLower(strings.TrimSpace(req.PaymentMethod))
+	if method == "" {
+		method = string(sqlcdb.PaymentMethodCash)
+	}
+	switch method {
+	case string(sqlcdb.PaymentMethodCash),
+		string(sqlcdb.PaymentMethodGcash),
+		string(sqlcdb.PaymentMethodBankTransfer),
+		string(sqlcdb.PaymentMethodOther):
+	default:
+		response.BadRequest(c, "Invalid payment method")
 		return
 	}
 
@@ -167,12 +189,17 @@ func (h *FineHandler) PayFine(c *gin.Context) {
 	}
 
 	// Get librarian ID
-	authUser := middleware.GetAuthUser(c)
 	librarianUserID, _ := uuid.Parse(authUser.ID)
 	librarian, err := h.queries.GetLibrarianByUserID(c.Request.Context(), toPgUUID(librarianUserID))
 	var librarianID = pgtype.UUID{Valid: false}
 	if err == nil {
 		librarianID = toPgUUID(librarian.ID)
+	}
+
+	fineAmount := fromPgNumeric(fine.Amount)
+	paymentAmount := req.Amount
+	if paymentAmount <= 0 || math.IsNaN(paymentAmount) || math.IsInf(paymentAmount, 0) {
+		paymentAmount = fineAmount
 	}
 
 	// Begin transaction for atomic payment + status update
@@ -189,8 +216,8 @@ func (h *FineHandler) PayFine(c *gin.Context) {
 	payment, err := queries.CreatePayment(c.Request.Context(), sqlcdb.CreatePaymentParams{
 		FineID:          toPgUUID(fineID),
 		StudentID:       fine.StudentID,
-		Amount:          toPgNumeric(req.Amount),
-		PaymentMethod:   sqlcdb.PaymentMethod(req.PaymentMethod),
+		Amount:          toPgNumeric(paymentAmount),
+		PaymentMethod:   sqlcdb.PaymentMethod(method),
 		ReferenceNumber: toPgText(req.ReferenceNumber),
 		Notes:           toPgText(req.Notes),
 		ProcessedBy:     librarianID,
@@ -202,7 +229,6 @@ func (h *FineHandler) PayFine(c *gin.Context) {
 
 	// Check if fine is fully paid
 	totalPaid, _ := queries.GetTotalPaidForFine(c.Request.Context(), toPgUUID(fineID))
-	fineAmount := fromPgNumeric(fine.Amount)
 	if totalPaid >= fineAmount {
 		_, err := queries.UpdateFineStatus(c.Request.Context(), sqlcdb.UpdateFineStatusParams{
 			ID:     fineID,

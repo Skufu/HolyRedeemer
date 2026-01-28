@@ -75,13 +75,13 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 
 	// Get librarian ID from auth
 	authUser := middleware.GetAuthUser(c)
-	
+
 	// Explicit role check for defense-in-depth
 	if authUser.Role != "librarian" && authUser.Role != "admin" && authUser.Role != "super_admin" {
 		response.Forbidden(c, "Insufficient permissions")
 		return
 	}
-	
+
 	librarianUserID, _ := uuid.Parse(authUser.ID)
 	librarian, err := h.queries.GetLibrarianByUserID(c.Request.Context(), toPgUUID(librarianUserID))
 	librarianID := pgtype.UUID{Valid: false}
@@ -96,7 +96,7 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 		return
 	}
 	defer func() {
-	_ = tx.Rollback(c.Request.Context())
+		_ = tx.Rollback(c.Request.Context())
 	}()
 
 	// Use transactional queries
@@ -199,6 +199,12 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 	resp.Book.Title = copy.BookTitle
 	resp.Book.CopyNumber = copy.CopyNumber
 
+	// Log audit entry
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionCheckout, "transaction", txn.ID, map[string]interface{}{
+		"student_id": student.StudentID,
+		"book_title": copy.BookTitle,
+	})
+
 	response.Success(c, resp, "Book checked out successfully")
 }
 
@@ -237,16 +243,16 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 
 	// Get librarian ID from auth
 	authUser := middleware.GetAuthUser(c)
-	
+
 	// Explicit role check for defense-in-depth
 	if authUser.Role != "librarian" && authUser.Role != "admin" && authUser.Role != "super_admin" {
 		response.Forbidden(c, "Insufficient permissions")
 		return
 	}
-	
+
 	librarianUserID, _ := uuid.Parse(authUser.ID)
 	librarianID := pgtype.UUID{Valid: false}
-	
+
 	// Begin transaction BEFORE validation
 	tx, err := h.db.Begin(c.Request.Context())
 	if err != nil {
@@ -254,7 +260,7 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 		return
 	}
 	defer func() {
-	_ = tx.Rollback(c.Request.Context())
+		_ = tx.Rollback(c.Request.Context())
 	}()
 
 	// Use transactional queries
@@ -358,6 +364,11 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 		return
 	}
 
+	// Log audit entry
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionReturn, "transaction", loan.ID, map[string]interface{}{
+		"days_overdue": resp.DaysOverdue,
+	})
+
 	response.Success(c, resp, "Book returned successfully")
 }
 
@@ -387,7 +398,7 @@ func (h *CirculationHandler) Renew(c *gin.Context) {
 		return
 	}
 	defer func() {
-	_ = tx.Rollback(c.Request.Context())
+		_ = tx.Rollback(c.Request.Context())
 	}()
 
 	// Use transactional queries

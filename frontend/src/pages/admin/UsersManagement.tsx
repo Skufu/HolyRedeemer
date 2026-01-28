@@ -67,6 +67,8 @@ const UsersManagement: React.FC = () => {
   const admins = adminsData?.data || [];
 
   const [formData, setFormData] = useState<CreateStudentRequest>({
+    username: '',
+    password: '',
     name: '',
     student_id: '',
     email: '',
@@ -105,6 +107,8 @@ const UsersManagement: React.FC = () => {
 
   const handleOpenAdd = () => {
     setFormData({
+      username: '',
+      password: '',
       name: '',
       student_id: '',
       email: '',
@@ -119,10 +123,12 @@ const UsersManagement: React.FC = () => {
 
   const handleOpenEdit = (student: Student) => {
     setFormData({
+      username: student.username || '',
+      password: '',
       name: student.name || '',
       student_id: student.student_id || '',
       email: student.email || '',
-      grade_level: student.grade_level || 7,
+      grade_level: student.gradeLevel || 7,
       section: student.section || '',
       guardian_name: student.guardian_name || '',
       guardian_contact: student.guardian_contact || '',
@@ -263,7 +269,7 @@ const UsersManagement: React.FC = () => {
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
               gradeFilter="all"
-              onGradeFilterChange={() => {}}
+              onGradeFilterChange={() => { }}
               onEdit={handleOpenEdit}
               onDeactivate={handleDeactivate}
             />
@@ -315,6 +321,26 @@ const UsersManagement: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="username">Username *</Label>
+              <Input
+                id="username"
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                disabled={!!editingStudent}
+              />
+            </div>
+            {!editingStudent && (
+              <div className="grid gap-2">
+                <Label htmlFor="password">Password *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                />
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="name">Full Name *</Label>
               <Input

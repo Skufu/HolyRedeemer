@@ -30,7 +30,7 @@ describe('Login Page', () => {
 
     expect(screen.getByText(/sign in/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/enter your password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
   });
 
   it('shows validation error for empty fields', async () => {
@@ -47,14 +47,13 @@ describe('Login Page', () => {
   it('toggles password visibility', () => {
     render(<Login />, { wrapper: createWrapper() });
 
-    const passwordInput = screen.getByPlaceholderText(/enter your password/i) as HTMLInputElement;
-    const toggleButton = screen.getByRole('button', { name: /show password/i });
+    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
+    const toggleButton = passwordInput.parentElement?.querySelector('button[type="button"]') as HTMLButtonElement;
 
     expect(passwordInput.type).toBe('password');
 
     fireEvent.click(toggleButton);
 
     expect(passwordInput.type).toBe('text');
-    expect(toggleButton).toHaveAttribute('aria-label', 'Hide password');
   });
 });

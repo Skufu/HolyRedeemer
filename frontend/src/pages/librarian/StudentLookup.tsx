@@ -426,9 +426,10 @@ const StudentLookup: React.FC = () => {
                                     size="sm" 
                                     onClick={() => {
                                       if (confirm(`Confirm payment of ₱${fine.amount}?`)) {
+                                        const paymentAmount = Number(fine.amount);
                                         payFine.mutate({ 
                                           id: fine.id, 
-                                          payment: { amount: fine.amount, payment_method: 'cash' } 
+                                          payment: { amount: paymentAmount, payment_method: 'cash' } 
                                         });
                                       }
                                     }}

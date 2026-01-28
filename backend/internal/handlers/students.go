@@ -282,6 +282,12 @@ func (h *StudentHandler) CreateStudent(c *gin.Context) {
 		return
 	}
 
+	// Log audit entry
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionCreate, "student", student.ID, map[string]interface{}{
+		"student_id": student.StudentID,
+		"name":       req.Name,
+	})
+
 	response.Created(c, gin.H{
 		"id":         student.ID.String(),
 		"user_id":    user.ID.String(),
