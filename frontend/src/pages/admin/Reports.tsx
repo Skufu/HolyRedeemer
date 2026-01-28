@@ -164,20 +164,19 @@ const Reports: React.FC = () => {
             <TableBody>
               {currentLoans.map((loan) => (
                 <TableRow key={loan.id}>
-                  <TableCell className="font-mono text-sm">{loan.id.slice(0, 8)}</TableCell>
+                  <TableCell className="font-mono text-sm">{loan.id.slice(0, 4)}...{loan.id.slice(-4)}</TableCell>
                   <TableCell>{loan.studentName}</TableCell>
                   <TableCell>{loan.bookTitle}</TableCell>
                   <TableCell>{safeFormatDate(loan.checkoutDate)}</TableCell>
                   <TableCell>{safeFormatDate(loan.dueDate)}</TableCell>
                   <TableCell>
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        loan.status === 'active'
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${loan.status === 'active'
                           ? 'bg-info/20 text-info-foreground'
                           : loan.status === 'returned'
-                          ? 'bg-success/20 text-success'
-                          : 'bg-destructive/20 text-destructive'
-                      }`}
+                            ? 'bg-success/20 text-success'
+                            : 'bg-destructive/20 text-destructive'
+                        }`}
                     >
                       {loan.status}
                     </span>
@@ -266,13 +265,12 @@ const Reports: React.FC = () => {
                   <TableCell className="text-right font-medium">₱{fine.amount.toFixed(2)}</TableCell>
                   <TableCell>
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        fine.status === 'paid'
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${fine.status === 'paid'
                           ? 'bg-success/20 text-success'
                           : fine.status === 'pending'
-                          ? 'bg-warning/20 text-warning-foreground'
-                          : 'bg-muted text-muted-foreground'
-                      }`}
+                            ? 'bg-warning/20 text-warning-foreground'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
                     >
                       {fine.status}
                     </span>
@@ -349,16 +347,14 @@ const Reports: React.FC = () => {
           return (
             <Card
               key={report.id}
-              className={`cursor-pointer transition-all duration-200 hover:shadow-warm ${
-                isSelected ? 'ring-2 ring-primary shadow-warm' : ''
-              }`}
+              className={`cursor-pointer transition-all duration-200 hover:shadow-warm ${isSelected ? 'ring-2 ring-primary shadow-warm' : ''
+                }`}
               onClick={() => setSelectedReport(report.id)}
             >
               <CardContent className="p-4 text-center">
                 <div
-                  className={`w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center transition-colors ${
-                    isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                  }`}
+                  className={`w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center transition-colors ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                    }`}
                 >
                   <Icon className="h-6 w-6" />
                 </div>

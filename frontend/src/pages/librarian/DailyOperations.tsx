@@ -70,8 +70,9 @@ const DailyOperations: React.FC = () => {
           title: "Request Approved",
           description: "Student can now check out the book.",
           action: (
-            <ToastAction 
-              altText="Go to Checkout" 
+            <ToastAction
+              altText="Go to Checkout"
+              data-testid="toast-go-to-checkout"
               onClick={() => navigate(`/librarian/circulation?student_id=${request?.studentId}`)}
             >
               Go to Checkout
@@ -303,7 +304,13 @@ const DailyOperations: React.FC = () => {
               ) : pendingRequests.length > 0 ? (
                 <div className="space-y-3">
                   {pendingRequests.map((req) => (
-                    <div key={req.id} className="p-4 rounded-lg border bg-muted/50">
+                    <div
+                      key={req.id}
+                      className="p-4 rounded-lg border bg-muted/50"
+                      data-testid="request-card"
+                      data-request-id={req.id}
+                      data-request-title={req.bookTitle || 'Unknown Book'}
+                    >
                       <div className="flex items-start justify-between">
                         <div>
                           <p className="font-medium">{req.bookTitle || 'Unknown Book'}</p>
@@ -326,6 +333,7 @@ const DailyOperations: React.FC = () => {
                             onClick={() => handleReject(req.id)}
                             className="text-destructive hover:text-destructive"
                             disabled={rejectRequest.isPending}
+                            aria-label="Reject request"
                           >
                             <XCircle className="h-4 w-4" />
                           </Button>
@@ -335,6 +343,7 @@ const DailyOperations: React.FC = () => {
                             className="text-primary hover:text-primary"
                             onClick={() => navigate(`/librarian/circulation?student_id=${req.studentId}`)}
                             title="Go to Checkout"
+                            aria-label="Go to Checkout"
                           >
                             <ExternalLink className="h-4 w-4" />
                           </Button>
@@ -342,6 +351,7 @@ const DailyOperations: React.FC = () => {
                             size="sm"
                             onClick={() => handleApprove(req.id)}
                             disabled={approveRequest.isPending}
+                            aria-label="Approve request"
                           >
                             <CheckCircle className="h-4 w-4" />
                           </Button>

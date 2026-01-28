@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"encoding/json"
 	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/holyredeemer/library-api/internal/middleware"
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/pkg/response"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -104,4 +106,52 @@ func (h *AuditHandler) ListAuditLogs(c *gin.Context) {
 	}
 
 	response.Success(c, auditResponses, "")
+}
+
+// LogAudit creates an audit log entry
+func (h *AuditHandler) LogAudit(c *gin.Context, action sqlcdb.AuditAction, entityType string, entityID uuid.UUID, oldValues, newValues []byte) error {
+	userID := pgtype.UUID{Valid: false}
+	if authUser := middleware.GetAuthUser(c); authUser != nil {
+		if uid, err := uuid.Parse(authUser.ID); err == nil {
+			userID = pgtype.UUID{Bytes: uid, Valid: true}
+		}
+	}
+
+	_, err := h.queries.CreateAuditLog(c.Request.Context(), sqlcdb.CreateAuditLogParams{
+		UserID:     userID,
+		Action:     action,
+		EntityType: pgtype.Text{String: entityType, Valid: true},
+		EntityID:   pgtype.UUID{Bytes: entityID, Valid: true},
+		OldValues:  oldValues,
+		NewValues:  newValues,
+		IpAddress:  pgtype.Text{String: c.ClientIP(), Valid: true},
+		UserAgent:  pgtype.Text{String: c.Request.UserAgent(), Valid: true},
+	})
+	return err
+}
+
+// LogAuditFromContext is a standalone function to log audit entries from any handler
+func LogAuditFromContext(c *gin.Context, queries *sqlcdb.Queries, action sqlcdb.AuditAction, entityType string, entityID uuid.UUID, newValues map[string]interface{}) {
+	userID := pgtype.UUID{Valid: false}
+	if authUser := middleware.GetAuthUser(c); authUser != nil {
+		if uid, err := uuid.Parse(authUser.ID); err == nil {
+			userID = pgtype.UUID{Bytes: uid, Valid: true}
+		}
+	}
+
+	var newValuesJSON []byte
+	if newValues != nil {
+		newValuesJSON, _ = json.Marshal(newValues)
+	}
+
+	queries.CreateAuditLog(c.Request.Context(), sqlcdb.CreateAuditLogParams{
+		UserID:     userID,
+		Action:     action,
+		EntityType: pgtype.Text{String: entityType, Valid: true},
+		EntityID:   pgtype.UUID{Bytes: entityID, Valid: true},
+		OldValues:  nil,
+		NewValues:  newValuesJSON,
+		IpAddress:  pgtype.Text{String: c.ClientIP(), Valid: true},
+		UserAgent:  pgtype.Text{String: c.Request.UserAgent(), Valid: true},
+	})
 }

@@ -93,6 +93,8 @@ export interface ListStudentsParams {
 }
 
 export interface CreateStudentRequest {
+  username: string;
+  password: string;
   student_id: string;
   name: string;
   email?: string;

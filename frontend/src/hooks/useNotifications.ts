@@ -3,10 +3,14 @@ import { notificationsService, ListNotificationsParams } from '@/services/notifi
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/services/api';
 
+// Helper to check if user is authenticated
+const isAuthenticated = () => !!localStorage.getItem('lms_access_token');
+
 export const useNotifications = (params?: ListNotificationsParams) => {
   return useQuery({
     queryKey: ['notifications', params],
     queryFn: () => notificationsService.list(params),
+    enabled: isAuthenticated(),
   });
 };
 
@@ -15,6 +19,7 @@ export const useUnreadNotificationsCount = () => {
     queryKey: ['notifications', 'unread-count'],
     queryFn: () => notificationsService.getUnreadCount(),
     refetchInterval: 30000,
+    enabled: isAuthenticated(),
   });
 };
 

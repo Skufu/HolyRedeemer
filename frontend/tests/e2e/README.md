@@ -95,6 +95,7 @@ E2E_STUDENT_PASSWORD=student123
 - Use fixtures for common test setup (login, etc.)
 - Keep tests independent and isolated
 - Use meaningful test names that describe the behavior
+- Wrap critical checks with `gapCheck()` to flag app gaps in failures
 - Run tests in UI mode during development
 - Review screenshots and traces after failed tests
 

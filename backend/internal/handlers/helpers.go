@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"math"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,7 +45,10 @@ func fromPgInt4(i pgtype.Int4) int32 {
 // Numeric (float64) helpers
 func toPgNumeric(f float64) pgtype.Numeric {
 	var num pgtype.Numeric
-	err := num.Scan(f)
+	if math.IsNaN(f) || math.IsInf(f, 0) {
+		return pgtype.Numeric{Valid: false}
+	}
+	err := num.Scan(strconv.FormatFloat(f, 'f', -1, 64))
 	if err != nil {
 		return pgtype.Numeric{Valid: false}
 	}
