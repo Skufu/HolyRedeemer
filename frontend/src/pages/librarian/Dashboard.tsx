@@ -26,7 +26,7 @@ const CountUp = ({ value, className }: { value: number, className?: string }) =>
   React.useEffect(() => {
     const animation = animate(count, value, { duration: 1.5, ease: "easeOut" });
     return animation.stop;
-  }, [value]);
+  }, [count, value]);
 
   return <motion.span className={className}>{rounded}</motion.span>;
 };

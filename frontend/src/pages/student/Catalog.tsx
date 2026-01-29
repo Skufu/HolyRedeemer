@@ -123,7 +123,7 @@ const StudentCatalog = () => {
   };
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-4 sm:space-y-6 relative"
       initial={prefersReducedMotion ? "visible" : "hidden"}
       animate="visible"
@@ -211,7 +211,7 @@ const StudentCatalog = () => {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : viewMode === 'list' ? (
-        <motion.div 
+        <motion.div
           className="rounded-md border bg-card"
           initial={prefersReducedMotion ? "visible" : "hidden"}
           animate="visible"
@@ -230,8 +230,8 @@ const StudentCatalog = () => {
             </TableHeader>
             <TableBody>
               {filteredBooks.map((book) => (
-                <motion.tr 
-                  key={book.id} 
+                <motion.tr
+                  key={book.id}
                   variants={staggerItemVariants}
                   className="cursor-pointer hover:bg-muted/50 border-b transition-colors"
                   onClick={() => setSelectedBook(book)}
@@ -271,7 +271,7 @@ const StudentCatalog = () => {
           </Table>
         </motion.div>
       ) : (
-        <motion.div 
+        <motion.div
           className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4"
           initial={prefersReducedMotion ? "visible" : "hidden"}
           animate="visible"
@@ -288,7 +288,7 @@ const StudentCatalog = () => {
                 className="cursor-pointer overflow-hidden group h-full"
                 onClick={() => setSelectedBook(book)}
               >
-                <motion.div 
+                <motion.div
                   className="aspect-[3/4] bg-muted relative overflow-hidden"
                   variants={cardHoverVariants}
                   initial="initial"
@@ -364,7 +364,7 @@ const StudentCatalog = () => {
           setNotes('');
         }
       }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display text-lg sm:text-xl pr-4">{selectedBook?.title}</DialogTitle>
           </DialogHeader>

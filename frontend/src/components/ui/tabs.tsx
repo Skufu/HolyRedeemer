@@ -28,10 +28,35 @@ const TabsTrigger = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
 >(({ className, children, ...props }, ref) => {
   const prefersReducedMotion = useReducedMotion();
+  const [isActive, setIsActive] = React.useState(false);
+  const internalRef = React.useRef<HTMLButtonElement>(null);
+
+  // Use a combined ref to access the DOM element
+  React.useImperativeHandle(ref, () => internalRef.current!);
+
+  React.useEffect(() => {
+    const element = internalRef.current;
+    if (!element) return;
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === "attributes" && mutation.attributeName === "data-state") {
+          setIsActive(element.getAttribute("data-state") === "active");
+        }
+      });
+    });
+
+    observer.observe(element, { attributes: true });
+
+    // Initial check
+    setIsActive(element.getAttribute("data-state") === "active");
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <TabsPrimitive.Trigger
-      ref={ref}
+      ref={internalRef}
       className={cn(
         "group relative inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors data-[state=active]:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
         className,
@@ -39,15 +64,15 @@ const TabsTrigger = React.forwardRef<
       {...props}
     >
       <span className="relative z-10">{children}</span>
-      {!prefersReducedMotion && (
+      {!prefersReducedMotion && isActive && (
         <motion.div
           layoutId="activeTabIndicator"
-          className="absolute inset-0 bg-background rounded-sm shadow-sm -z-0 hidden group-data-[state=active]:block"
+          className="absolute inset-0.5 bg-background rounded-[calc(var(--radius)-4px)] shadow-sm -z-0"
           transition={tabIndicatorTransition}
         />
       )}
       {prefersReducedMotion && (
-        <div className="absolute inset-0 bg-background rounded-sm shadow-sm -z-10 hidden data-[state=active]:block" />
+        <div className="absolute inset-0.5 bg-background rounded-[calc(var(--radius)-4px)] shadow-sm -z-10 hidden data-[state=active]:block" />
       )}
     </TabsPrimitive.Trigger>
   );

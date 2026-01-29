@@ -48,13 +48,14 @@ const DialogContent = React.forwardRef<
         <DialogPrimitive.Content ref={ref} asChild {...props}>
           <motion.div
             className={cn(
-              "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg",
+              "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg duration-200",
               className,
             )}
             initial={prefersReducedMotion ? "visible" : "hidden"}
             animate="visible"
             exit="exit"
             variants={scaleVariants}
+            style={{ translateX: "-50%", translateY: "-50%" }}
           >
             {children}
             <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity data-[state=open]:bg-accent data-[state=open]:text-muted-foreground hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">

@@ -2,11 +2,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Bell, 
-  BookOpen, 
-  AlertTriangle, 
-  Clock, 
+import {
+  Bell,
+  BookOpen,
+  AlertTriangle,
+  Clock,
   CheckCircle2,
   Calendar,
   CreditCard,
@@ -19,6 +19,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { useNotifications, useUnreadNotificationsCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from '@/hooks/useNotifications';
 import { Notification } from '@/services/notifications';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { staggerContainerVariants, staggerItemVariants, transitions } from '@/lib/animations';
 
 const StudentNotifications = () => {
   const { data: notificationsData, isLoading } = useNotifications();
@@ -86,62 +88,71 @@ const StudentNotifications = () => {
     }
   };
 
-  const NotificationCard = ({ notification, showMarkAsRead = false }: { 
-    notification: Notification, 
-    showMarkAsRead?: boolean 
+  const NotificationCard = ({ notification, showMarkAsRead = false }: {
+    notification: Notification,
+    showMarkAsRead?: boolean
   }) => {
     const actionLink = getNotificationActionLink(notification.type);
-    
+
     return (
-      <Card className={`transition-all ${!notification.isRead ? 'border-primary/30 bg-primary/5' : ''}`}>
-        <CardContent className="p-4">
-          <div className="flex gap-4">
-            <div className="flex-shrink-0 mt-1">
-              <div className={`p-2 rounded-full ${!notification.isRead ? 'bg-primary/10' : 'bg-muted'}`}>
-                {getNotificationIcon(notification.type)}
+      <motion.div
+        layout
+        variants={staggerItemVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        transition={transitions.normal}
+      >
+        <Card className={`transition-all ${!notification.isRead ? 'border-primary/30 bg-primary/5' : ''}`}>
+          <CardContent className="p-4">
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 mt-1">
+                <div className={`p-2 rounded-full ${!notification.isRead ? 'bg-primary/10' : 'bg-muted'}`}>
+                  {getNotificationIcon(notification.type)}
+                </div>
               </div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-semibold">{notification.title}</h4>
-                    {getNotificationBadge(notification.type)}
-                    {!notification.isRead && (
-                      <span className="w-2 h-2 rounded-full bg-primary" />
-                    )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-semibold">{notification.title}</h4>
+                      {getNotificationBadge(notification.type)}
+                      {!notification.isRead && (
+                        <span className="w-2 h-2 rounded-full bg-primary" />
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
+                  {showMarkAsRead && !notification.isRead && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => markAsRead(notification.id)}
+                      disabled={markAsReadMutation.isPending}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
-                {showMarkAsRead && !notification.isRead && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => markAsRead(notification.id)}
-                    disabled={markAsReadMutation.isPending}
-                  >
-                    <Check className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-              <div className="flex items-center justify-between mt-3">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                <div className="flex items-center justify-between mt-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                  </div>
+
+                  {actionLink && (
+                    <Button variant="link" size="sm" className="h-auto p-0 text-primary" asChild>
+                      <Link to={actionLink} className="flex items-center gap-1">
+                        View details <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </Button>
+                  )}
                 </div>
-                
-                {actionLink && (
-                  <Button variant="link" size="sm" className="h-auto p-0 text-primary" asChild>
-                    <Link to={actionLink} className="flex items-center gap-1">
-                      View details <ExternalLink className="h-3 w-3" />
-                    </Link>
-                  </Button>
-                )}
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </motion.div>
     );
   };
 
@@ -165,9 +176,9 @@ const StudentNotifications = () => {
           </p>
         </div>
         {unreadCount > 0 && (
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={markAllAsRead}
             disabled={markAllAsReadMutation.isPending}
           >
@@ -238,24 +249,29 @@ const StudentNotifications = () => {
       </div>
 
       <Tabs defaultValue="all" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all" className="flex items-center gap-2">
+        <TabsList className="h-auto p-1.5 flex gap-1">
+          <TabsTrigger value="all" className="flex-1 flex-col py-2 px-6 h-auto gap-1">
             <Bell className="h-4 w-4" />
-            All ({notifications.length})
+            <span>All ({notifications.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="unread" className="flex items-center gap-2">
+          <TabsTrigger value="unread" className="flex-1 flex-col py-2 px-6 h-auto gap-1">
             <span className="relative">
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
               )}
             </span>
-            Unread ({unreadCount})
+            <span>Unread ({unreadCount})</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="all">
-          <div className="space-y-3">
+          <motion.div
+            className="space-y-3"
+            variants={staggerContainerVariants}
+            initial="hidden"
+            animate="visible"
+          >
             {notifications.length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">
@@ -264,21 +280,28 @@ const StudentNotifications = () => {
                 </CardContent>
               </Card>
             ) : (
-              notifications
-                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                .map((notification) => (
-                  <NotificationCard 
-                    key={notification.id} 
-                    notification={notification}
-                    showMarkAsRead={true}
-                  />
-                ))
+              <AnimatePresence mode="popLayout">
+                {notifications
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((notification) => (
+                    <NotificationCard
+                      key={notification.id}
+                      notification={notification}
+                      showMarkAsRead={true}
+                    />
+                  ))}
+              </AnimatePresence>
             )}
-          </div>
+          </motion.div>
         </TabsContent>
 
         <TabsContent value="unread">
-          <div className="space-y-3">
+          <motion.div
+            className="space-y-3"
+            variants={staggerContainerVariants}
+            initial="hidden"
+            animate="visible"
+          >
             {unreadNotifications.length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">
@@ -287,17 +310,19 @@ const StudentNotifications = () => {
                 </CardContent>
               </Card>
             ) : (
-              unreadNotifications
-                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                .map((notification) => (
-                  <NotificationCard 
-                    key={notification.id} 
-                    notification={notification}
-                    showMarkAsRead={true}
-                  />
-                ))
+              <AnimatePresence mode="popLayout">
+                {unreadNotifications
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((notification) => (
+                    <NotificationCard
+                      key={notification.id}
+                      notification={notification}
+                      showMarkAsRead={true}
+                    />
+                  ))}
+              </AnimatePresence>
             )}
-          </div>
+          </motion.div>
         </TabsContent>
       </Tabs>
     </div>

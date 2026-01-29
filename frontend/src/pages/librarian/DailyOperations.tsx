@@ -22,6 +22,7 @@ import { useCurrentLoans, useOverdueLoans, useNotifyOverdue } from '@/hooks/useC
 import { useRequests, useApproveRequest, useRejectRequest } from '@/hooks/useRequests';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import { cardHoverVariants, staggerContainerVariants, staggerItemVariants } from '@/lib/animations';
 
 const DailyOperations: React.FC = () => {
@@ -204,18 +205,27 @@ const DailyOperations: React.FC = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="due-today">
-        <TabsList className="grid w-full max-w-lg grid-cols-3">
-          <TabsTrigger value="due-today" className="gap-2">
+        <TabsList className="h-auto p-1.5 flex gap-1 max-w-xl bg-muted/50">
+          <TabsTrigger value="due-today" className="flex-1 flex-col py-3 px-4 h-auto gap-2">
             <Clock className="h-4 w-4" />
-            Due Today ({dueToday.length})
+            <span>Due Today ({dueToday.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="overdue" className="gap-2">
+          <TabsTrigger value="overdue" className="flex-1 flex-col py-3 px-4 h-auto gap-2">
             <AlertTriangle className="h-4 w-4" />
-            Overdue ({overdueBooks.length})
+            <span>Overdue ({overdueBooks.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="requests" className={`gap-2 ${pendingRequests.length > 0 ? "text-orange-600 font-medium" : ""}`}>
-            <Bell className={`h-4 w-4 ${pendingRequests.length > 0 ? "text-orange-600 fill-orange-600" : ""}`} />
-            Requests ({pendingRequests.length})
+          <TabsTrigger
+            value="requests"
+            className={cn(
+              "flex-1 flex-col py-3 px-4 h-auto gap-2",
+              pendingRequests.length > 0 && "text-orange-600 font-medium"
+            )}
+          >
+            <Bell className={cn(
+              "h-4 w-4",
+              pendingRequests.length > 0 && "text-orange-600 fill-orange-600"
+            )} />
+            <span>Requests ({pendingRequests.length})</span>
           </TabsTrigger>
         </TabsList>
 
