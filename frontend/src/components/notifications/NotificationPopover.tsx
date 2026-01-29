@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications, useMarkAllNotificationsAsRead, useMarkNotificationAsRead } from '@/hooks/useNotifications';
 import { useAuth } from '@/contexts/AuthContext';
@@ -96,28 +97,35 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({ childr
             </div>
           ) : (
             <div className="flex flex-col">
-              {notifications.map((notification) => (
-                <button
-                  key={notification.id}
-                  className={cn(
-                    "flex flex-col items-start gap-1 p-4 text-left transition-colors hover:bg-muted/50 border-b last:border-0",
-                    !notification.isRead && "bg-muted/20"
-                  )}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <div className="flex w-full items-start justify-between gap-2">
-                    <span className={cn("text-sm font-semibold", !notification.isRead && "text-primary")}>
-                      {notification.title}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                      {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    {notification.message}
-                  </p>
-                </button>
-              ))}
+              <AnimatePresence mode="popLayout">
+                {notifications.map((notification) => (
+                  <motion.button
+                    layout
+                    key={notification.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: "100%" }}
+                    transition={{ duration: 0.2 }}
+                    className={cn(
+                      "flex flex-col items-start gap-1 p-4 text-left transition-colors hover:bg-muted/50 border-b last:border-0 w-full",
+                      !notification.isRead && "bg-muted/20"
+                    )}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <div className="flex w-full items-start justify-between gap-2">
+                      <span className={cn("text-sm font-semibold", !notification.isRead && "text-primary")}>
+                        {notification.title}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                        {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {notification.message}
+                    </p>
+                  </motion.button>
+                ))}
+              </AnimatePresence>
             </div>
           )}
         </ScrollArea>

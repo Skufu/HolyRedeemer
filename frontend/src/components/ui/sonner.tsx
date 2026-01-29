@@ -1,10 +1,15 @@
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
+
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { toastVariants } from "@/lib/animations";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
+  const prefersReducedMotion = useReducedMotion();
 
   return (
     <Sonner

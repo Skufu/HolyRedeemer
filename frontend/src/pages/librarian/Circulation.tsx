@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,8 @@ import { useStudents, useStudentLoans, useStudent } from '@/hooks/useStudents';
 import { Book as BookType, BookCopy } from '@/services/books';
 import { StudentLookup as RfidStudentLookup } from '@/services/auth';
 import { Student as ApiStudent } from '@/services/students';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
+import { listItemVariants, staggerContainerVariants, fadeInUpVariants } from '@/lib/animations';
 
 type CirculationMode = 'checkout' | 'return';
 
@@ -344,9 +347,15 @@ const Circulation: React.FC = () => {
   };
 
   const isProcessing = checkoutMutation.isPending || returnMutation.isPending;
+  const prefersReducedMotion = useReducedMotion();
 
   return (
-    <div className="space-y-4 sm:space-y-6 animate-fade-in-up">
+    <motion.div 
+      className="space-y-4 sm:space-y-6"
+      initial={prefersReducedMotion ? "visible" : "hidden"}
+      animate="visible"
+      variants={fadeInUpVariants}
+    >
       {/* Header */}
       <div className="flex flex-col gap-3">
         <div>
@@ -597,40 +606,52 @@ const Circulation: React.FC = () => {
 
 
                   {/* Scanned Books List */}
-                  {scannedBooks.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs sm:text-sm font-medium">Scanned Books ({scannedBooks.length})</p>
-                      <div className="space-y-2">
-                        {scannedBooks.map(({ copy, book }) => (
-                          <div 
-                            key={copy.id}
-                            className="flex items-center justify-between p-2 sm:p-3 rounded-lg bg-muted/50 border"
-                          >
-                            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded bg-primary/10 flex items-center justify-center shrink-0">
-                                <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-medium text-xs sm:text-sm truncate">{book.title}</p>
-                              <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                                Copy #{copy.copyNumber}
-                              </p>
-
-                              </div>
-                            </div>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => removeScannedBook(copy.id)}
-                              className="shrink-0 h-7 w-7 sm:h-8 sm:w-8 p-0"
+                  <AnimatePresence mode="popLayout">
+                    {scannedBooks.length > 0 && (
+                      <motion.div 
+                        className="space-y-2"
+                        initial={prefersReducedMotion ? "visible" : "hidden"}
+                        animate="visible"
+                        exit="exit"
+                        variants={staggerContainerVariants}
+                      >
+                        <p className="text-xs sm:text-sm font-medium">Scanned Books ({scannedBooks.length})</p>
+                        <div className="space-y-2">
+                          {scannedBooks.map(({ copy, book }) => (
+                            <motion.div 
+                              key={copy.id}
+                              layout
+                              initial={prefersReducedMotion ? "visible" : "hidden"}
+                              animate="visible"
+                              exit="exit"
+                              variants={listItemVariants}
+                              className="flex items-center justify-between p-2 sm:p-3 rounded-lg bg-muted/50 border"
                             >
-                              <XCircle className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                <div className="h-7 w-7 sm:h-8 sm:w-8 rounded bg-primary/10 flex items-center justify-center shrink-0">
+                                  <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-medium text-xs sm:text-sm truncate">{book.title}</p>
+                                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                                    Copy #{copy.copyNumber}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => removeScannedBook(copy.id)}
+                                className="shrink-0 h-7 w-7 sm:h-8 sm:w-8 p-0"
+                              >
+                                <XCircle className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </CardContent>
               </Card>
             </div>
@@ -867,7 +888,7 @@ const Circulation: React.FC = () => {
             : 'Position the book QR code within the frame'
         }
       />
-    </div>
+    </motion.div>
   );
 };
 

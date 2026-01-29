@@ -2,9 +2,9 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  BookOpen, 
-  AlertTriangle, 
+import {
+  BookOpen,
+  AlertTriangle,
   ArrowRightLeft,
   Clock,
   TrendingUp,
@@ -16,18 +16,32 @@ import { format, differenceInDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardStats } from '@/hooks/useDashboard';
 import { useCurrentLoans, useOverdueLoans } from '@/hooks/useCirculation';
+import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { staggerContainerVariants, staggerItemVariants, cardHoverVariants } from '@/lib/animations';
+
+const CountUp = ({ value, className }: { value: number, className?: string }) => {
+  const count = useMotionValue(0);
+  const rounded = useTransform(count, Math.round);
+
+  React.useEffect(() => {
+    const animation = animate(count, value, { duration: 1.5, ease: "easeOut" });
+    return animation.stop;
+  }, [value]);
+
+  return <motion.span className={className}>{rounded}</motion.span>;
+};
 
 const LibrarianDashboard: React.FC = () => {
   const navigate = useNavigate();
-  
+
   const { data: dashboardData, isLoading: statsLoading } = useDashboardStats();
   const { data: currentLoansData, isLoading: loansLoading } = useCurrentLoans();
   const { data: overdueData, isLoading: overdueLoading } = useOverdueLoans();
-  
+
   const stats = dashboardData?.data;
   const currentLoans = currentLoansData?.data || [];
   const overdueLoans = overdueData?.data || [];
-  
+
   const dueSoon = currentLoans.filter(loan => {
     const daysUntilDue = differenceInDays(new Date(loan.dueDate), new Date());
     return daysUntilDue >= 0 && daysUntilDue <= 3;
@@ -59,25 +73,41 @@ const LibrarianDashboard: React.FC = () => {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainerVariants}
+      >
         {quickStats.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  {isLoading ? (
-                    <Loader2 className="h-6 w-6 animate-spin mt-2" />
-                  ) : (
-                    <p className="text-3xl font-bold font-display">{stat.value}</p>
-                  )}
-                </div>
-                <stat.icon className={`h-8 w-8 ${stat.color} opacity-80`} />
-              </div>
-            </CardContent>
-          </Card>
+          <motion.div
+            key={stat.label}
+            variants={staggerItemVariants}
+            whileHover="hover"
+            whileTap="tap"
+          >
+            <motion.div variants={cardHoverVariants} initial="initial" className="h-full">
+              <Card className="h-full">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">{stat.label}</p>
+                      {isLoading ? (
+                        <Loader2 className="h-6 w-6 animate-spin mt-2" />
+                      ) : (
+                        <div className="text-3xl font-bold font-display flex items-center">
+                          <CountUp value={stat.value} />
+                        </div>
+                      )}
+                    </div>
+                    <stat.icon className={`h-8 w-8 ${stat.color} opacity-80`} />
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Quick Actions */}
@@ -86,38 +116,23 @@ const LibrarianDashboard: React.FC = () => {
             <CardTitle className="font-display">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3">
-            <Button 
-              variant="outline" 
-              className="h-20 flex-col gap-2"
-              onClick={() => navigate('/librarian/circulation')}
-            >
-              <ArrowRightLeft className="h-6 w-6" />
-              <span>Checkout/Return</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-20 flex-col gap-2"
-              onClick={() => navigate('/librarian/student-lookup')}
-            >
-              <Search className="h-6 w-6" />
-              <span>Student Lookup</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-20 flex-col gap-2"
-              onClick={() => navigate('/librarian/books')}
-            >
-              <BookOpen className="h-6 w-6" />
-              <span>Book Search</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-20 flex-col gap-2"
-              onClick={() => navigate('/librarian/daily-operations')}
-            >
-              <Clock className="h-6 w-6" />
-              <span>Daily Operations</span>
-            </Button>
+            {[
+              { label: 'Checkout/Return', icon: ArrowRightLeft, path: '/librarian/circulation' },
+              { label: 'Student Lookup', icon: Search, path: '/librarian/student-lookup' },
+              { label: 'Book Search', icon: BookOpen, path: '/librarian/books' },
+              { label: 'Daily Operations', icon: Clock, path: '/librarian/daily-operations' },
+            ].map((action) => (
+              <motion.div key={action.label} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outline"
+                  className="h-20 w-full flex-col gap-2"
+                  onClick={() => navigate(action.path)}
+                >
+                  <action.icon className="h-6 w-6" />
+                  <span>{action.label}</span>
+                </Button>
+              </motion.div>
+            ))}
           </CardContent>
         </Card>
 
@@ -174,7 +189,7 @@ const LibrarianDashboard: React.FC = () => {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {dueSoon.map((loan) => {
                 const daysUntilDue = differenceInDays(new Date(loan.dueDate), new Date());
-                
+
                 return (
                   <div key={loan.id} className="p-3 rounded-lg border bg-card">
                     <div className="flex items-start justify-between mb-2">

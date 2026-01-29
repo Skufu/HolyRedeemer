@@ -21,6 +21,8 @@ import { format, isToday, parseISO } from 'date-fns';
 import { useCurrentLoans, useOverdueLoans, useNotifyOverdue } from '@/hooks/useCirculation';
 import { useRequests, useApproveRequest, useRejectRequest } from '@/hooks/useRequests';
 import { useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { cardHoverVariants, staggerContainerVariants, staggerItemVariants } from '@/lib/animations';
 
 const DailyOperations: React.FC = () => {
   const queryClient = useQueryClient();
@@ -105,72 +107,100 @@ const DailyOperations: React.FC = () => {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <Card className={pendingRequests.length > 0 ? 'border-orange-500/50 shadow-sm' : ''}>
-          <CardContent className="pt-6 text-center">
-            <div className="relative inline-block">
-              <Bell className={`h-6 w-6 mx-auto mb-2 ${pendingRequests.length > 0 ? 'text-orange-600' : 'text-muted-foreground'}`} />
-              {pendingRequests.length > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
-                </span>
-              )}
-            </div>
-            {requestsLoading ? (
-              <Skeleton className="h-8 w-8 mx-auto mb-1" />
-            ) : (
-              <p className={`text-2xl font-bold ${pendingRequests.length > 0 ? 'text-orange-600' : ''}`}>{pendingRequests.length}</p>
-            )}
-            <p className={`text-sm ${pendingRequests.length > 0 ? 'text-orange-600/80 font-medium' : 'text-muted-foreground'}`}>Pending Requests</p>
-          </CardContent>
-        </Card>
+      <motion.div
+        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainerVariants}
+      >
+        <motion.div variants={staggerItemVariants} whileHover="hover" whileTap="tap">
+          <motion.div variants={cardHoverVariants} initial="initial">
+            <Card className={pendingRequests.length > 0 ? 'border-orange-500/50 shadow-sm' : ''}>
+              <CardContent className="pt-6 text-center">
+                <div className="relative inline-block">
+                  <Bell className={`h-6 w-6 mx-auto mb-2 ${pendingRequests.length > 0 ? 'text-orange-600' : 'text-muted-foreground'}`} />
+                  {pendingRequests.length > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                    </span>
+                  )}
+                </div>
+                {requestsLoading ? (
+                  <Skeleton className="h-8 w-8 mx-auto mb-1" />
+                ) : (
+                  <p className={`text-2xl font-bold ${pendingRequests.length > 0 ? 'text-orange-600' : ''}`}>{pendingRequests.length}</p>
+                )}
+                <p className={`text-sm ${pendingRequests.length > 0 ? 'text-orange-600/80 font-medium' : 'text-muted-foreground'}`}>Pending Requests</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
 
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <BookOpen className="h-6 w-6 mx-auto mb-2 text-success" />
-            {loansLoading ? (
-              <Skeleton className="h-8 w-8 mx-auto mb-1" />
-            ) : (
-              <p className="text-2xl font-bold">{todayCheckouts.length}</p>
-            )}
-            <p className="text-sm text-muted-foreground">Checkouts Today</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <RefreshCw className="h-6 w-6 mx-auto mb-2 text-info" />
-            {loansLoading ? (
-              <Skeleton className="h-8 w-8 mx-auto mb-1" />
-            ) : (
-              <p className="text-2xl font-bold">{currentLoans.length}</p>
-            )}
-            <p className="text-sm text-muted-foreground">Active Loans</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <Clock className="h-6 w-6 mx-auto mb-2 text-warning-foreground" />
-            {loansLoading ? (
-              <Skeleton className="h-8 w-8 mx-auto mb-1" />
-            ) : (
-              <p className="text-2xl font-bold">{dueToday.length}</p>
-            )}
-            <p className="text-sm text-muted-foreground">Due Today</p>
-          </CardContent>
-        </Card>
-        <Card className={overdueBooks.length > 0 ? 'border-destructive/50' : ''}>
-          <CardContent className="pt-6 text-center">
-            <AlertTriangle className={`h-6 w-6 mx-auto mb-2 ${overdueBooks.length > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
-            {overdueLoading ? (
-              <Skeleton className="h-8 w-8 mx-auto mb-1" />
-            ) : (
-              <p className="text-2xl font-bold">{overdueBooks.length}</p>
-            )}
-            <p className="text-sm text-muted-foreground">Overdue Total</p>
-          </CardContent>
-        </Card>
-      </div>
+        <motion.div variants={staggerItemVariants} whileHover="hover" whileTap="tap">
+          <motion.div variants={cardHoverVariants} initial="initial">
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <BookOpen className="h-6 w-6 mx-auto mb-2 text-success" />
+                {loansLoading ? (
+                  <Skeleton className="h-8 w-8 mx-auto mb-1" />
+                ) : (
+                  <p className="text-2xl font-bold">{todayCheckouts.length}</p>
+                )}
+                <p className="text-sm text-muted-foreground">Checkouts Today</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
+
+        <motion.div variants={staggerItemVariants} whileHover="hover" whileTap="tap">
+          <motion.div variants={cardHoverVariants} initial="initial">
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <RefreshCw className="h-6 w-6 mx-auto mb-2 text-info" />
+                {loansLoading ? (
+                  <Skeleton className="h-8 w-8 mx-auto mb-1" />
+                ) : (
+                  <p className="text-2xl font-bold">{currentLoans.length}</p>
+                )}
+                <p className="text-sm text-muted-foreground">Active Loans</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
+
+        <motion.div variants={staggerItemVariants} whileHover="hover" whileTap="tap">
+          <motion.div variants={cardHoverVariants} initial="initial">
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <Clock className="h-6 w-6 mx-auto mb-2 text-warning-foreground" />
+                {loansLoading ? (
+                  <Skeleton className="h-8 w-8 mx-auto mb-1" />
+                ) : (
+                  <p className="text-2xl font-bold">{dueToday.length}</p>
+                )}
+                <p className="text-sm text-muted-foreground">Due Today</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
+
+        <motion.div variants={staggerItemVariants} whileHover="hover" whileTap="tap">
+          <motion.div variants={cardHoverVariants} initial="initial">
+            <Card className={overdueBooks.length > 0 ? 'border-destructive/50' : ''}>
+              <CardContent className="pt-6 text-center">
+                <AlertTriangle className={`h-6 w-6 mx-auto mb-2 ${overdueBooks.length > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
+                {overdueLoading ? (
+                  <Skeleton className="h-8 w-8 mx-auto mb-1" />
+                ) : (
+                  <p className="text-2xl font-bold">{overdueBooks.length}</p>
+                )}
+                <p className="text-sm text-muted-foreground">Overdue Total</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
+      </motion.div>
 
       {/* Tabs */}
       <Tabs defaultValue="due-today">
@@ -197,7 +227,7 @@ const DailyOperations: React.FC = () => {
               <CardDescription>These books should be returned today</CardDescription>
             </CardHeader>
             <CardContent>
-            {isLoading ? (
+              {isLoading ? (
 
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
@@ -294,7 +324,7 @@ const DailyOperations: React.FC = () => {
               <CardDescription>Book reservations awaiting approval</CardDescription>
             </CardHeader>
             <CardContent>
-            {isLoading ? (
+              {isLoading ? (
 
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
