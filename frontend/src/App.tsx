@@ -35,14 +35,6 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
-// Placeholder for unbuilt pages
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-    <h2 className="text-2xl font-bold text-primary mb-2">{title}</h2>
-    <p className="text-muted-foreground">This page is under construction</p>
-  </div>
-);
-
 // Loading fallback component for lazy-loaded routes
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[400px]">

@@ -43,7 +43,7 @@ const StudentDashboard = () => {
   const booksReadThisYear = myHistory.length;
   const requiredBooks = 12;
   const quotaProgress = Math.min(Math.round((booksReadThisYear / requiredBooks) * 100), 100);
-  const maxBooksPerStudent = 5;
+  const maxBooksPerStudent = 3;
 
   const isLoading = profileLoading || loansLoading || finesLoading || historyLoading;
 
