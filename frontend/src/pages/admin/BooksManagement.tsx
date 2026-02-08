@@ -64,6 +64,8 @@ const BooksManagement: React.FC = () => {
 
   const books = booksData?.data || [];
   const categories = categoriesData?.data || [];
+  const totalBooks = booksData?.meta?.total || 0;
+  const totalPages = booksData?.meta?.total_pages || 1;
 
   const [formData, setFormData] = useState<CreateBookRequest>({
     title: '',
@@ -78,7 +80,6 @@ const BooksManagement: React.FC = () => {
     initial_copies: 1,
   });
 
-  const totalPages = Math.ceil(books.length / itemsPerPage);
   const paginatedBooks = books;
 
   const handleOpenAdd = () => {
@@ -103,13 +104,13 @@ const BooksManagement: React.FC = () => {
       title: book.title,
       author: book.author,
       isbn: book.isbn || '',
-      category_id: book.category_id || '',
+      category_id: book.categoryId || '',
       publisher: book.publisher || '',
-      publication_year: book.publication_year || new Date().getFullYear(),
+      publication_year: book.publicationYear || new Date().getFullYear(),
       description: book.description || '',
-      shelf_location: book.shelf_location || '',
-      replacement_cost: book.replacement_cost || 0,
-      initial_copies: book.total_copies,
+      shelf_location: book.shelfLocation || '',
+      replacement_cost: book.replacementCost || 0,
+      initial_copies: book.totalCopies,
     });
     setEditingBook(book);
     setIsAddModalOpen(true);
@@ -123,12 +124,12 @@ const BooksManagement: React.FC = () => {
           title: formData.title,
           author: formData.author,
           isbn: formData.isbn,
-          category_id: formData.category_id,
+          categoryId: formData.category_id,
           publisher: formData.publisher,
-          publication_year: formData.publication_year,
+          publicationYear: formData.publication_year,
           description: formData.description,
-          shelf_location: formData.shelf_location,
-          replacement_cost: formData.replacement_cost,
+          shelfLocation: formData.shelf_location,
+          replacementCost: formData.replacement_cost,
         },
       });
     } else {
@@ -142,7 +143,7 @@ const BooksManagement: React.FC = () => {
   };
 
   const getAvailabilityBadge = (book: Book) => {
-    const ratio = book.available_copies / book.total_copies;
+    const ratio = book.availableCopies / book.totalCopies;
     if (ratio === 0) return <Badge variant="destructive">Unavailable</Badge>;
     if (ratio < 0.5) return <Badge className="bg-warning text-warning-foreground">Low Stock</Badge>;
     return <Badge className="bg-success text-success-foreground">Available</Badge>;
@@ -209,8 +210,8 @@ const BooksManagement: React.FC = () => {
             </TableHeader>
             <TableBody>
               {paginatedBooks.map((book: Book, index: number) => (
-                <TableRow 
-                  key={book.id} 
+                <TableRow
+                  key={book.id}
                   className="animate-fade-in-up"
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
@@ -227,11 +228,11 @@ const BooksManagement: React.FC = () => {
                   </TableCell>
                   <TableCell>{book.author}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{book.category?.name || 'Uncategorized'}</Badge>
+                    <Badge variant="outline">{book.category || 'Uncategorized'}</Badge>
                   </TableCell>
                   <TableCell className="text-center">
-                    <span className="font-medium text-success">{book.available_copies}</span>
-                    <span className="text-muted-foreground">/{book.total_copies}</span>
+                    <span className="font-medium text-success">{book.availableCopies}</span>
+                    <span className="text-muted-foreground">/{book.totalCopies}</span>
                   </TableCell>
                   <TableCell>{getAvailabilityBadge(book)}</TableCell>
                   <TableCell className="text-right">
@@ -270,8 +271,8 @@ const BooksManagement: React.FC = () => {
           <div className="flex items-center justify-between px-4 py-3 border-t">
             <p className="text-sm text-muted-foreground">
               Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-              {Math.min(currentPage * itemsPerPage, books.length)} of{' '}
-              {books.length} books
+              {Math.min(currentPage * itemsPerPage, totalBooks)} of{' '}
+              {totalBooks} books
             </p>
             <div className="flex gap-2">
               <Button
@@ -438,8 +439,8 @@ const BooksManagement: React.FC = () => {
             <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleSave} 
+            <Button
+              onClick={handleSave}
               disabled={!formData.title || !formData.author || isProcessing}
             >
               {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

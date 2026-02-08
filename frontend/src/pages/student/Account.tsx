@@ -217,22 +217,22 @@ const StudentAccount = () => {
 
       {/* Tabs for History and Fines */}
       <Tabs defaultValue={defaultTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="current" className="flex items-center gap-2">
+        <TabsList className="h-auto p-1.5 flex gap-1">
+          <TabsTrigger value="current" className="flex-1 flex-col py-2 px-4 h-auto gap-1">
             <BookOpen className="h-4 w-4" />
-            Current Loans ({activeLoans.length})
+            <span>Current Loans ({activeLoans.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
+          <TabsTrigger value="history" className="flex-1 flex-col py-2 px-4 h-auto gap-1">
             <Clock className="h-4 w-4" />
-            Borrowing History
+            <span>Borrowing History</span>
           </TabsTrigger>
-          <TabsTrigger value="reservations" className="flex items-center gap-2">
+          <TabsTrigger value="reservations" className="flex-1 flex-col py-2 px-4 h-auto gap-1">
             <CalendarClock className="h-4 w-4" />
-            Reservations
+            <span>Reservations</span>
           </TabsTrigger>
-          <TabsTrigger value="fines" className="flex items-center gap-2">
+          <TabsTrigger value="fines" className="flex-1 flex-col py-2 px-4 h-auto gap-1">
             <CreditCard className="h-4 w-4" />
-            Fines ({pendingFines.length})
+            <span>Fines ({pendingFines.length})</span>
           </TabsTrigger>
         </TabsList>
 

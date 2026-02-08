@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,8 @@ import { useBooks, useCategories } from '@/hooks/useBooks';
 import { Book, Category } from '@/services/books';
 import { useReserveBook } from '@/hooks/useStudents';
 import BookCover from '@/components/BookCover';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
+import { staggerContainerVariants, staggerItemVariants, cardHoverVariants, fadeInUpVariants } from '@/lib/animations';
 
 const StudentCatalog = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,6 +63,7 @@ const StudentCatalog = () => {
   const [page, setPage] = useState(1);
 
   const navigate = useNavigate();
+  const prefersReducedMotion = useReducedMotion();
 
   const reserveBook = useReserveBook();
 
@@ -119,7 +123,12 @@ const StudentCatalog = () => {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 animate-fade-in relative">
+    <motion.div
+      className="space-y-4 sm:space-y-6 relative"
+      initial={prefersReducedMotion ? "visible" : "hidden"}
+      animate="visible"
+      variants={fadeInUpVariants}
+    >
       <div className="sticky top-0 z-20 bg-background border-b border-border/50 pb-4 pt-4 -mx-4 px-4 sm:-mx-6 sm:px-6">
         <div className="mb-4">
           <h1 className="text-xl sm:text-2xl font-display font-bold text-primary">Book Catalog</h1>
@@ -202,7 +211,12 @@ const StudentCatalog = () => {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : viewMode === 'list' ? (
-        <div className="rounded-md border bg-card">
+        <motion.div
+          className="rounded-md border bg-card"
+          initial={prefersReducedMotion ? "visible" : "hidden"}
+          animate="visible"
+          variants={staggerContainerVariants}
+        >
           <Table>
             <TableHeader>
               <TableRow>
@@ -216,7 +230,12 @@ const StudentCatalog = () => {
             </TableHeader>
             <TableBody>
               {filteredBooks.map((book) => (
-                <TableRow key={book.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedBook(book)}>
+                <motion.tr
+                  key={book.id}
+                  variants={staggerItemVariants}
+                  className="cursor-pointer hover:bg-muted/50 border-b transition-colors"
+                  onClick={() => setSelectedBook(book)}
+                >
                   <TableCell>
                     <div className="w-12 h-16 bg-muted rounded overflow-hidden">
                       <BookCover
@@ -246,42 +265,57 @@ const StudentCatalog = () => {
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm">View</Button>
                   </TableCell>
-                </TableRow>
+                </motion.tr>
               ))}
             </TableBody>
           </Table>
-        </div>
+        </motion.div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+        <motion.div
+          className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4"
+          initial={prefersReducedMotion ? "visible" : "hidden"}
+          animate="visible"
+          variants={staggerContainerVariants}
+        >
           {filteredBooks.map((book) => (
-            <Card
+            <motion.div
               key={book.id}
-              className="cursor-pointer hover:shadow-lg transition-all hover:-translate-y-1 active:scale-[0.98] overflow-hidden group"
-              onClick={() => setSelectedBook(book)}
+              variants={staggerItemVariants}
+              whileHover={prefersReducedMotion ? undefined : "hover"}
+              whileTap={prefersReducedMotion ? undefined : "tap"}
             >
-              <div className="aspect-[3/4] bg-muted relative overflow-hidden">
-                <BookCover
-                  title={book.title}
-                  author={book.author}
-                  coverImage={book.coverImage}
-                  isbn={book.isbn}
-                />
-              </div>
-              <CardContent className="p-2.5 sm:p-4">
-                <h3 className="font-semibold text-sm sm:text-base line-clamp-2 mb-1">{book.title}</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-1">{book.author}</p>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:justify-between">
-                  <Badge variant="outline" className="text-[10px] sm:text-xs w-fit">
-                    {book.category || 'Uncategorized'}
-                  </Badge>
-                  <div className="mt-1 sm:mt-0">
-                    {getAvailabilityBadge(book.availableCopies || 0, book.totalCopies || 0)}
+              <Card
+                className="cursor-pointer overflow-hidden group h-full"
+                onClick={() => setSelectedBook(book)}
+              >
+                <motion.div
+                  className="aspect-[3/4] bg-muted relative overflow-hidden"
+                  variants={cardHoverVariants}
+                  initial="initial"
+                >
+                  <BookCover
+                    title={book.title}
+                    author={book.author}
+                    coverImage={book.coverImage}
+                    isbn={book.isbn}
+                  />
+                </motion.div>
+                <CardContent className="p-2.5 sm:p-4">
+                  <h3 className="font-semibold text-sm sm:text-base line-clamp-2 mb-1">{book.title}</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-1">{book.author}</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:justify-between">
+                    <Badge variant="outline" className="text-[10px] sm:text-xs w-fit">
+                      {book.category || 'Uncategorized'}
+                    </Badge>
+                    <div className="mt-1 sm:mt-0">
+                      {getAvailabilityBadge(book.availableCopies || 0, book.totalCopies || 0)}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {!booksLoading && filteredBooks.length === 0 && (
@@ -330,7 +364,7 @@ const StudentCatalog = () => {
           setNotes('');
         }
       }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display text-lg sm:text-xl pr-4">{selectedBook?.title}</DialogTitle>
           </DialogHeader>
@@ -429,7 +463,7 @@ const StudentCatalog = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 };
 

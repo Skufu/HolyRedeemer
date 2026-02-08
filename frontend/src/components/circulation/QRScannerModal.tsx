@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Camera, CameraOff, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useQRScanner } from '@/hooks/useQRScanner';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
+import { scaleVariants, pulseRingVariants, slideUpVariants } from '@/lib/animations';
 
 interface QRScannerModalProps {
   open: boolean;
@@ -21,14 +24,19 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
 }) => {
   const [lastScanned, setLastScanned] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [scanSuccess, setScanSuccess] = useState(false);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   const { isScanning, hasPermission, startScanning, stopScanning } = useQRScanner({
     onScan: (decodedText) => {
       setLastScanned(decodedText);
+      setScanSuccess(true);
       stopScanning();
-      onScan(decodedText);
-      onClose();
+      setTimeout(() => {
+        onScan(decodedText);
+        onClose();
+      }, 800);
     },
     onError: (error) => {
       setScanError(error);
@@ -39,6 +47,7 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
     if (open) {
       setLastScanned(null);
       setScanError(null);
+      setScanSuccess(false);
       // Small delay to ensure DOM is ready
       setTimeout(() => {
         startScanning('qr-reader');
@@ -66,25 +75,69 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
 
         <div className="flex flex-col items-center gap-4">
           {/* Scanner Container */}
-          <div
+          <motion.div
             ref={scannerContainerRef}
             className="relative w-full aspect-square max-w-[300px] rounded-lg overflow-hidden bg-muted border-2 border-dashed border-primary/30"
+            initial={prefersReducedMotion ? "visible" : "hidden"}
+            animate="visible"
+            variants={scaleVariants}
           >
             <div id="qr-reader" className="w-full h-full" />
             
             {/* Scanning overlay */}
-            {isScanning && (
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute inset-0 border-2 border-primary/50 rounded-lg animate-pulse" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border-2 border-primary rounded-lg">
-                  <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary" />
-                  <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary" />
-                  <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary" />
-                  <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary" />
-                </div>
-              </div>
-            )}
-          </div>
+            <AnimatePresence>
+              {isScanning && !scanSuccess && (
+                <motion.div 
+                  className="absolute inset-0 pointer-events-none"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <motion.div 
+                    className="absolute inset-0 border-2 border-primary/50 rounded-lg"
+                    animate={{ 
+                      borderColor: ["rgba(var(--primary), 0.5)", "rgba(var(--primary), 0.8)", "rgba(var(--primary), 0.5)"],
+                    }}
+                    transition={{ 
+                      duration: 1.5, 
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  />
+                  <motion.div 
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border-2 border-primary rounded-lg"
+                    variants={pulseRingVariants}
+                    initial="initial"
+                    animate="animate"
+                  >
+                    <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary" />
+                    <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary" />
+                    <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary" />
+                    <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary" />
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {scanSuccess && (
+                <motion.div 
+                  className="absolute inset-0 flex items-center justify-center bg-green-500/20 pointer-events-none"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                  >
+                    <CheckCircle2 className="h-16 w-16 text-green-500" />
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
 
           {/* Status Messages */}
           {hasPermission === false && (

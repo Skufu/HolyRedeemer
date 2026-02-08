@@ -11,12 +11,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  Upload, 
-  Download, 
-  FileSpreadsheet, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  Upload,
+  Download,
+  FileSpreadsheet,
+  CheckCircle2,
+  XCircle,
   AlertCircle,
   ChevronDown,
   Loader2,
@@ -67,14 +67,14 @@ interface FileData {
 
 const ExcelMigration: React.FC = () => {
   const [activeTab, setActiveTab] = useState('books');
-  
+
   // Books state
   const [bookFile, setBookFile] = useState<FileData | null>(null);
   const [bookMapping, setBookMapping] = useState<Record<string, string>>({});
   const [bookImportProgress, setBookImportProgress] = useState(0);
   const [bookImporting, setBookImporting] = useState(false);
   const [bookResult, setBookResult] = useState<ImportResult | null>(null);
-  
+
   // Students state
   const [studentFile, setStudentFile] = useState<FileData | null>(null);
   const [studentMapping, setStudentMapping] = useState<Record<string, string>>({});
@@ -86,25 +86,25 @@ const ExcelMigration: React.FC = () => {
   const downloadTemplate = (type: 'books' | 'students') => {
     const fields = type === 'books' ? bookFields : studentFields;
     const headers = fields.map(f => f.label);
-    
+
     // Create sample data
-    const sampleData = type === 'books' 
+    const sampleData = type === 'books'
       ? [
-          ['The Great Gatsby', 'F. Scott Fitzgerald', '978-0743273565', 'Fiction', 'Scribner', '1925', '5', 'A-101'],
-          ['To Kill a Mockingbird', 'Harper Lee', '978-0061120084', 'Fiction', 'HarperCollins', '1960', '3', 'A-102'],
-        ]
+        ['The Great Gatsby', 'F. Scott Fitzgerald', '978-0743273565', 'Fiction', 'Scribner', '1925', '5', 'A-101'],
+        ['To Kill a Mockingbird', 'Harper Lee', '978-0061120084', 'Fiction', 'HarperCollins', '1960', '3', 'A-102'],
+      ]
       : [
-          ['STU-2024-001', 'Juan', 'Dela Cruz', 'juan@school.edu', 'Grade 7', 'Section A', '09171234567', 'Maria Dela Cruz', '09189876543'],
-          ['STU-2024-002', 'Maria', 'Santos', 'maria@school.edu', 'Grade 8', 'Section B', '09181234567', 'Jose Santos', '09171234567'],
-        ];
-    
+        ['STU-2024-001', 'Juan', 'Dela Cruz', 'juan@school.edu', 'Grade 7', 'Section A', '09171234567', 'Maria Dela Cruz', '09189876543'],
+        ['STU-2024-002', 'Maria', 'Santos', 'maria@school.edu', 'Grade 8', 'Section B', '09181234567', 'Jose Santos', '09171234567'],
+      ];
+
     const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, type === 'books' ? 'Books' : 'Students');
-    
+
     // Set column widths
     ws['!cols'] = headers.map(() => ({ wch: 20 }));
-    
+
     XLSX.writeFile(wb, `${type}_import_template.xlsx`);
     toast.success(`${type === 'books' ? 'Books' : 'Students'} template downloaded`);
   };
@@ -115,22 +115,22 @@ const ExcelMigration: React.FC = () => {
     type: 'books' | 'students'
   ) => {
     e.preventDefault();
-    
+
     let file: File | undefined;
-    
+
     if ('dataTransfer' in e) {
       file = e.dataTransfer.files[0];
     } else {
       file = e.target.files?.[0];
     }
-    
+
     if (!file) return;
-    
+
     if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
       toast.error('Please upload an Excel file (.xlsx, .xls) or CSV file');
       return;
     }
-    
+
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -139,12 +139,12 @@ const ExcelMigration: React.FC = () => {
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as (string | number | boolean)[][];
-        
+
         if (jsonData.length < 2) {
           toast.error('File must contain headers and at least one data row');
           return;
         }
-        
+
         const headers = jsonData[0].map(h => String(h || '').trim());
         const rows = jsonData.slice(1, 11).map(row => {
           const obj: Record<string, string | number> = {};
@@ -153,19 +153,19 @@ const ExcelMigration: React.FC = () => {
           });
           return obj;
         });
-        
+
         const fileData: FileData = {
           headers,
           rows,
           fileName: file.name,
         };
-        
+
         // Auto-map fields
         const fields = type === 'books' ? bookFields : studentFields;
         const autoMapping: Record<string, string> = {};
-        
+
         fields.forEach(field => {
-          const matchingHeader = headers.find(h => 
+          const matchingHeader = headers.find(h =>
             h.toLowerCase().includes(field.key.toLowerCase()) ||
             h.toLowerCase().includes(field.label.toLowerCase()) ||
             field.label.toLowerCase().includes(h.toLowerCase())
@@ -174,7 +174,7 @@ const ExcelMigration: React.FC = () => {
             autoMapping[field.key] = matchingHeader;
           }
         });
-        
+
         if (type === 'books') {
           setBookFile(fileData);
           setBookMapping(autoMapping);
@@ -184,13 +184,13 @@ const ExcelMigration: React.FC = () => {
           setStudentMapping(autoMapping);
           setStudentResult(null);
         }
-        
+
         toast.success(`File loaded: ${jsonData.length - 1} rows found`);
       } catch (error) {
         toast.error('Error parsing file. Please check the format.');
       }
     };
-    
+
     reader.readAsBinaryString(file);
   }, []);
 
@@ -208,47 +208,47 @@ const ExcelMigration: React.FC = () => {
     const setProgress = type === 'books' ? setBookImportProgress : setStudentImportProgress;
     const setImporting = type === 'books' ? setBookImporting : setStudentImporting;
     const setResult = type === 'books' ? setBookResult : setStudentResult;
-    
+
     if (!file) return;
-    
+
     // Check required fields
     const missingRequired = fields
       .filter(f => f.required && !mapping[f.key])
       .map(f => f.label);
-    
+
     if (missingRequired.length > 0) {
       toast.error(`Please map required fields: ${missingRequired.join(', ')}`);
       return;
     }
-    
+
     setImporting(true);
     setProgress(0);
-    
+
     const result: ImportResult = {
       total: file.rows.length,
       imported: 0,
       skipped: 0,
       errors: [],
     };
-    
+
     // Simulate importing each row
     for (let i = 0; i < file.rows.length; i++) {
       await new Promise(resolve => setTimeout(resolve, 200));
-      
+
       const row = file.rows[i];
       const mappedData: Record<string, string | number> = {};
-      
+
       fields.forEach(field => {
         if (mapping[field.key]) {
           mappedData[field.key] = row[mapping[field.key]];
         }
       });
-      
+
       // Simulate validation
       const requiredMissing = fields
         .filter(f => f.required && !mappedData[f.key])
         .map(f => f.label);
-      
+
       if (requiredMissing.length > 0) {
         result.errors.push({
           row: i + 2,
@@ -267,13 +267,13 @@ const ExcelMigration: React.FC = () => {
       } else {
         result.imported++;
       }
-      
+
       setProgress(((i + 1) / file.rows.length) * 100);
     }
-    
+
     setResult(result);
     setImporting(false);
-    
+
     if (result.imported > 0) {
       toast.success(`Successfully imported ${result.imported} ${type}`);
     }
@@ -291,7 +291,7 @@ const ExcelMigration: React.FC = () => {
     const importing = type === 'books' ? bookImporting : studentImporting;
     const result = type === 'books' ? bookResult : studentResult;
     const fields = type === 'books' ? bookFields : studentFields;
-    
+
     return (
       <div className="space-y-4 md:space-y-6">
         {/* Download Template */}
@@ -465,8 +465,8 @@ const ExcelMigration: React.FC = () => {
                     <Progress value={progress} />
                   </div>
                 )}
-                
-                <Button 
+
+                <Button
                   onClick={() => handleImport(type)}
                   disabled={importing}
                   className="w-full sm:w-auto"
@@ -573,14 +573,14 @@ const ExcelMigration: React.FC = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
-          <TabsTrigger value="books" className="flex items-center gap-2">
+        <TabsList className="h-auto p-1.5 flex gap-1 max-w-md bg-muted/50">
+          <TabsTrigger value="books" className="flex-1 flex-col py-3 px-4 h-auto gap-2">
             <BookOpen className="h-4 w-4" />
-            <span className="hidden sm:inline">Import</span> Books
+            <span>Import Books</span>
           </TabsTrigger>
-          <TabsTrigger value="students" className="flex items-center gap-2">
+          <TabsTrigger value="students" className="flex-1 flex-col py-3 px-4 h-auto gap-2">
             <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">Import</span> Students
+            <span>Import Students</span>
           </TabsTrigger>
         </TabsList>
 

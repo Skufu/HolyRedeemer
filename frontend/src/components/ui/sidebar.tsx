@@ -3,8 +3,10 @@ import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { VariantProps, cva } from "class-variance-authority";
 import { PanelLeft } from "lucide-react";
+import { motion } from "framer-motion";
 
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { sidebarVariants, sidebarItemVariants } from "@/lib/animations";
 
 const SIDEBAR_COOKIE_NAME = "sidebar:state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -138,6 +141,7 @@ const Sidebar = React.forwardRef<
   }
 >(({ side = "left", variant = "sidebar", collapsible = "offcanvas", className, children, ...props }, ref) => {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const prefersReducedMotion = useReducedMotion();
 
   if (collapsible === "none") {
     return (
@@ -181,19 +185,22 @@ const Sidebar = React.forwardRef<
       data-side={side}
     >
       {/* This is what handles the sidebar gap on desktop */}
-      <div
+      <motion.div
         className={cn(
-          "relative h-svh w-[--sidebar-width] bg-transparent transition-[width] duration-200 ease-linear",
+          "relative h-svh bg-transparent",
           "group-data-[collapsible=offcanvas]:w-0",
           "group-data-[side=right]:rotate-180",
           variant === "floating" || variant === "inset"
             ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
             : "group-data-[collapsible=icon]:w-[--sidebar-width-icon]",
         )}
+        initial={prefersReducedMotion ? state : state === "collapsed" ? "collapsed" : "expanded"}
+        animate={state}
+        variants={sidebarVariants}
       />
-      <div
+      <motion.div
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-linear md:flex",
+          "fixed inset-y-0 z-10 hidden h-svh md:flex",
           side === "left"
             ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -203,6 +210,9 @@ const Sidebar = React.forwardRef<
             : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
           className,
         )}
+        initial={prefersReducedMotion ? state : state === "collapsed" ? "collapsed" : "expanded"}
+        animate={state}
+        variants={sidebarVariants}
         {...props}
       >
         <div
@@ -211,7 +221,7 @@ const Sidebar = React.forwardRef<
         >
           {children}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 });
@@ -441,9 +451,10 @@ const SidebarMenuButton = React.forwardRef<
     isActive?: boolean;
     tooltip?: string | React.ComponentProps<typeof TooltipContent>;
   } & VariantProps<typeof sidebarMenuButtonVariants>
->(({ asChild = false, isActive = false, variant = "default", size = "default", tooltip, className, ...props }, ref) => {
+>(({ asChild = false, isActive = false, variant = "default", size = "default", tooltip, className, children, ...props }, ref) => {
   const Comp = asChild ? Slot : "button";
   const { isMobile, state } = useSidebar();
+  const prefersReducedMotion = useReducedMotion();
 
   const button = (
     <Comp
@@ -453,7 +464,15 @@ const SidebarMenuButton = React.forwardRef<
       data-active={isActive}
       className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
       {...props}
-    />
+    >
+      {children}
+      <motion.span
+        className="ml-auto truncate"
+        initial={prefersReducedMotion ? "expanded" : state === "collapsed" ? "collapsed" : "expanded"}
+        animate={state}
+        variants={sidebarItemVariants}
+      />
+    </Comp>
   );
 
   if (!tooltip) {
@@ -497,7 +516,7 @@ const SidebarMenuAction = React.forwardRef<
         "peer-data-[size=lg]/menu-button:top-2.5",
         "group-data-[collapsible=icon]:hidden",
         showOnHover &&
-          "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 peer-data-[active=true]/menu-button:text-sidebar-accent-foreground md:opacity-0",
+        "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 peer-data-[active=true]/menu-button:text-sidebar-accent-foreground md:opacity-0",
         className,
       )}
       {...props}
@@ -587,8 +606,10 @@ const SidebarMenuSubButton = React.forwardRef<
     size?: "sm" | "md";
     isActive?: boolean;
   }
->(({ asChild = false, size = "md", isActive, className, ...props }, ref) => {
+>(({ asChild = false, size = "md", isActive, className, children, ...props }, ref) => {
   const Comp = asChild ? Slot : "a";
+  const { state } = useSidebar();
+  const prefersReducedMotion = useReducedMotion();
 
   return (
     <Comp
@@ -605,7 +626,15 @@ const SidebarMenuSubButton = React.forwardRef<
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+      <motion.span
+        className="ml-auto truncate"
+        initial={prefersReducedMotion ? "expanded" : state === "collapsed" ? "collapsed" : "expanded"}
+        animate={state}
+        variants={sidebarItemVariants}
+      />
+    </Comp>
   );
 });
 SidebarMenuSubButton.displayName = "SidebarMenuSubButton";
@@ -628,27 +657,6 @@ export {
   SidebarMenuItem,
   SidebarMenuSkeleton,
   SidebarMenuSub,
-};
-
-export {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupAction,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInset,
-  SidebarInput,
-  SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSkeleton,
-  SidebarMenuSub,
-  SidebarMenuSubAction,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarProvider,

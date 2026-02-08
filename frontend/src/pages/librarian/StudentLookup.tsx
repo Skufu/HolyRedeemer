@@ -26,6 +26,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useStudents, useStudentLoans, useStudentHistory, useStudentFines } from '@/hooks/useStudents';
 import { usePayFine, useWaiveFine } from '@/hooks/useFines';
 import { useRfidLookup } from '@/hooks/useCirculation';
+import { motion } from 'framer-motion';
+import { staggerContainerVariants, staggerItemVariants } from '@/lib/animations';
 
 import type { StudentLookup as RfidStudentLookup } from '@/services/auth';
 import type { Student as ApiStudent } from '@/services/students';
@@ -137,9 +139,9 @@ const StudentLookup: React.FC = () => {
                 className="pl-9"
               />
             </div>
-            <Button 
-              onClick={() => setScannerOpen(true)} 
-              variant="secondary" 
+            <Button
+              onClick={() => setScannerOpen(true)}
+              variant="secondary"
               className="gap-2"
               disabled={rfidLookup.isPending}
             >
@@ -159,13 +161,19 @@ const StudentLookup: React.FC = () => {
           )}
 
           {normalizedStudents.length > 0 && !selectedStudent && (
-            <div className="mt-4 border rounded-lg divide-y">
-                      {normalizedStudents.slice(0, 8).map((student) => (
-
-                <button
+            <motion.div
+              className="mt-4 border rounded-lg divide-y"
+              initial="hidden"
+              animate="visible"
+              variants={staggerContainerVariants}
+            >
+              {normalizedStudents.slice(0, 8).map((student) => (
+                <motion.button
                   key={student.id}
                   onClick={() => { setSelectedStudent(student); setSearch(''); }}
                   className="w-full p-3 text-left hover:bg-muted/50 transition-colors flex items-center justify-between"
+                  variants={staggerItemVariants}
+                  whileHover={{ backgroundColor: "rgba(var(--muted), 0.8)" }}
                 >
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -186,9 +194,9 @@ const StudentLookup: React.FC = () => {
                       {student.status}
                     </Badge>
                   </div>
-                </button>
+                </motion.button>
               ))}
-            </div>
+            </motion.div>
           )}
         </CardContent>
       </Card>
@@ -216,7 +224,7 @@ const StudentLookup: React.FC = () => {
                     </div>
                     <p className="text-muted-foreground">{selectedStudent.studentNumber}</p>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div>
                       <p className="text-xs text-muted-foreground">Grade & Section</p>
@@ -250,8 +258,8 @@ const StudentLookup: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button 
-                    variant="default" 
+                  <Button
+                    variant="default"
                     onClick={() => navigate(`/librarian/circulation?student_id=${selectedStudent.id}`)}
                     className="gap-2"
                   >
@@ -327,10 +335,10 @@ const StudentLookup: React.FC = () => {
                       {activeLoans.map((loan) => {
                         const isOverdue = loan.status === 'overdue';
                         const daysRemaining = differenceInDays(new Date(loan.dueDate), new Date());
-                        
+
                         return (
-                          <div 
-                            key={loan.id} 
+                          <div
+                            key={loan.id}
                             className={`p-4 rounded-lg border ${isOverdue ? 'border-destructive/50 bg-destructive/5' : 'bg-muted/50'}`}
                           >
                             <div className="flex items-center justify-between">
@@ -404,8 +412,8 @@ const StudentLookup: React.FC = () => {
                   ) : studentFines.length > 0 ? (
                     <div className="space-y-3">
                       {studentFines.map((fine) => (
-                        <div 
-                          key={fine.id} 
+                        <div
+                          key={fine.id}
                           className={`p-4 rounded-lg border ${fine.status === 'pending' ? 'border-warning/50 bg-warning/5' : 'bg-muted/50'}`}
                         >
                           <div className="flex items-center justify-between">
@@ -422,14 +430,14 @@ const StudentLookup: React.FC = () => {
                               </div>
                               {fine.status === 'pending' && (
                                 <div className="flex gap-2">
-                                  <Button 
-                                    size="sm" 
+                                  <Button
+                                    size="sm"
                                     onClick={() => {
                                       if (confirm(`Confirm payment of ₱${fine.amount}?`)) {
                                         const paymentAmount = Number(fine.amount);
-                                        payFine.mutate({ 
-                                          id: fine.id, 
-                                          payment: { amount: paymentAmount, payment_method: 'cash' } 
+                                        payFine.mutate({
+                                          id: fine.id,
+                                          payment: { amount: paymentAmount, payment_method: 'cash' }
                                         });
                                       }
                                     }}
@@ -437,8 +445,8 @@ const StudentLookup: React.FC = () => {
                                   >
                                     Pay
                                   </Button>
-                                  <Button 
-                                    size="sm" 
+                                  <Button
+                                    size="sm"
                                     variant="outline"
                                     onClick={() => {
                                       const reason = prompt("Enter reason for waiving:");
