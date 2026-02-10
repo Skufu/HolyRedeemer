@@ -128,6 +128,11 @@ func main() {
 		students.Use(middleware.Auth(jwtManager))
 		{
 			students.GET("/me", studentHandler.GetMe)
+			students.GET("/me/favorites", studentHandler.GetMyFavorites)
+			students.POST("/me/favorites", studentHandler.AddFavorite)
+			students.DELETE("/me/favorites/:bookId", studentHandler.RemoveFavorite)
+			students.GET("/me/achievements", studentHandler.GetMyAchievements)
+			students.GET("/achievements", studentHandler.GetAllAchievements)
 			students.GET("", middleware.RequireRoles("admin", "super_admin", "librarian"), studentHandler.ListStudents)
 			students.GET("/:id", studentHandler.GetStudent)
 			students.POST("", middleware.RequireRoles("admin", "super_admin"), studentHandler.CreateStudent)
