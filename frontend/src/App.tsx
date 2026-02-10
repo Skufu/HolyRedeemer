@@ -28,6 +28,10 @@ const DailyOperations = lazy(() => import("@/pages/librarian/DailyOperations"));
 const LibrarianReports = lazy(() => import("@/pages/librarian/Reports"));
 const StudentDashboard = lazy(() => import("@/pages/student/Dashboard"));
 const StudentCatalog = lazy(() => import("@/pages/student/Catalog"));
+const StudentMyBooks = lazy(() => import("@/pages/student/MyBooks"));
+const StudentReservations = lazy(() => import("@/pages/student/Reservations"));
+const StudentHistory = lazy(() => import("@/pages/student/History"));
+const StudentFees = lazy(() => import("@/pages/student/Fees"));
 const StudentAccount = lazy(() => import("@/pages/student/Account"));
 const StudentNotifications = lazy(() => import("@/pages/student/Notifications"));
 const UserSettings = lazy(() => import("@/pages/UserSettings"));
@@ -101,6 +105,10 @@ const App = () => (
               }>
                 <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><StudentDashboard /></Suspense>} />
                 <Route path="catalog" element={<Suspense fallback={<PageLoader />}><StudentCatalog /></Suspense>} />
+                <Route path="my-books" element={<Suspense fallback={<PageLoader />}><StudentMyBooks /></Suspense>} />
+                <Route path="reservations" element={<Suspense fallback={<PageLoader />}><StudentReservations /></Suspense>} />
+                <Route path="history" element={<Suspense fallback={<PageLoader />}><StudentHistory /></Suspense>} />
+                <Route path="fees" element={<Suspense fallback={<PageLoader />}><StudentFees /></Suspense>} />
                 <Route path="account" element={<Suspense fallback={<PageLoader />}><StudentAccount /></Suspense>} />
                 <Route path="notifications" element={<Suspense fallback={<PageLoader />}><StudentNotifications /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<PageLoader />}><UserSettings /></Suspense>} />

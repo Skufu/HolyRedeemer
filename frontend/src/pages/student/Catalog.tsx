@@ -43,11 +43,14 @@ import {
   History,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  LayoutGrid,
+  Rows,
+  Heart
 } from 'lucide-react';
 import { useBooks, useCategories } from '@/hooks/useBooks';
 import { Book, Category } from '@/services/books';
-import { useReserveBook } from '@/hooks/useStudents';
+import { useReserveBook, useFavoriteBooks, useAddFavorite, useRemoveFavorite } from '@/hooks/useStudents';
 import BookCover from '@/components/BookCover';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { staggerContainerVariants, staggerItemVariants, cardHoverVariants, fadeInUpVariants } from '@/lib/animations';
@@ -56,7 +59,8 @@ const StudentCatalog = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [availabilityFilter, setAvailabilityFilter] = useState('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'compact'>('grid');
+  const [sortOption, setSortOption] = useState('relevance');
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [notes, setNotes] = useState('');
   const [isReserving, setIsReserving] = useState(false);
@@ -66,13 +70,18 @@ const StudentCatalog = () => {
   const prefersReducedMotion = useReducedMotion();
 
   const reserveBook = useReserveBook();
+  const { data: favoritesData } = useFavoriteBooks();
+  const addFavorite = useAddFavorite();
+  const removeFavorite = useRemoveFavorite();
+
+  const favoriteBookIds = new Set(favoritesData?.data?.map((f) => f.bookId) || []);
 
   const { data: booksData, isLoading: booksLoading } = useBooks({
     search: searchQuery || undefined,
     category_id: categoryFilter !== 'all' ? categoryFilter : undefined,
     available_only: availabilityFilter === 'available' ? true : undefined,
     page,
-    per_page: 12
+    per_page: 24
   });
 
   const { data: categoriesData } = useCategories();
@@ -82,14 +91,25 @@ const StudentCatalog = () => {
   const categories = categoriesData?.data || [];
 
   const filteredBooks = books.filter((book) => {
-    if (availabilityFilter === 'unavailable' && (book.availableCopies || 0) > 0) return false;
+    if (availabilityFilter === 'checked_out' && (book.availableCopies || 0) > 0) return false;
+    if (availabilityFilter === 'out_of_stock' && (book.availableCopies || 0) > 0) return false;
     return true;
+  });
+
+  const sortedBooks = [...filteredBooks].sort((a, b) => {
+    switch (sortOption) {
+      case 'title': return a.title.localeCompare(b.title);
+      case 'author': return a.author.localeCompare(b.author);
+      case 'newest': return (b.publicationYear || 0) - (a.publicationYear || 0);
+      default: return 0;
+    }
   });
 
   const handleClearFilters = () => {
     setSearchQuery('');
     setCategoryFilter('all');
     setAvailabilityFilter('all');
+    setSortOption('relevance');
     setPage(1);
   };
 
@@ -100,12 +120,12 @@ const StudentCatalog = () => {
 
   const getAvailabilityBadge = (available: number, total: number) => {
     if (available === 0) {
-      return <Badge variant="destructive">Unavailable</Badge>;
+      return <Badge variant="destructive" className="h-5 text-[10px] px-1.5">Out of Stock</Badge>;
     }
     if (available <= 2) {
-      return <Badge className="bg-amber-500 hover:bg-amber-600">{available} left</Badge>;
+      return <Badge className="bg-amber-500 hover:bg-amber-600 h-5 text-[10px] px-1.5">{available} left</Badge>;
     }
-    return <Badge variant="secondary">{available} available</Badge>;
+    return <Badge variant="secondary" className="h-5 text-[10px] px-1.5">{available} available</Badge>;
   };
 
   const handleReserveBook = async () => {
@@ -122,174 +142,219 @@ const StudentCatalog = () => {
     }
   };
 
+  const handleQuickReserve = async (e: React.MouseEvent, book: Book) => {
+    e.stopPropagation();
+    if (!book.id) return;
+
+    try {
+      await reserveBook.mutateAsync({ bookId: book.id, notes: '' });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleFavorite = async (e: React.MouseEvent, bookId: string) => {
+    e.stopPropagation();
+    if (!bookId) return;
+
+    try {
+      if (favoriteBookIds.has(bookId)) {
+        await removeFavorite.mutateAsync(bookId);
+      } else {
+        await addFavorite.mutateAsync(bookId);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <motion.div
-      className="space-y-4 sm:space-y-6 relative"
+      className="space-y-4 relative pb-20"
       initial={prefersReducedMotion ? "visible" : "hidden"}
       animate="visible"
       variants={fadeInUpVariants}
     >
-      <div className="sticky top-0 z-20 bg-background border-b border-border/50 pb-4 pt-4 -mx-4 px-4 sm:-mx-6 sm:px-6">
-        <div className="mb-4">
-          <h1 className="text-xl sm:text-2xl font-display font-bold text-primary">Book Catalog</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">Search and browse our library collection</p>
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b -mx-4 px-4 sm:-mx-6 sm:px-6 py-3 transition-all">
+        <div className="flex flex-col md:flex-row gap-3 items-center justify-between max-w-[1920px] mx-auto">
+          <div className="relative w-full md:w-64 lg:w-80">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search books..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 h-8 text-sm bg-muted/50 focus:bg-background transition-colors"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="h-8 w-[130px] text-xs">
+                <Filter className="h-3 w-3 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((cat: Category) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
+              <SelectTrigger className="h-8 w-[130px] text-xs">
+                <CheckCircle className="h-3 w-3 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Availability" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="available">Available</SelectItem>
+                <SelectItem value="checked_out">Checked Out</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sortOption} onValueChange={setSortOption}>
+              <SelectTrigger className="h-8 w-[130px] text-xs">
+                <span className="mr-2 text-muted-foreground">Sort:</span>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="relevance">Relevance</SelectItem>
+                <SelectItem value="title">Title A-Z</SelectItem>
+                <SelectItem value="author">Author A-Z</SelectItem>
+                <SelectItem value="newest">Newest</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="h-8 w-px bg-border mx-1 shrink-0" />
+
+            <ToggleGroup
+              type="single"
+              value={viewMode}
+              onValueChange={(v) => v && setViewMode(v as 'grid' | 'compact')}
+              className="shrink-0"
+            >
+              <ToggleGroupItem value="grid" size="sm" className="h-8 w-8 p-0" aria-label="Grid view">
+                <LayoutGrid className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="compact" size="sm" className="h-8 w-8 p-0" aria-label="Compact view">
+                <Rows className="h-4 w-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
         </div>
-
-        <Card className="shadow-sm border-primary/10">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex flex-col gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by title, author, or ISBN..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 sm:h-10 text-sm"
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs sm:text-sm">
-                    <Filter className="h-3.5 w-3.5 mr-2" />
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((cat: Category) => (
-                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <div className="flex items-center bg-muted rounded-lg p-1 w-full sm:w-auto overflow-x-auto no-scrollbar">
-                  {[
-                    { id: 'all', label: 'All', icon: CheckCircle },
-                    { id: 'available', label: 'Available', icon: CheckCircle },
-                    { id: 'unavailable', label: 'Waitlist', icon: History },
-                  ].map((filter) => (
-                    <button
-                      key={filter.id}
-                      onClick={() => setAvailabilityFilter(filter.id as 'all' | 'available' | 'unavailable')}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${availabilityFilter === filter.id
-                        ? 'bg-background text-primary shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                    >
-                      <filter.icon className={`h-3 w-3 ${availabilityFilter === filter.id ? 'text-primary' : ''}`} />
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
-                {/* The ToggleGroup for viewMode is kept as it was not part of the replacement snippet */}
-                <ToggleGroup
-                  type="single"
-                  value={viewMode}
-                  onValueChange={(v) => v && setViewMode(v as 'grid' | 'list')}
-                  className="hidden sm:flex ml-auto"
-                >
-                  <ToggleGroupItem value="grid" aria-label="Grid view">
-                    <Grid3X3 className="h-4 w-4" />
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="list" aria-label="List view">
-                    <List className="h-4 w-4" />
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-xs sm:text-sm text-muted-foreground">
-          Showing <span className="font-medium text-foreground">{filteredBooks.length}</span> books
+      <div className="flex items-center justify-between pt-2">
+        <p className="text-xs text-muted-foreground">
+          Showing <span className="font-medium text-foreground">{sortedBooks.length}</span> results
         </p>
       </div>
 
       {booksLoading ? (
-        <div className="flex justify-center py-12">
+        <div className="flex justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : viewMode === 'list' ? (
+      ) : sortedBooks.length === 0 ? (
+        <div className="text-center py-16 bg-muted/30 rounded-lg border border-dashed">
+          <BookOpen className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+          <h3 className="text-sm font-semibold text-foreground">No books found</h3>
+          <p className="text-xs text-muted-foreground mb-4">Try adjusting your filters</p>
+          <Button variant="outline" size="sm" onClick={handleClearFilters} className="h-8 gap-2">
+            <X className="h-3 w-3" />
+            Clear filters
+          </Button>
+        </div>
+      ) : viewMode === 'compact' ? (
         <motion.div
-          className="rounded-md border bg-card"
+          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"
           initial={prefersReducedMotion ? "visible" : "hidden"}
           animate="visible"
           variants={staggerContainerVariants}
         >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[80px]">Cover</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead className="hidden md:table-cell">Author</TableHead>
-                <TableHead className="hidden sm:table-cell">Category</TableHead>
-                <TableHead>Availability</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredBooks.map((book) => (
-                <motion.tr
-                  key={book.id}
-                  variants={staggerItemVariants}
-                  className="cursor-pointer hover:bg-muted/50 border-b transition-colors"
-                  onClick={() => setSelectedBook(book)}
-                >
-                  <TableCell>
-                    <div className="w-12 h-16 bg-muted rounded overflow-hidden">
-                      <BookCover
-                        title={book.title}
-                        author={book.author}
-                        coverImage={book.coverImage}
-                        isbn={book.isbn}
-                        className="w-full h-full object-cover"
-                      />
+          {sortedBooks.map((book) => (
+            <motion.div
+              key={book.id}
+              variants={staggerItemVariants}
+              whileHover={prefersReducedMotion ? undefined : { scale: 1.01 }}
+              className="group"
+            >
+              <Card 
+                className="cursor-pointer overflow-hidden hover:shadow-md transition-all flex h-28 sm:h-32 border-transparent hover:border-border"
+                onClick={() => setSelectedBook(book)}
+              >
+                <div className="w-20 sm:w-24 shrink-0 h-full bg-muted relative">
+                  <BookCover
+                    title={book.title}
+                    author={book.author}
+                    coverImage={book.coverImage}
+                    isbn={book.isbn}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex-1 p-3 flex flex-col justify-between overflow-hidden">
+                  <div>
+                    <div className="flex justify-between items-start gap-2">
+                      <h3 className="font-semibold text-sm line-clamp-1 group-hover:text-primary transition-colors">
+                        {book.title}
+                      </h3>
+                      {getAvailabilityBadge(book.availableCopies || 0, book.totalCopies || 0)}
                     </div>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    <div className="flex flex-col">
-                      <span>{book.title}</span>
-                      <span className="md:hidden text-xs text-muted-foreground">{book.author}</span>
+                    <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{book.author}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                       <Badge variant="outline" className="text-[10px] h-4 px-1 font-normal text-muted-foreground">
+                        {book.category || 'General'}
+                       </Badge>
+                       {book.publicationYear && (
+                         <span className="text-[10px] text-muted-foreground">{book.publicationYear}</span>
+                       )}
                     </div>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">{book.author}</TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    <Badge variant="outline" className="font-normal">
-                      {book.category || 'Uncategorized'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {getAvailabilityBadge(book.availableCopies || 0, book.totalCopies || 0)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm">View</Button>
-                  </TableCell>
-                </motion.tr>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+                  
+                   <div className="flex items-center justify-end gap-2 mt-2">
+                     <Button 
+                       variant="ghost" 
+                       size="sm" 
+                       className="h-7 w-7 p-0"
+                       onClick={(e) => handleToggleFavorite(e, book.id)}
+                     >
+                       <Heart className={`h-4 w-4 ${favoriteBookIds.has(book.id) ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} />
+                     </Button>
+                     <Button variant="ghost" size="sm" className="h-7 text-xs">Details</Button>
+                     {(book.availableCopies || 0) > 0 && (
+                        <Button 
+                          size="sm" 
+                          className="h-7 text-xs px-3"
+                          onClick={(e) => handleQuickReserve(e, book)}
+                        >
+                          Reserve
+                        </Button>
+                     )}
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
         </motion.div>
       ) : (
         <motion.div
-          className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4"
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4"
           initial={prefersReducedMotion ? "visible" : "hidden"}
           animate="visible"
           variants={staggerContainerVariants}
         >
-          {filteredBooks.map((book) => (
+          {sortedBooks.map((book) => (
             <motion.div
               key={book.id}
               variants={staggerItemVariants}
               whileHover={prefersReducedMotion ? undefined : "hover"}
-              whileTap={prefersReducedMotion ? undefined : "tap"}
             >
               <Card
-                className="cursor-pointer overflow-hidden group h-full"
+                className="cursor-pointer overflow-hidden group h-full relative border-transparent hover:border-border hover:shadow-md transition-all"
                 onClick={() => setSelectedBook(book)}
               >
                 <motion.div
-                  className="aspect-[3/4] bg-muted relative overflow-hidden"
+                  className="aspect-[2/3] bg-muted relative overflow-hidden"
                   variants={cardHoverVariants}
                   initial="initial"
                 >
@@ -299,15 +364,32 @@ const StudentCatalog = () => {
                     coverImage={book.coverImage}
                     isbn={book.isbn}
                   />
+                  <button
+                    className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+                    onClick={(e) => handleToggleFavorite(e, book.id)}
+                  >
+                    <Heart className={`h-4 w-4 ${favoriteBookIds.has(book.id) ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} />
+                  </button>
+                  {(book.availableCopies || 0) > 0 && (
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4">
+                      <Button 
+                        size="sm" 
+                        className="w-full font-semibold shadow-lg translate-y-2 group-hover:translate-y-0 transition-transform duration-200"
+                        onClick={(e) => handleQuickReserve(e, book)}
+                      >
+                        Reserve
+                      </Button>
+                    </div>
+                  )}
                 </motion.div>
-                <CardContent className="p-2.5 sm:p-4">
-                  <h3 className="font-semibold text-sm sm:text-base line-clamp-2 mb-1">{book.title}</h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-1">{book.author}</p>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:justify-between">
-                    <Badge variant="outline" className="text-[10px] sm:text-xs w-fit">
-                      {book.category || 'Uncategorized'}
+                <CardContent className="p-2">
+                  <h3 className="font-semibold text-sm line-clamp-1 mb-0.5 group-hover:text-primary transition-colors">{book.title}</h3>
+                  <p className="text-xs text-muted-foreground line-clamp-1 mb-1.5">{book.author}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <Badge variant="outline" className="text-[10px] h-4 px-1 rounded-sm border-transparent bg-muted text-muted-foreground group-hover:border-border group-hover:bg-background transition-colors">
+                      {book.category?.substring(0, 12) || 'Gen'}
                     </Badge>
-                    <div className="mt-1 sm:mt-0">
+                    <div className="scale-90 origin-right">
                       {getAvailabilityBadge(book.availableCopies || 0, book.totalCopies || 0)}
                     </div>
                   </div>
@@ -318,41 +400,60 @@ const StudentCatalog = () => {
         </motion.div>
       )}
 
-      {!booksLoading && filteredBooks.length === 0 && (
-        <div className="text-center py-8 sm:py-12">
-          <BookOpen className="h-12 w-12 sm:h-16 sm:w-16 mx-auto text-muted-foreground/30 mb-4" />
-          <h3 className="text-base sm:text-lg font-semibold text-muted-foreground">No books found</h3>
-          <p className="text-sm text-muted-foreground mb-4">Try adjusting your search or filters</p>
-          <Button variant="outline" onClick={handleClearFilters} className="gap-2">
-            <X className="h-4 w-4" />
-            Clear filters
-          </Button>
-        </div>
-      )}
-
       {!booksLoading && filteredBooks.length > 0 && meta && meta.total_pages > 1 && (
-        <div className="flex items-center justify-between py-4">
+        <div className="flex items-center justify-center py-6 gap-1">
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
+            className="h-8 w-8"
             onClick={() => handlePageChange(page - 1)}
             disabled={page <= 1}
-            className="gap-1"
           >
             <ChevronLeft className="h-4 w-4" />
-            Previous
           </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {meta.page} of {meta.total_pages}
-          </span>
+          
+          <div className="flex items-center gap-1 mx-2">
+             {Array.from({ length: Math.min(5, meta.total_pages) }, (_, i) => {
+                let p = page;
+                if (meta.total_pages <= 5) p = i + 1;
+                else if (page <= 3) p = i + 1;
+                else if (page >= meta.total_pages - 2) p = meta.total_pages - 4 + i;
+                else p = page - 2 + i;
+                
+                return (
+                  <Button
+                    key={p}
+                    variant={p === page ? "default" : "outline"}
+                    size="sm"
+                    className={`h-8 w-8 p-0 text-xs ${p === page ? "" : "text-muted-foreground"}`}
+                    onClick={() => handlePageChange(p)}
+                  >
+                    {p}
+                  </Button>
+                );
+             })}
+             {meta.total_pages > 5 && page < meta.total_pages - 2 && (
+               <>
+                 <span className="text-muted-foreground text-xs px-1">...</span>
+                 <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-xs text-muted-foreground"
+                    onClick={() => handlePageChange(meta.total_pages)}
+                  >
+                    {meta.total_pages}
+                  </Button>
+               </>
+             )}
+          </div>
+
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
+            className="h-8 w-8"
             onClick={() => handlePageChange(page + 1)}
             disabled={page >= meta.total_pages}
-            className="gap-1"
           >
-            Next
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -365,14 +466,30 @@ const StudentCatalog = () => {
         }
       }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+          <DialogHeader className="flex flex-row items-start justify-between">
             <DialogTitle className="font-display text-lg sm:text-xl pr-4">{selectedBook?.title}</DialogTitle>
+            {selectedBook && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 shrink-0"
+                onClick={() => {
+                  if (favoriteBookIds.has(selectedBook.id)) {
+                    removeFavorite.mutate(selectedBook.id);
+                  } else {
+                    addFavorite.mutate(selectedBook.id);
+                  }
+                }}
+              >
+                <Heart className={`h-5 w-5 ${favoriteBookIds.has(selectedBook.id) ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} />
+              </Button>
+            )}
           </DialogHeader>
 
           {selectedBook && (
             <div className="space-y-4 sm:space-y-6">
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                <div className="w-24 h-32 sm:w-32 sm:h-44 bg-muted rounded-lg flex-shrink-0 mx-auto sm:mx-0 relative overflow-hidden shadow-md">
+                <div className="w-24 h-36 sm:w-32 sm:h-48 bg-muted rounded-lg flex-shrink-0 mx-auto sm:mx-0 relative overflow-hidden shadow-md">
                   <BookCover
                     title={selectedBook.title}
                     author={selectedBook.author}
@@ -383,7 +500,7 @@ const StudentCatalog = () => {
                 <div className="flex-1 space-y-2 sm:space-y-3">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-sm">{selectedBook.author}</span>
+                    <span className="text-sm font-medium">{selectedBook.author}</span>
                   </div>
                   {selectedBook.publisher && (
                     <div className="flex items-center gap-2">
@@ -415,7 +532,7 @@ const StudentCatalog = () => {
               {selectedBook.description && (
                 <div>
                   <h4 className="font-semibold mb-2 text-sm sm:text-base">Description</h4>
-                  <p className="text-sm text-muted-foreground">{selectedBook.description}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{selectedBook.description}</p>
                 </div>
               )}
 
@@ -423,7 +540,7 @@ const StudentCatalog = () => {
                 <div>
                   <h4 className="font-semibold mb-2 text-sm sm:text-base">Reservation Notes (Optional)</h4>
                   <Input
-                    placeholder="Add a note for the librarian (e.g., needed for research project)"
+                    placeholder="Add a note for the librarian..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     className="min-h-[80px]"
@@ -450,12 +567,12 @@ const StudentCatalog = () => {
                         Reserving...
                       </>
                     ) : (
-                      'Reserve Book'
+                      'Confirm Reservation'
                     )}
                   </Button>
                 ) : (
-                  <Button variant="outline" disabled className="w-full sm:w-auto">
-                    Currently Unavailable
+                  <Button variant="outline" disabled className="w-full sm:w-auto opacity-50">
+                    Out of Stock
                   </Button>
                 )}
               </div>

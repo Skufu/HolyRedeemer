@@ -17,7 +17,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   BookOpen, Bell, ChevronDown, LogOut, User, Menu, Home, Book, QrCode, Upload,
   Users, BarChart3, Settings, ClipboardList, ScanLine, Search, CalendarDays,
-  BookMarked, UserCircle, BellRing, Library
+  BookMarked, UserCircle, BellRing, Library, Clock, CalendarClock, CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -44,7 +44,11 @@ const librarianNavItems = [
 const studentNavItems = [
   { to: '/student/dashboard', icon: Home, label: 'Dashboard' },
   { to: '/student/catalog', icon: BookMarked, label: 'Book Catalog' },
-  { to: '/student/account', icon: UserCircle, label: 'My Account' },
+  { to: '/student/my-books', icon: BookOpen, label: 'My Books' },
+  { to: '/student/reservations', icon: CalendarClock, label: 'My Reservations' },
+  { to: '/student/history', icon: Clock, label: 'History' },
+  { to: '/student/fees', icon: CreditCard, label: 'Library Fees' },
+  { to: '/student/account', icon: UserCircle, label: 'My Profile' },
   { to: '/student/notifications', icon: BellRing, label: 'Notifications' },
 ];
 

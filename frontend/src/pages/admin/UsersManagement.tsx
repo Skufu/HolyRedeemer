@@ -313,25 +313,36 @@ const UsersManagement: React.FC = () => {
       </Tabs>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>{editingStudent ? 'Edit Student' : 'Add Student'}</DialogTitle>
             <DialogDescription>
               {editingStudent ? 'Update student information below.' : 'Fill in the details to add a new student.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="username">Username *</Label>
-              <Input
-                id="username"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                disabled={!!editingStudent}
-              />
+          <div className="grid gap-3 py-4 overflow-y-auto px-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="username">Username *</Label>
+                <Input
+                  id="username"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  disabled={!!editingStudent}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="student_id">Student ID *</Label>
+                <Input
+                  id="student_id"
+                  value={formData.student_id}
+                  onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
+                />
+              </div>
             </div>
+
             {!editingStudent && (
-              <div className="grid gap-2">
+              <div className="grid gap-1.5">
                 <Label htmlFor="password">Password *</Label>
                 <Input
                   id="password"
@@ -341,7 +352,8 @@ const UsersManagement: React.FC = () => {
                 />
               </div>
             )}
-            <div className="grid gap-2">
+
+            <div className="grid gap-1.5">
               <Label htmlFor="name">Full Name *</Label>
               <Input
                 id="name"
@@ -349,15 +361,8 @@ const UsersManagement: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="student_id">Student ID *</Label>
-              <Input
-                id="student_id"
-                value={formData.student_id}
-                onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
-              />
-            </div>
-            <div className="grid gap-2">
+
+            <div className="grid gap-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -366,24 +371,28 @@ const UsersManagement: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="grade_level">Grade Level *</Label>
-              <Input
-                id="grade_level"
-                type="number"
-                value={formData.grade_level}
-                onChange={(e) => setFormData({ ...formData, grade_level: parseInt(e.target.value) || 7 })}
-              />
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="grade_level">Grade Level *</Label>
+                <Input
+                  id="grade_level"
+                  type="number"
+                  value={formData.grade_level}
+                  onChange={(e) => setFormData({ ...formData, grade_level: parseInt(e.target.value) || 7 })}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="section">Section</Label>
+                <Input
+                  id="section"
+                  value={formData.section}
+                  onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+                />
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="section">Section</Label>
-              <Input
-                id="section"
-                value={formData.section}
-                onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-              />
-            </div>
-            <div className="grid gap-2">
+
+            <div className="grid gap-1.5">
               <Label htmlFor="guardian_name">Guardian Name</Label>
               <Input
                 id="guardian_name"
@@ -391,7 +400,7 @@ const UsersManagement: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, guardian_name: e.target.value })}
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="guardian_contact">Guardian Contact</Label>
               <Input
                 id="guardian_contact"

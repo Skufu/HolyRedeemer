@@ -128,7 +128,7 @@ describe('studentsService', () => {
     it('creates a new student', async () => {
       server.use(
         http.post(`${API_URL}/students`, async ({ request }) => {
-          const body = await request.json() as { name: string; student_id: string };
+          const body = await request.json() as Record<string, unknown>;
           return HttpResponse.json({
             success: true,
             data: { id: 'new-student', ...body },
@@ -138,6 +138,8 @@ describe('studentsService', () => {
       );
 
       const response = await studentsService.create({
+        username: 'newstudent',
+        password: 'password123',
         student_id: 'STU-NEW',
         name: 'New Student',
         grade_level: 8,
@@ -153,7 +155,7 @@ describe('studentsService', () => {
     it('updates a student', async () => {
       server.use(
         http.put(`${API_URL}/students/:id`, async ({ params, request }) => {
-          const body = await request.json();
+          const body = await request.json() as Record<string, unknown>;
           return HttpResponse.json({
             success: true,
             data: { id: params.id, ...body },
@@ -163,12 +165,12 @@ describe('studentsService', () => {
       );
 
       const response = await studentsService.update('student-123', {
-        grade_level: 8,
+        gradeLevel: 8,
         section: 'B',
       });
 
       expect(response.success).toBe(true);
-      expect(response.data.grade_level).toBe(8);
+      expect(response.data.gradeLevel).toBe(8);
     });
   });
 
@@ -192,7 +194,7 @@ describe('studentsService', () => {
 
       const response = await studentsService.getLoans('student-123');
       expect(response.data).toHaveLength(1);
-      expect(response.data[0].book_title).toBe('Test Book');
+      expect(response.data[0].bookTitle).toBe('Test Book');
     });
   });
 

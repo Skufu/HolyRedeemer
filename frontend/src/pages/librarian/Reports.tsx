@@ -25,8 +25,12 @@ import { useOverdueLoans } from '@/hooks/useCirculation';
 
 type ReportType = 'daily' | 'weekly' | 'overdue' | 'popular';
 
+import { useSearchParams } from 'react-router-dom';
+
 const LibrarianReports: React.FC = () => {
-  const [reportType, setReportType] = useState<ReportType>('daily');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [reportType, setReportType] = useState<ReportType>((tabParam as ReportType) || 'daily');
   const { toast } = useToast();
 
   const today = new Date();
