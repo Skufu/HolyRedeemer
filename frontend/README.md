@@ -14,8 +14,8 @@ A modern React 18 web application for the Holy Redeemer School Library Managemen
 
 ```bash
 # From project root (recommended)
-./scripts/setup.sh      # Full setup (first time)
-./scripts/dev-frontend.sh # Run frontend only (port 4127)
+./setup_and_run.sh --setup   # Full setup (first time)
+./setup_and_run.sh --run     # Run both backend + frontend
 
 # Or manually:
 cd frontend

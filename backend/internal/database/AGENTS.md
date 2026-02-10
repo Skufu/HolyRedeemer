@@ -53,6 +53,7 @@ UPDATE books SET status = 'archived' WHERE id = $1;
 ## MIGRATIONS
 
 ```bash
+cd backend
 make migrate-up      # Apply pending migrations
 make migrate-down    # Rollback one migration
 make reset-db        # Drop schema + reapply all
@@ -60,7 +61,19 @@ make reset-db        # Drop schema + reapply all
 
 New migration:
 ```bash
+cd backend
 make migrate-create name=add_new_table
+```
+
+## TESTING
+
+```bash
+# Test database operations via handlers
+cd backend
+go test ./internal/handlers/... -v -run TestBook
+
+# Reset test database
+make reset-db
 ```
 
 ## ANTI-PATTERNS
@@ -68,6 +81,7 @@ make migrate-create name=add_new_table
 - **NEVER** edit files in `../repositories/sqlcdb/` - they're generated
 - **NEVER** put business logic in SQL (calculations, conditionals)
 - **NEVER** use raw SQL in handlers - always use sqlc queries
+- **NEVER** write migrations that modify generated sqlc files
 
 ## KEY TABLES
 

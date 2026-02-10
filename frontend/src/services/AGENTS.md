@@ -92,9 +92,23 @@ interface ApiResponse<T> {
 2. Retries original request with new access token
 3. Redirects to /login if refresh fails
 
+## TESTING
+
+```bash
+# Run specific test file
+npm run test:run -- src/services/auth.test.ts
+
+# Run tests matching pattern
+npm run test:run -- --grep "login"
+
+# Verbose output
+npm run test -- --reporter=verbose
+```
+
 ## CONVENTIONS
 
 - Service names: `{domain}Service` (camelCase)
 - Methods: `list`, `get`, `create`, `update`, `delete`
 - Always return `Promise<ApiResponse<T>>`
 - Use `@/services/` import alias
+- Never use `as any`, `@ts-ignore`, or `@ts-expect-error`

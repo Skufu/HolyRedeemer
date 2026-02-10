@@ -75,9 +75,23 @@ onSuccess: () => {
 }
 ```
 
+## TESTING
+
+```bash
+# Run hooks tests
+npm run test:run -- src/hooks/
+
+# Run specific hook test
+npm run test:run -- src/hooks/useBooks.test.ts
+
+# Verbose mode
+npm run test -- --reporter=verbose
+```
+
 ## CONVENTIONS
 
 - Hook names: `use{Domain}` (singular for single item, plural for list)
 - Always use `queryKey` arrays for caching
 - Use `enabled` option for conditional queries
 - Handle loading/error states in components
+- Invalidate related queries after mutations

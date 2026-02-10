@@ -29,7 +29,7 @@ docker run -d --name library-db \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=postgres \
   -e POSTGRES_DB=library_dev \
-  -p 5432:5432 postgres:14
+  -p 5433:5432 postgres:15
 
 # Run migrations
 make migrate-up

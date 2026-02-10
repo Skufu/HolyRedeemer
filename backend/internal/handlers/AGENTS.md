@@ -16,6 +16,7 @@ handlers/
 ├── notifications.go # User notifications
 ├── settings.go      # Library settings
 ├── audit.go         # Audit log queries
+├── helpers.go       # Type conversion utilities
 └── *_test.go        # Test files
 ```
 
@@ -61,7 +62,6 @@ tx, err := h.db.Begin(c.Request.Context())
 if err != nil {
     response.InternalError(c, "Failed to begin transaction")
     return
-}
 defer tx.Rollback(c.Request.Context())
 
 queries := h.queries.WithTx(tx)
@@ -91,7 +91,10 @@ if err := tx.Commit(c.Request.Context()); err != nil {
 ## TESTING
 
 ```bash
+# Run all handler tests
 go test ./internal/handlers/... -v
+
+# Run single test
 go test ./internal/handlers/... -run TestCheckout -v
 ```
 
