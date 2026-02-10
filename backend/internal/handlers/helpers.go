@@ -112,6 +112,21 @@ func fromPgDate(d pgtype.Date) time.Time {
 	return time.Time{}
 }
 
+// Timestamptz helpers
+func fromPgTimestamptz(t pgtype.Timestamptz) time.Time {
+	if t.Valid {
+		return t.Time
+	}
+	return time.Time{}
+}
+
+func fromPgTimestamptzOptional(t pgtype.Timestamptz) (time.Time, bool) {
+	if t.Valid {
+		return t.Time, true
+	}
+	return time.Time{}, false
+}
+
 // Format helpers for pgtype date/time
 func formatPgTimestamp(t pgtype.Timestamp, layout string) string {
 	if t.Valid {
