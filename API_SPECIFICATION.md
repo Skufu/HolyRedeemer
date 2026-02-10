@@ -1,6 +1,5 @@
 # Holy Redeemer Library Management System - API Specification
 
-> **Generated**: January 21, 2026
 > **Version**: v1
 > **Base Path**: `/api/v1`
 

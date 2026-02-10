@@ -33,7 +33,7 @@ Run everything with a single command:
 # After setup, run the application
 ./setup_and_run.sh --run
 
-# Reset database with seed data
+# Reset database with seed data (runs migrations that include seed inserts)
 ./setup_and_run.sh --seed
 ```
 
