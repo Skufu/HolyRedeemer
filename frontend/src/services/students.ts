@@ -83,6 +83,29 @@ export interface StudentFine {
   createdAt: string;
 }
 
+export interface FavoriteBook {
+  id: string;
+  bookId: string;
+  title: string;
+  author: string;
+  isbn?: string;
+  coverImage?: string;
+  addedAt: string;
+}
+
+export interface Achievement {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  requirementType: string;
+  requirementValue: number;
+  unlockedAt?: string;
+  isUnlocked: boolean;
+}
+
 export interface ListStudentsParams {
   page?: number;
   per_page?: number;
@@ -159,6 +182,33 @@ export const studentsService = {
       book_id: bookId,
       notes: notes || undefined,
     });
+    return response.data;
+  },
+
+  getFavorites: async (): Promise<ApiResponse<FavoriteBook[]>> => {
+    const response = await api.get<ApiResponse<FavoriteBook[]>>('/students/me/favorites');
+    return response.data;
+  },
+
+  addFavorite: async (bookId: string): Promise<ApiResponse<FavoriteBook>> => {
+    const response = await api.post<ApiResponse<FavoriteBook>>('/students/me/favorites', {
+      book_id: bookId,
+    });
+    return response.data;
+  },
+
+  removeFavorite: async (bookId: string): Promise<ApiResponse<void>> => {
+    const response = await api.delete<ApiResponse<void>>(`/students/me/favorites/${bookId}`);
+    return response.data;
+  },
+
+  getMyAchievements: async (): Promise<ApiResponse<Achievement[]>> => {
+    const response = await api.get<ApiResponse<Achievement[]>>('/students/me/achievements');
+    return response.data;
+  },
+
+  getAllAchievements: async (): Promise<ApiResponse<Achievement[]>> => {
+    const response = await api.get<ApiResponse<Achievement[]>>('/students/achievements');
     return response.data;
   },
 };

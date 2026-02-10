@@ -135,3 +135,64 @@ export const useUpdateStudent = () => {
     },
   });
 };
+
+export const useFavoriteBooks = () => {
+  return useQuery({
+    queryKey: ['student-favorites'],
+    queryFn: () => studentsService.getFavorites(),
+  });
+};
+
+export const useAddFavorite = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (bookId: string) => studentsService.addFavorite(bookId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student-favorites'] });
+      toast({ title: 'Added to Favorites', description: 'Book added to your favorites' });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Error',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useRemoveFavorite = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (bookId: string) => studentsService.removeFavorite(bookId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student-favorites'] });
+      toast({ title: 'Removed', description: 'Book removed from favorites' });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Error',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useMyAchievements = () => {
+  return useQuery({
+    queryKey: ['student-achievements'],
+    queryFn: () => studentsService.getMyAchievements(),
+  });
+};
+
+export const useAllAchievements = () => {
+  return useQuery({
+    queryKey: ['all-achievements'],
+    queryFn: () => studentsService.getAllAchievements(),
+  });
+};
