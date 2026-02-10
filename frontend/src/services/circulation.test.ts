@@ -3,7 +3,7 @@ import { circulationService } from './circulation';
 import { server } from '@/test/setup';
 import { http, HttpResponse } from 'msw';
 
-const API_URL = 'http://localhost:3847/api/v1';
+const API_URL = 'http://localhost:8080/api/v1';
 
 describe('circulationService', () => {
   beforeEach(() => {

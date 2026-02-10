@@ -6,7 +6,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import React from 'react';
 import { booksService } from './books';
 
-const API_URL = 'http://localhost:3847/api/v1';
+const API_URL = 'http://localhost:8080/api/v1';
 
 describe('QR Management', () => {
   beforeEach(() => {
