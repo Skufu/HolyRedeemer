@@ -242,22 +242,50 @@ const Circulation: React.FC = () => {
   };
 
   const handleBookSelect = async (book: BookType) => {
-    if ((book.availableCopies || 0) <= 0) {
+  try {
+    // Ask backend for available copies
+    const result = await copyByQRMutation.mutateAsync({
+      book_id: book.id, // <-- you'll adapt this depending on your API
+    });
+
+    if (!result.data) {
       toast({
-        title: 'No Copies Available',
-        description: 'All copies of this book are currently borrowed.',
+        title: 'No Available Copies',
+        description: 'All copies are currently borrowed.',
         variant: 'destructive',
       });
       return;
     }
 
-    // For now, just show the book info - they need to scan the actual copy QR
+    const { book: bookData, ...copy } = result.data;
+
+    const normalizedCopy: BookCopy = {
+      ...copy,
+      copyNumber: copy.copy_number ?? copy.copyNumber,
+      qrCode: copy.qr_code ?? copy.qrCode,
+    };
+
+    setScannedBooks(prev => [
+      ...prev,
+      { copy: normalizedCopy, book: bookData },
+    ]);
+
     toast({
-      title: 'Scan Book Copy',
-      description: `Please scan the QR code on a copy of "${book.title}"`,
+      title: 'Book Added',
+      description: `${bookData.title} (Copy #${normalizedCopy.copyNumber})`,
     });
+
     setBookSearch('');
-  };
+
+  } catch {
+    toast({
+      title: 'Error',
+      description: 'Failed to fetch available copy.',
+      variant: 'destructive',
+    });
+  }
+};
+
 
   const removeScannedBook = (copyId: string) => {
     setScannedBooks(prev => prev.filter(sb => sb.copy.id !== copyId));
