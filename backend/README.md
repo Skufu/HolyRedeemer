@@ -23,7 +23,7 @@ make install-tools
 # Run migrations
 make migrate-up
 
-# Seed demo data
+# Seed demo data (runs migrations that include seed inserts)
 make seed
 
 # Start development server
@@ -163,7 +163,7 @@ See `.env.example` for all configuration options:
 | `DATABASE_URL` | PostgreSQL connection string | Required |
 | `JWT_ACCESS_SECRET` | Access token secret | Required |
 | `JWT_REFRESH_SECRET` | Refresh token secret | Required |
-| `CORS_ORIGINS` | Allowed origins | `http://localhost:3000` |
+| `CORS_ORIGINS` | Allowed origins | `http://localhost:4127` |
 
 ## 🚢 Deployment
 
