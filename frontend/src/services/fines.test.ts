@@ -16,7 +16,7 @@ describe('finesService', () => {
 
       expect(response.success).toBe(true);
       expect(response.data).toHaveLength(1);
-      expect(response.data[0].type).toBe('overdue');
+      expect(response.data[0].fine_type).toBe('overdue');
     });
 
     it('filters by student and status', async () => {

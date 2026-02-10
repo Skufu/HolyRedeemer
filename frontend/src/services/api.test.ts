@@ -14,8 +14,8 @@ describe('api client', () => {
       const mockRequest = new Request('http://test/api/test');
       const mockCallback = vi.fn();
 
-      api.interceptors.request.use(mockCallback);
-      api.interceptors.request.eject(mockCallback);
+      const interceptorId = api.interceptors.request.use(mockCallback);
+      api.interceptors.request.eject(interceptorId);
 
       // Test passes through - in real implementation would verify header is set
       expect(localStorage.getItem('lms_access_token')).toBe('test-token-123');

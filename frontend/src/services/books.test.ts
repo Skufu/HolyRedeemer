@@ -82,7 +82,7 @@ describe('booksService', () => {
     it('creates a new book', async () => {
       server.use(
         http.post(`${API_URL}/books`, async ({ request }) => {
-          const body = await request.json();
+          const body = await request.json() as Record<string, unknown>;
           return HttpResponse.json({
             success: true,
             data: { id: 'new-book-id', ...body },
@@ -106,7 +106,7 @@ describe('booksService', () => {
     it('updates an existing book', async () => {
       server.use(
         http.put(`${API_URL}/books/:id`, async ({ params, request }) => {
-          const body = await request.json();
+          const body = await request.json() as Record<string, unknown>;
           return HttpResponse.json({
             success: true,
             data: { id: params.id, ...body },
@@ -167,7 +167,7 @@ describe('booksService', () => {
 
       const response = await booksService.createCopy('book-id', { condition: 'good' });
       expect(response.success).toBe(true);
-      expect(response.data.qr_code).toBe('HR-003');
+      expect(response.data.qrCode).toBe('HR-003');
     });
   });
 
@@ -188,7 +188,7 @@ describe('booksService', () => {
       );
 
       const response = await booksService.getCopyByQR('HR-001');
-      expect(response.data.qr_code).toBe('HR-001');
+      expect(response.data.qrCode).toBe('HR-001');
       expect(response.data.book.title).toBe('Test Book');
     });
   });
@@ -217,7 +217,7 @@ describe('booksService', () => {
     it('creates a new category', async () => {
       server.use(
         http.post(`${API_URL}/categories`, async ({ request }) => {
-          const body = await request.json();
+          const body = await request.json() as Record<string, unknown>;
           return HttpResponse.json({
             success: true,
             data: { id: 'new-cat-id', ...body },
