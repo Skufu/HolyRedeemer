@@ -794,7 +794,258 @@ func (h *StudentHandler) ReserveBook(c *gin.Context) {
 	}, "Book reservation created successfully")
 }
 
-// Helper function for fine status
+type FavoriteBookResponse struct {
+	ID         string    `json:"id"`
+	BookID     string    `json:"bookId"`
+	Title      string    `json:"title"`
+	Author     string    `json:"author"`
+	ISBN       string    `json:"isbn,omitempty"`
+	CoverImage string    `json:"coverImage,omitempty"`
+	AddedAt    time.Time `json:"addedAt"`
+}
+
+func mapFavoriteBookRow(f sqlcdb.ListFavoriteBooksRow) FavoriteBookResponse {
+	addedAt := time.Time{}
+	if f.CreatedAt.Valid {
+		addedAt = f.CreatedAt.Time
+	}
+	return FavoriteBookResponse{
+		ID:         f.ID.String(),
+		BookID:     f.BookID.String(),
+		Title:      f.Title,
+		Author:     f.Author,
+		ISBN:       fromPgText(f.Isbn),
+		CoverImage: fromPgText(f.CoverUrl),
+		AddedAt:    addedAt,
+	}
+}
+
+func (h *StudentHandler) GetMyFavorites(c *gin.Context) {
+	authUser := middleware.GetAuthUser(c)
+	if authUser == nil {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	userID, err := uuid.Parse(authUser.ID)
+	if err != nil {
+		response.InternalError(c, "Invalid user ID")
+		return
+	}
+
+	student, err := h.queries.GetStudentByUserID(c.Request.Context(), toPgUUID(userID))
+	if err != nil {
+		response.NotFound(c, "Student profile not found")
+		return
+	}
+
+	favorites, err := h.queries.ListFavoriteBooks(c.Request.Context(), student.ID)
+	if err != nil {
+		response.InternalError(c, "Failed to fetch favorites")
+		return
+	}
+
+	favoriteResponses := make([]FavoriteBookResponse, len(favorites))
+	for i, f := range favorites {
+		favoriteResponses[i] = mapFavoriteBookRow(f)
+	}
+
+	response.Success(c, favoriteResponses, "")
+}
+
+// AddFavoriteRequest represents the add favorite request
+type AddFavoriteRequest struct {
+	BookID string `json:"book_id" binding:"required"`
+}
+
+// AddFavorite adds a book to the student's favorites
+func (h *StudentHandler) AddFavorite(c *gin.Context) {
+	authUser := middleware.GetAuthUser(c)
+	if authUser == nil {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	var req AddFavoriteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
+
+	userID, err := uuid.Parse(authUser.ID)
+	if err != nil {
+		response.InternalError(c, "Invalid user ID")
+		return
+	}
+
+	student, err := h.queries.GetStudentByUserID(c.Request.Context(), toPgUUID(userID))
+	if err != nil {
+		response.NotFound(c, "Student profile not found")
+		return
+	}
+
+	bookID, err := uuid.Parse(req.BookID)
+	if err != nil {
+		response.BadRequest(c, "Invalid book ID")
+		return
+	}
+
+	// Check if book exists
+	_, err = h.queries.GetBookByID(c.Request.Context(), bookID)
+	if err != nil {
+		response.NotFound(c, "Book not found")
+		return
+	}
+
+	favorite, err := h.queries.AddFavoriteBook(c.Request.Context(), sqlcdb.AddFavoriteBookParams{
+		StudentID: student.ID,
+		BookID:    bookID,
+	})
+	if err != nil {
+		response.Conflict(c, "Book already in favorites")
+		return
+	}
+
+	response.Created(c, FavoriteBookResponse{
+		ID:      favorite.ID.String(),
+		BookID:  favorite.BookID.String(),
+		AddedAt: favorite.CreatedAt.Time,
+	}, "Book added to favorites")
+}
+
+// RemoveFavorite removes a book from the student's favorites
+func (h *StudentHandler) RemoveFavorite(c *gin.Context) {
+	authUser := middleware.GetAuthUser(c)
+	if authUser == nil {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	bookID, err := uuid.Parse(c.Param("bookId"))
+	if err != nil {
+		response.BadRequest(c, "Invalid book ID")
+		return
+	}
+
+	userID, err := uuid.Parse(authUser.ID)
+	if err != nil {
+		response.InternalError(c, "Invalid user ID")
+		return
+	}
+
+	student, err := h.queries.GetStudentByUserID(c.Request.Context(), toPgUUID(userID))
+	if err != nil {
+		response.NotFound(c, "Student profile not found")
+		return
+	}
+
+	err = h.queries.RemoveFavoriteBook(c.Request.Context(), sqlcdb.RemoveFavoriteBookParams{
+		StudentID: student.ID,
+		BookID:    bookID,
+	})
+	if err != nil {
+		response.NotFound(c, "Favorite not found")
+		return
+	}
+
+	response.Success(c, nil, "Book removed from favorites")
+}
+
+type AchievementResponse struct {
+	ID               string    `json:"id"`
+	Code             string    `json:"code"`
+	Name             string    `json:"name"`
+	Description      string    `json:"description"`
+	Icon             string    `json:"icon"`
+	Color            string    `json:"color"`
+	RequirementType  string    `json:"requirementType"`
+	RequirementValue int32     `json:"requirementValue"`
+	UnlockedAt       time.Time `json:"unlockedAt,omitempty"`
+	IsUnlocked       bool      `json:"isUnlocked"`
+}
+
+func mapAchievementRow(a sqlcdb.GetStudentAchievementsRow) AchievementResponse {
+	resp := AchievementResponse{
+		ID:               a.ID.String(),
+		Code:             a.Code,
+		Name:             a.Name,
+		Description:      a.Description,
+		Icon:             fromPgText(a.Icon),
+		Color:            fromPgText(a.Color),
+		RequirementType:  a.RequirementType,
+		RequirementValue: a.RequirementValue,
+		IsUnlocked:       a.UnlockedAt.Valid,
+	}
+	if a.UnlockedAt.Valid {
+		resp.UnlockedAt = a.UnlockedAt.Time
+	}
+	return resp
+}
+
+func (h *StudentHandler) GetMyAchievements(c *gin.Context) {
+	authUser := middleware.GetAuthUser(c)
+	if authUser == nil {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	userID, err := uuid.Parse(authUser.ID)
+	if err != nil {
+		response.InternalError(c, "Invalid user ID")
+		return
+	}
+
+	student, err := h.queries.GetStudentByUserID(c.Request.Context(), toPgUUID(userID))
+	if err != nil {
+		response.NotFound(c, "Student profile not found")
+		return
+	}
+
+	achievements, err := h.queries.GetStudentAchievements(c.Request.Context(), student.ID)
+	if err != nil {
+		response.InternalError(c, "Failed to fetch achievements")
+		return
+	}
+
+	achievementResponses := make([]AchievementResponse, len(achievements))
+	for i, a := range achievements {
+		achievementResponses[i] = mapAchievementRow(a)
+	}
+
+	response.Success(c, achievementResponses, "")
+}
+
+func (h *StudentHandler) GetAllAchievements(c *gin.Context) {
+	authUser := middleware.GetAuthUser(c)
+	if authUser == nil {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	achievements, err := h.queries.ListAchievements(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to fetch achievements")
+		return
+	}
+
+	achievementResponses := make([]AchievementResponse, len(achievements))
+	for i, a := range achievements {
+		achievementResponses[i] = AchievementResponse{
+			ID:               a.ID.String(),
+			Code:             a.Code,
+			Name:             a.Name,
+			Description:      a.Description,
+			Icon:             fromPgText(a.Icon),
+			Color:            fromPgText(a.Color),
+			RequirementType:  a.RequirementType,
+			RequirementValue: a.RequirementValue,
+			IsUnlocked:       false,
+		}
+	}
+
+	response.Success(c, achievementResponses, "")
+}
+
 func getFineStatus(s sqlcdb.NullFineStatus) string {
 	if s.Valid {
 		return string(s.FineStatus)
