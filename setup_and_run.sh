@@ -24,6 +24,16 @@ setup() {
     else
         echo "backend/.env already exists."
     fi
+    # Ensure local Docker DB port and CORS origin are correct
+    if [ -f backend/.env ]; then
+        if command_exists sed; then
+            sed -i.bak "s/localhost:5432/localhost:5433/g" backend/.env
+            sed -i.bak "s|CORS_ORIGINS=.*|CORS_ORIGINS=http://localhost:4127,http://localhost:3000,http://localhost:5173|" backend/.env
+            rm -f backend/.env.bak
+        else
+            echo "Warning: sed not found; please verify backend/.env DATABASE_URL uses port 5433 and CORS_ORIGINS includes http://localhost:4127."
+        fi
+    fi
 
     # Frontend .env
     if [ ! -f frontend/.env ]; then
