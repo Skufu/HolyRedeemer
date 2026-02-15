@@ -5,7 +5,7 @@ services:
     plan: free
     region: singapore
     rootDir: backend
-    buildCommand: go build -o bin/server ./cmd/server
+    buildCommand: go build -tags netgo -ldflags '-s -w' -o bin/server ./cmd/server
     startCommand: ./bin/server
     healthCheckPath: /health
     envVars:
