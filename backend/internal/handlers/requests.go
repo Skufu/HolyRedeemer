@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/holyredeemer/library-api/internal/cache"
 	"github.com/holyredeemer/library-api/internal/config"
 	"github.com/holyredeemer/library-api/internal/middleware"
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
@@ -18,10 +19,17 @@ type RequestHandler struct {
 	queries *sqlcdb.Queries
 	config  *config.Config
 	db      *pgxpool.Pool
+	cache   *cache.Cache
 }
 
-func NewRequestHandler(queries *sqlcdb.Queries, cfg *config.Config, db *pgxpool.Pool) *RequestHandler {
-	return &RequestHandler{queries: queries, config: cfg, db: db}
+func NewRequestHandler(queries *sqlcdb.Queries, cfg *config.Config, db *pgxpool.Pool, cache *cache.Cache) *RequestHandler {
+	return &RequestHandler{queries: queries, config: cfg, db: db, cache: cache}
+}
+
+func (h *RequestHandler) invalidateRequestCaches() {
+	h.cache.Delete(cache.DashboardStatsKey)
+	h.cache.DeletePrefix(cache.BooksListPrefix)
+	h.cache.DeletePrefix(cache.BookDetailPrefix)
 }
 
 // ListRequests returns paginated list of book requests
@@ -128,6 +136,8 @@ func (h *RequestHandler) CreateRequest(c *gin.Context) {
 		response.InternalError(c, "Failed to create request")
 		return
 	}
+
+	h.invalidateRequestCaches()
 
 	response.Success(c, gin.H{"id": request.ID.String()}, "Request created successfully")
 }
@@ -258,6 +268,8 @@ func (h *RequestHandler) ApproveRequest(c *gin.Context) {
 			return
 		}
 
+		h.invalidateRequestCaches()
+
 		response.Success(c, nil, "Reservation approved and checked out")
 		return
 	}
@@ -270,6 +282,8 @@ func (h *RequestHandler) ApproveRequest(c *gin.Context) {
 		response.InternalError(c, "Failed to approve request")
 		return
 	}
+
+	h.invalidateRequestCaches()
 
 	response.Success(c, nil, "Request approved")
 }
@@ -315,6 +329,8 @@ func (h *RequestHandler) RejectRequest(c *gin.Context) {
 		response.InternalError(c, "Failed to reject request")
 		return
 	}
+
+	h.invalidateRequestCaches()
 
 	response.Success(c, nil, "Request rejected")
 }

@@ -139,10 +139,17 @@ func (q *Queries) DeleteCategory(ctx context.Context, id uuid.UUID) error {
 
 const getBookByID = `-- name: GetBookByID :one
 SELECT b.id, b.isbn, b.title, b.author, b.category_id, b.publisher, b.publication_year, b.description, b.cover_url, b.shelf_location, b.replacement_cost, b.status, b.is_data_complete, b.created_at, b.updated_at, c.name as category_name, c.color_code as category_color,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id) as total_copies,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id AND bc.status = 'available') as available_copies
+       COALESCE(bc_counts.total_copies, 0) as total_copies,
+       COALESCE(bc_counts.available_copies, 0) as available_copies
 FROM books b
 LEFT JOIN categories c ON b.category_id = c.id
+LEFT JOIN (
+       SELECT book_id,
+              COUNT(*) as total_copies,
+              COUNT(*) FILTER (WHERE status = 'available') as available_copies
+       FROM book_copies
+       GROUP BY book_id
+) bc_counts ON bc_counts.book_id = b.id
 WHERE b.id = $1
 `
 
@@ -197,10 +204,17 @@ func (q *Queries) GetBookByID(ctx context.Context, id uuid.UUID) (GetBookByIDRow
 
 const getBookByISBN = `-- name: GetBookByISBN :one
 SELECT b.id, b.isbn, b.title, b.author, b.category_id, b.publisher, b.publication_year, b.description, b.cover_url, b.shelf_location, b.replacement_cost, b.status, b.is_data_complete, b.created_at, b.updated_at, c.name as category_name, c.color_code as category_color,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id) as total_copies,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id AND bc.status = 'available') as available_copies
+       COALESCE(bc_counts.total_copies, 0) as total_copies,
+       COALESCE(bc_counts.available_copies, 0) as available_copies
 FROM books b
 LEFT JOIN categories c ON b.category_id = c.id
+LEFT JOIN (
+       SELECT book_id,
+              COUNT(*) as total_copies,
+              COUNT(*) FILTER (WHERE status = 'available') as available_copies
+       FROM book_copies
+       GROUP BY book_id
+) bc_counts ON bc_counts.book_id = b.id
 WHERE b.isbn = $1
 `
 
@@ -302,10 +316,17 @@ func (q *Queries) GetTotalBooksCount(ctx context.Context) (int64, error) {
 
 const listBooks = `-- name: ListBooks :many
 SELECT b.id, b.isbn, b.title, b.author, b.category_id, b.publisher, b.publication_year, b.description, b.cover_url, b.shelf_location, b.replacement_cost, b.status, b.is_data_complete, b.created_at, b.updated_at, c.name as category_name, c.color_code as category_color,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id) as total_copies,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id AND bc.status = 'available') as available_copies
+       COALESCE(bc_counts.total_copies, 0) as total_copies,
+       COALESCE(bc_counts.available_copies, 0) as available_copies
 FROM books b
 LEFT JOIN categories c ON b.category_id = c.id
+LEFT JOIN (
+       SELECT book_id,
+              COUNT(*) as total_copies,
+              COUNT(*) FILTER (WHERE status = 'available') as available_copies
+       FROM book_copies
+       GROUP BY book_id
+) bc_counts ON bc_counts.book_id = b.id
 WHERE b.status != 'archived'
   AND ($3::uuid IS NULL OR b.category_id = $3)
   AND ($4::book_status IS NULL OR b.status = $4)
@@ -395,12 +416,19 @@ func (q *Queries) ListBooks(ctx context.Context, arg ListBooksParams) ([]ListBoo
 
 const listBooksAvailableOnly = `-- name: ListBooksAvailableOnly :many
 SELECT b.id, b.isbn, b.title, b.author, b.category_id, b.publisher, b.publication_year, b.description, b.cover_url, b.shelf_location, b.replacement_cost, b.status, b.is_data_complete, b.created_at, b.updated_at, c.name as category_name, c.color_code as category_color,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id) as total_copies,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id AND bc.status = 'available') as available_copies
+       COALESCE(bc_counts.total_copies, 0) as total_copies,
+       COALESCE(bc_counts.available_copies, 0) as available_copies
 FROM books b
 LEFT JOIN categories c ON b.category_id = c.id
+LEFT JOIN (
+       SELECT book_id,
+              COUNT(*) as total_copies,
+              COUNT(*) FILTER (WHERE status = 'available') as available_copies
+       FROM book_copies
+       GROUP BY book_id
+) bc_counts ON bc_counts.book_id = b.id
 WHERE b.status = 'active'
-  AND EXISTS (SELECT 1 FROM book_copies bc WHERE bc.book_id = b.id AND bc.status = 'available')
+  AND COALESCE(bc_counts.available_copies, 0) > 0
   AND ($3::uuid IS NULL OR b.category_id = $3)
   AND ($4::text IS NULL OR 
        b.title ILIKE '%' || $4 || '%' OR 

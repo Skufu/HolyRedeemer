@@ -326,10 +326,22 @@ func (q *Queries) GetStudentTotalFines(ctx context.Context, studentID pgtype.UUI
 
 const listStudents = `-- name: ListStudents :many
 SELECT s.id, s.user_id, s.student_id, s.grade_level, s.section, s.rfid_code, s.contact_info, s.guardian_name, s.guardian_contact, s.status, s.registration_date, s.created_at, s.updated_at, u.username, u.email as user_email, u.name as user_name, u.status as user_status,
-       (SELECT COUNT(*) FROM transactions t WHERE t.student_id = s.id AND t.status IN ('borrowed', 'overdue')) as current_loans,
-       (SELECT COALESCE(SUM(f.amount), 0) FROM fines f WHERE f.student_id = s.id AND f.status = 'pending') as total_fines
+       COALESCE(t.current_loans, 0) as current_loans,
+       COALESCE(f.total_fines, 0) as total_fines
 FROM students s
 JOIN users u ON s.user_id = u.id
+LEFT JOIN (
+       SELECT student_id, COUNT(*) as current_loans
+       FROM transactions
+       WHERE status IN ('borrowed', 'overdue')
+       GROUP BY student_id
+) t ON t.student_id = s.id
+LEFT JOIN (
+       SELECT student_id, COALESCE(SUM(amount), 0) as total_fines
+       FROM fines
+       WHERE status = 'pending'
+       GROUP BY student_id
+) f ON f.student_id = s.id
 WHERE ($3::int IS NULL OR s.grade_level = $3)
   AND ($4::text IS NULL OR s.section ILIKE '%' || $4 || '%')
   AND ($5::student_status IS NULL OR s.status = $5)

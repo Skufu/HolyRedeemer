@@ -87,16 +87,52 @@ func (q *Queries) GetBooksByCategory(ctx context.Context) ([]GetBooksByCategoryR
 }
 
 const getDashboardStats = `-- name: GetDashboardStats :one
-SELECT 
-    (SELECT COUNT(*) FROM books WHERE status = 'active') as total_books,
-    (SELECT COUNT(*) FROM book_copies WHERE status != 'retired') as total_copies,
-    (SELECT COUNT(*) FROM students WHERE status = 'active') as active_students,
-    (SELECT COUNT(*) FROM transactions WHERE status IN ('borrowed', 'overdue')) as current_loans,
-    (SELECT COUNT(*) FROM transactions WHERE status IN ('borrowed', 'overdue') AND due_date < CURRENT_DATE) as overdue_books,
-    (SELECT COALESCE(SUM(amount), 0)::float8 FROM fines WHERE status = 'pending') as total_fines,
-    (SELECT COUNT(*) FROM transactions WHERE DATE(checkout_date) = CURRENT_DATE) as checkouts_today,
-    (SELECT COUNT(*) FROM transactions WHERE DATE(return_date) = CURRENT_DATE) as returns_today,
-    (SELECT COUNT(*) FROM transactions WHERE due_date = CURRENT_DATE AND status IN ('borrowed', 'overdue')) as due_today
+WITH book_stats AS (
+    SELECT COUNT(*) FILTER (WHERE status = 'active') as total_books
+    FROM books
+),
+copy_stats AS (
+    SELECT COUNT(*) FILTER (WHERE status != 'retired') as total_copies
+    FROM book_copies
+),
+student_stats AS (
+    SELECT COUNT(*) FILTER (WHERE status = 'active') as active_students
+    FROM students
+),
+transaction_stats AS (
+    SELECT
+        COUNT(*) FILTER (WHERE status IN ('borrowed', 'overdue')) as current_loans,
+        COUNT(*) FILTER (WHERE status IN ('borrowed', 'overdue') AND due_date < CURRENT_DATE) as overdue_books,
+        COUNT(*) FILTER (
+            WHERE checkout_date >= CURRENT_DATE
+              AND checkout_date < CURRENT_DATE + INTERVAL '1 day'
+        ) as checkouts_today,
+        COUNT(*) FILTER (
+            WHERE return_date >= CURRENT_DATE
+              AND return_date < CURRENT_DATE + INTERVAL '1 day'
+        ) as returns_today,
+        COUNT(*) FILTER (
+            WHERE due_date = CURRENT_DATE
+              AND status IN ('borrowed', 'overdue')
+        ) as due_today
+    FROM transactions
+),
+fine_stats AS (
+    SELECT COALESCE(SUM(amount), 0)::float8 as total_fines
+    FROM fines
+    WHERE status = 'pending'
+)
+SELECT
+    bs.total_books,
+    cs.total_copies,
+    ss.active_students,
+    ts.current_loans,
+    ts.overdue_books,
+    fs.total_fines,
+    ts.checkouts_today,
+    ts.returns_today,
+    ts.due_today
+FROM book_stats bs, copy_stats cs, student_stats ss, transaction_stats ts, fine_stats fs
 `
 
 type GetDashboardStatsRow struct {

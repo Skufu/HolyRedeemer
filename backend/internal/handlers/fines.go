@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/holyredeemer/library-api/internal/cache"
 	"github.com/holyredeemer/library-api/internal/middleware"
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/pkg/response"
@@ -17,10 +18,15 @@ import (
 type FineHandler struct {
 	queries *sqlcdb.Queries
 	db      *pgxpool.Pool
+	cache   *cache.Cache
 }
 
-func NewFineHandler(queries *sqlcdb.Queries, db *pgxpool.Pool) *FineHandler {
-	return &FineHandler{queries: queries, db: db}
+func NewFineHandler(queries *sqlcdb.Queries, db *pgxpool.Pool, cache *cache.Cache) *FineHandler {
+	return &FineHandler{queries: queries, db: db, cache: cache}
+}
+
+func (h *FineHandler) invalidateDashboardCache() {
+	h.cache.Delete(cache.DashboardStatsKey)
 }
 
 // ListFines returns paginated list of fines
@@ -254,6 +260,8 @@ func (h *FineHandler) PayFine(c *gin.Context) {
 		return
 	}
 
+	h.invalidateDashboardCache()
+
 	response.Success(c, gin.H{
 		"payment_id": payment.ID.String(),
 		"amount":     req.Amount,
@@ -290,6 +298,8 @@ func (h *FineHandler) WaiveFine(c *gin.Context) {
 		response.InternalError(c, "Failed to waive fine")
 		return
 	}
+
+	h.invalidateDashboardCache()
 
 	response.Success(c, nil, "Fine waived successfully")
 }

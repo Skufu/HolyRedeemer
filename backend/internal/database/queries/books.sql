@@ -1,17 +1,31 @@
 -- name: GetBookByID :one
 SELECT b.*, c.name as category_name, c.color_code as category_color,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id) as total_copies,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id AND bc.status = 'available') as available_copies
+       COALESCE(bc_counts.total_copies, 0) as total_copies,
+       COALESCE(bc_counts.available_copies, 0) as available_copies
 FROM books b
 LEFT JOIN categories c ON b.category_id = c.id
+LEFT JOIN (
+       SELECT book_id,
+              COUNT(*) as total_copies,
+              COUNT(*) FILTER (WHERE status = 'available') as available_copies
+       FROM book_copies
+       GROUP BY book_id
+) bc_counts ON bc_counts.book_id = b.id
 WHERE b.id = $1;
 
 -- name: GetBookByISBN :one
 SELECT b.*, c.name as category_name, c.color_code as category_color,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id) as total_copies,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id AND bc.status = 'available') as available_copies
+       COALESCE(bc_counts.total_copies, 0) as total_copies,
+       COALESCE(bc_counts.available_copies, 0) as available_copies
 FROM books b
 LEFT JOIN categories c ON b.category_id = c.id
+LEFT JOIN (
+       SELECT book_id,
+              COUNT(*) as total_copies,
+              COUNT(*) FILTER (WHERE status = 'available') as available_copies
+       FROM book_copies
+       GROUP BY book_id
+) bc_counts ON bc_counts.book_id = b.id
 WHERE b.isbn = $1;
 
 -- name: CreateBook :one
@@ -41,10 +55,17 @@ UPDATE books SET status = 'archived' WHERE id = $1;
 
 -- name: ListBooks :many
 SELECT b.*, c.name as category_name, c.color_code as category_color,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id) as total_copies,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id AND bc.status = 'available') as available_copies
+       COALESCE(bc_counts.total_copies, 0) as total_copies,
+       COALESCE(bc_counts.available_copies, 0) as available_copies
 FROM books b
 LEFT JOIN categories c ON b.category_id = c.id
+LEFT JOIN (
+       SELECT book_id,
+              COUNT(*) as total_copies,
+              COUNT(*) FILTER (WHERE status = 'available') as available_copies
+       FROM book_copies
+       GROUP BY book_id
+) bc_counts ON bc_counts.book_id = b.id
 WHERE b.status != 'archived'
   AND (sqlc.narg('category_id')::uuid IS NULL OR b.category_id = sqlc.narg('category_id'))
   AND (sqlc.narg('status')::book_status IS NULL OR b.status = sqlc.narg('status'))
@@ -57,12 +78,19 @@ LIMIT $1 OFFSET $2;
 
 -- name: ListBooksAvailableOnly :many
 SELECT b.*, c.name as category_name, c.color_code as category_color,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id) as total_copies,
-       (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id AND bc.status = 'available') as available_copies
+       COALESCE(bc_counts.total_copies, 0) as total_copies,
+       COALESCE(bc_counts.available_copies, 0) as available_copies
 FROM books b
 LEFT JOIN categories c ON b.category_id = c.id
+LEFT JOIN (
+       SELECT book_id,
+              COUNT(*) as total_copies,
+              COUNT(*) FILTER (WHERE status = 'available') as available_copies
+       FROM book_copies
+       GROUP BY book_id
+) bc_counts ON bc_counts.book_id = b.id
 WHERE b.status = 'active'
-  AND EXISTS (SELECT 1 FROM book_copies bc WHERE bc.book_id = b.id AND bc.status = 'available')
+  AND COALESCE(bc_counts.available_copies, 0) > 0
   AND (sqlc.narg('category_id')::uuid IS NULL OR b.category_id = sqlc.narg('category_id'))
   AND (sqlc.narg('search')::text IS NULL OR 
        b.title ILIKE '%' || sqlc.narg('search') || '%' OR 

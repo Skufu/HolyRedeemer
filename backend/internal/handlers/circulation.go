@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/holyredeemer/library-api/internal/cache"
 	"github.com/holyredeemer/library-api/internal/config"
 	"github.com/holyredeemer/library-api/internal/middleware"
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
@@ -20,14 +21,22 @@ type CirculationHandler struct {
 	queries *sqlcdb.Queries
 	config  *config.Config
 	db      *pgxpool.Pool
+	cache   *cache.Cache
 }
 
-func NewCirculationHandler(queries *sqlcdb.Queries, cfg *config.Config, db *pgxpool.Pool) *CirculationHandler {
+func NewCirculationHandler(queries *sqlcdb.Queries, cfg *config.Config, db *pgxpool.Pool, cache *cache.Cache) *CirculationHandler {
 	return &CirculationHandler{
 		queries: queries,
 		config:  cfg,
 		db:      db,
+		cache:   cache,
 	}
+}
+
+func (h *CirculationHandler) invalidateCirculationCaches() {
+	h.cache.DeletePrefix(cache.BooksListPrefix)
+	h.cache.DeletePrefix(cache.BookDetailPrefix)
+	h.cache.Delete(cache.DashboardStatsKey)
 }
 
 // CheckoutRequest represents the checkout request
@@ -188,6 +197,8 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 		response.InternalError(c, "Failed to complete checkout")
 		return
 	}
+
+	h.invalidateCirculationCaches()
 
 	resp := CheckoutResponse{
 		TransactionID: txn.ID.String(),
@@ -364,6 +375,8 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 		return
 	}
 
+	h.invalidateCirculationCaches()
+
 	// Log audit entry
 	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionReturn, "transaction", loan.ID, map[string]interface{}{
 		"days_overdue": resp.DaysOverdue,
@@ -465,6 +478,8 @@ func (h *CirculationHandler) Renew(c *gin.Context) {
 		response.InternalError(c, "Failed to complete renewal")
 		return
 	}
+
+	h.invalidateCirculationCaches()
 
 	response.Success(c, gin.H{
 		"new_due_date":  newDueDate.Format("2006-01-02"),

@@ -75,7 +75,10 @@ func (q *Queries) CountStudentOverdueLoans(ctx context.Context, studentID pgtype
 }
 
 const countTodayCheckouts = `-- name: CountTodayCheckouts :one
-SELECT COUNT(*) FROM transactions WHERE DATE(checkout_date) = CURRENT_DATE
+SELECT COUNT(*)
+FROM transactions
+WHERE checkout_date >= CURRENT_DATE
+  AND checkout_date < CURRENT_DATE + INTERVAL '1 day'
 `
 
 func (q *Queries) CountTodayCheckouts(ctx context.Context) (int64, error) {
@@ -86,7 +89,10 @@ func (q *Queries) CountTodayCheckouts(ctx context.Context) (int64, error) {
 }
 
 const countTodayReturns = `-- name: CountTodayReturns :one
-SELECT COUNT(*) FROM transactions WHERE DATE(return_date) = CURRENT_DATE
+SELECT COUNT(*)
+FROM transactions
+WHERE return_date >= CURRENT_DATE
+  AND return_date < CURRENT_DATE + INTERVAL '1 day'
 `
 
 func (q *Queries) CountTodayReturns(ctx context.Context) (int64, error) {

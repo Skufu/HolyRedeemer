@@ -1,18 +1,29 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  studentsService,
-  ListStudentsParams,
-  CreateStudentRequest,
-  Student,
+	studentsService,
+	ListStudentsParams,
+	CreateStudentRequest,
+	Student,
 } from '@/services/students';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/services/api';
 
 export const useMyProfile = () => {
-  return useQuery({
-    queryKey: ['student-profile', 'me'],
-    queryFn: () => studentsService.getMyProfile(),
-  });
+	return useQuery({
+		queryKey: ['student-profile', 'me'],
+		queryFn: () => studentsService.getMyProfile(),
+	});
+};
+
+export const useMyDashboard = (params?: {
+	loans_per_page?: number;
+	fines_per_page?: number;
+	history_per_page?: number;
+}) => {
+	return useQuery({
+		queryKey: ['student-dashboard', params],
+		queryFn: () => studentsService.getMyDashboard(params),
+	});
 };
 
 export const useStudents = (params?: ListStudentsParams) => {

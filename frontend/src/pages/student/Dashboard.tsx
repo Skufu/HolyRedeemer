@@ -4,19 +4,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
-  BookOpen,
-  Calendar,
-  AlertTriangle,
-  ArrowRight,
-  Loader2,
-  Search,
-  CheckCircle2,
-  Clock,
-  AlertCircle
+	BookOpen,
+	Loader2,
+	Search,
+	CheckCircle2,
+	Clock,
+	AlertCircle
 } from 'lucide-react';
-import { format, differenceInDays, addDays } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { Link, useNavigate } from 'react-router-dom';
-import { useMyProfile, useStudentLoans, useStudentFines, useStudentHistory } from '@/hooks/useStudents';
+import { useMyDashboard } from '@/hooks/useStudents';
 import { useRenew } from '@/hooks/useCirculation';
 import { StudentLoan } from '@/services/students';
 import BookCover from '@/components/BookCover';
@@ -26,17 +23,12 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const renewLoan = useRenew();
 
-  // First fetch the student profile to get the student ID
-  const { data: profileData, isLoading: profileLoading } = useMyProfile();
-  const studentId = profileData?.data?.id || '';
-
-  const { data: loansData, isLoading: loansLoading } = useStudentLoans(studentId);
-  const { data: finesData, isLoading: finesLoading } = useStudentFines(studentId);
-  const { data: historyData, isLoading: historyLoading } = useStudentHistory(studentId, { per_page: 4 });
-
-  const myLoans = loansData?.data || [];
-  const myFines = finesData?.data || [];
-  const myHistory = historyData?.data || [];
+  const { data: dashboardData, isLoading: dashboardLoading } = useMyDashboard({ history_per_page: 4 });
+  const profile = dashboardData?.data?.profile;
+  const studentId = profile?.id || '';
+  const myLoans = dashboardData?.data?.loans || [];
+  const myFines = dashboardData?.data?.fines || [];
+  const myHistory = dashboardData?.data?.history || [];
 
   const activeLoans = myLoans.filter((t: { status: string }) => t.status === 'borrowed' || t.status === 'overdue');
   const pendingFines = myFines.filter((f: { status: string }) => f.status === 'pending');
@@ -48,7 +40,7 @@ const StudentDashboard = () => {
   const maxBooksPerStudent = 3;
   const availableSlots = Math.max(0, maxBooksPerStudent - activeLoans.length);
 
-  const isLoading = profileLoading || loansLoading || finesLoading || historyLoading;
+  const isLoading = dashboardLoading;
 
   if (isLoading) {
     return (

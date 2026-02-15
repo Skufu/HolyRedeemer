@@ -120,10 +120,16 @@ WHERE student_id = $1
   AND due_date < CURRENT_DATE;
 
 -- name: CountTodayCheckouts :one
-SELECT COUNT(*) FROM transactions WHERE DATE(checkout_date) = CURRENT_DATE;
+SELECT COUNT(*)
+FROM transactions
+WHERE checkout_date >= CURRENT_DATE
+  AND checkout_date < CURRENT_DATE + INTERVAL '1 day';
 
 -- name: CountTodayReturns :one
-SELECT COUNT(*) FROM transactions WHERE DATE(return_date) = CURRENT_DATE;
+SELECT COUNT(*)
+FROM transactions
+WHERE return_date >= CURRENT_DATE
+  AND return_date < CURRENT_DATE + INTERVAL '1 day';
 
 -- name: CountDueToday :one
 SELECT COUNT(*) FROM transactions WHERE due_date = CURRENT_DATE AND status IN ('borrowed', 'overdue');
@@ -152,4 +158,3 @@ JOIN students s ON t.student_id = s.id
 JOIN users u ON s.user_id = u.id
 WHERE t.id = $1
 FOR UPDATE;
-

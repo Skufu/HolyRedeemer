@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/holyredeemer/library-api/internal/cache"
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/pkg/response"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -17,13 +18,20 @@ import (
 type BookHandler struct {
 	queries *sqlcdb.Queries
 	db      *pgxpool.Pool
+	cache   *cache.Cache
 }
 
-func NewBookHandler(queries *sqlcdb.Queries, db *pgxpool.Pool) *BookHandler {
+func NewBookHandler(queries *sqlcdb.Queries, db *pgxpool.Pool, cache *cache.Cache) *BookHandler {
 	return &BookHandler{
 		queries: queries,
 		db:      db,
+		cache:   cache,
 	}
+}
+
+func (h *BookHandler) invalidateBookCaches() {
+	h.cache.DeletePrefix(cache.BooksListPrefix)
+	h.cache.DeletePrefix(cache.BookDetailPrefix)
 }
 
 // BookResponse represents a book in API responses (matches frontend types.ts)
@@ -59,6 +67,13 @@ func (h *BookHandler) ListBooks(c *gin.Context) {
 
 	search := c.Query("search")
 	categoryID := c.Query("category_id")
+	cacheKey := fmt.Sprintf("%s%d:%d:%s:%s", cache.BooksListPrefix, page, perPage, search, categoryID)
+	if cached, found := h.cache.Get(cacheKey); found {
+		if cachedResponse, ok := cached.(response.Response); ok {
+			c.JSON(200, cachedResponse)
+			return
+		}
+	}
 
 	var categoryUUID pgtype.UUID
 	if categoryID != "" {
@@ -113,12 +128,19 @@ func (h *BookHandler) ListBooks(c *gin.Context) {
 		totalPages++
 	}
 
-	response.SuccessWithMeta(c, bookResponses, &response.Meta{
-		Page:       page,
-		PerPage:    perPage,
-		Total:      total,
-		TotalPages: totalPages,
-	})
+	resp := response.Response{
+		Success: true,
+		Data:    bookResponses,
+		Meta: &response.Meta{
+			Page:       page,
+			PerPage:    perPage,
+			Total:      total,
+			TotalPages: totalPages,
+		},
+	}
+
+	h.cache.Set(cacheKey, resp, 2*time.Minute)
+	c.JSON(200, resp)
 }
 
 // GetBook returns a single book by ID
@@ -129,31 +151,45 @@ func (h *BookHandler) GetBook(c *gin.Context) {
 		return
 	}
 
+	cacheKey := cache.BookDetailPrefix + bookID.String()
+	if cached, found := h.cache.Get(cacheKey); found {
+		if cachedResponse, ok := cached.(response.Response); ok {
+			c.JSON(200, cachedResponse)
+			return
+		}
+	}
+
 	book, err := h.queries.GetBookByID(c.Request.Context(), bookID)
 	if err != nil {
 		response.NotFound(c, "Book not found")
 		return
 	}
 
-	response.Success(c, BookResponse{
-		ID:              book.ID.String(),
-		Title:           book.Title,
-		Author:          book.Author,
-		ISBN:            fromPgText(book.Isbn),
-		Category:        fromPgText(book.CategoryName),
-		CategoryColor:   fromPgText(book.CategoryColor),
-		Publisher:       fromPgText(book.Publisher),
-		PublicationYear: int(fromPgInt4(book.PublicationYear)),
-		Description:     fromPgText(book.Description),
-		ShelfLocation:   fromPgText(book.ShelfLocation),
-		CoverImage:      fromPgText(book.CoverUrl),
-		ReplacementCost: fromPgNumeric(book.ReplacementCost),
-		TotalCopies:     book.TotalCopies,
-		AvailableCopies: book.AvailableCopies,
-		Status:          getBookStatus(book.Status),
-		CreatedAt:       fromPgTimestamp(book.CreatedAt),
-		UpdatedAt:       fromPgTimestamp(book.UpdatedAt),
-	}, "")
+	resp := response.Response{
+		Success: true,
+		Data: BookResponse{
+			ID:              book.ID.String(),
+			Title:           book.Title,
+			Author:          book.Author,
+			ISBN:            fromPgText(book.Isbn),
+			Category:        fromPgText(book.CategoryName),
+			CategoryColor:   fromPgText(book.CategoryColor),
+			Publisher:       fromPgText(book.Publisher),
+			PublicationYear: int(fromPgInt4(book.PublicationYear)),
+			Description:     fromPgText(book.Description),
+			ShelfLocation:   fromPgText(book.ShelfLocation),
+			CoverImage:      fromPgText(book.CoverUrl),
+			ReplacementCost: fromPgNumeric(book.ReplacementCost),
+			TotalCopies:     book.TotalCopies,
+			AvailableCopies: book.AvailableCopies,
+			Status:          getBookStatus(book.Status),
+			CreatedAt:       fromPgTimestamp(book.CreatedAt),
+			UpdatedAt:       fromPgTimestamp(book.UpdatedAt),
+		},
+	}
+
+	h.cache.Set(cacheKey, resp, 5*time.Minute)
+	c.JSON(200, resp)
 }
 
 // CreateBookRequest represents the create book request
@@ -241,6 +277,8 @@ func (h *BookHandler) CreateBook(c *gin.Context) {
 		return
 	}
 
+	h.invalidateBookCaches()
+
 	response.Created(c, gin.H{
 		"id":             book.ID.String(),
 		"copies_created": copiesCreated,
@@ -285,6 +323,8 @@ func (h *BookHandler) UpdateBook(c *gin.Context) {
 		return
 	}
 
+	h.invalidateBookCaches()
+
 	response.Success(c, nil, "Book updated successfully")
 }
 
@@ -300,6 +340,8 @@ func (h *BookHandler) DeleteBook(c *gin.Context) {
 		response.InternalError(c, "Failed to delete book")
 		return
 	}
+
+	h.invalidateBookCaches()
 
 	response.Success(c, nil, "Book archived successfully")
 }
@@ -398,6 +440,8 @@ func (h *BookHandler) CreateCopy(c *gin.Context) {
 		response.InternalError(c, "Failed to create copy")
 		return
 	}
+
+	h.invalidateBookCaches()
 
 	response.Created(c, gin.H{
 		"id":      copy.ID.String(),
@@ -527,8 +571,12 @@ func (h *BookHandler) GetCopyByQR(c *gin.Context) {
 	}, "")
 }
 
-// ListCategories returns all categories
 func (h *BookHandler) ListCategories(c *gin.Context) {
+	if cached, found := h.cache.Get(cache.CategoriesKey); found {
+		response.Success(c, cached, "")
+		return
+	}
+
 	categories, err := h.queries.ListCategories(c.Request.Context())
 	if err != nil {
 		response.InternalError(c, "Failed to fetch categories")
@@ -545,6 +593,7 @@ func (h *BookHandler) ListCategories(c *gin.Context) {
 		}
 	}
 
+	h.cache.Set(cache.CategoriesKey, catResponses, 0)
 	response.Success(c, catResponses, "")
 }
 
@@ -555,7 +604,6 @@ type CreateCategoryRequest struct {
 	ColorCode   string `json:"color_code"`
 }
 
-// CreateCategory creates a new category
 func (h *BookHandler) CreateCategory(c *gin.Context) {
 	var req CreateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -573,6 +621,7 @@ func (h *BookHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
+	h.cache.Delete(cache.CategoriesKey)
 	response.Created(c, gin.H{"id": cat.ID.String()}, "Category created successfully")
 }
 

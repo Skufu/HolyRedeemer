@@ -41,6 +41,14 @@ type StudentResponse struct {
 	CreatedAt       time.Time `json:"createdAt"`
 }
 
+type StudentDashboardResponse struct {
+	Profile     StudentResponse       `json:"profile"`
+	Loans       []TransactionResponse `json:"loans"`
+	Fines       []FineResponse        `json:"fines"`
+	History     []TransactionResponse `json:"history"`
+	UnreadCount int64                 `json:"unreadCount"`
+}
+
 // ListStudents returns paginated list of students
 func (h *StudentHandler) ListStudents(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -203,6 +211,179 @@ func (h *StudentHandler) GetMe(c *gin.Context) {
 		CurrentLoans:    loans,
 		TotalFines:      fines,
 		CreatedAt:       fromPgTimestamp(student.CreatedAt),
+	}, "")
+}
+
+func (h *StudentHandler) GetMyDashboard(c *gin.Context) {
+	authUser := middleware.GetAuthUser(c)
+	if authUser == nil {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	userID, err := uuid.Parse(authUser.ID)
+	if err != nil {
+		response.InternalError(c, "Invalid user ID")
+		return
+	}
+
+	student, err := h.queries.GetStudentByUserID(c.Request.Context(), toPgUUID(userID))
+	if err != nil {
+		response.NotFound(c, "Student profile not found")
+		return
+	}
+
+	loansPerPage := 20
+	if val := c.Query("loans_per_page"); val != "" {
+		if parsed, parseErr := strconv.Atoi(val); parseErr == nil && parsed > 0 {
+			loansPerPage = parsed
+		}
+	}
+	if loansPerPage > 100 {
+		loansPerPage = 100
+	}
+
+	finesPerPage := 20
+	if val := c.Query("fines_per_page"); val != "" {
+		if parsed, parseErr := strconv.Atoi(val); parseErr == nil && parsed > 0 {
+			finesPerPage = parsed
+		}
+	}
+	if finesPerPage > 100 {
+		finesPerPage = 100
+	}
+
+	historyPerPage := 4
+	if val := c.Query("history_per_page"); val != "" {
+		if parsed, parseErr := strconv.Atoi(val); parseErr == nil && parsed > 0 {
+			historyPerPage = parsed
+		}
+	}
+	if historyPerPage > 100 {
+		historyPerPage = 100
+	}
+
+	loans, err := h.queries.ListActiveTransactions(c.Request.Context(), sqlcdb.ListActiveTransactionsParams{
+		Limit:     int32(loansPerPage),
+		Offset:    0,
+		StudentID: toPgUUID(student.ID),
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to fetch loans")
+		return
+	}
+
+	fines, err := h.queries.ListFinesByStudent(c.Request.Context(), sqlcdb.ListFinesByStudentParams{
+		StudentID: toPgUUID(student.ID),
+		Limit:     int32(finesPerPage),
+		Offset:    0,
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to fetch fines")
+		return
+	}
+
+	history, err := h.queries.ListTransactionsByStudent(c.Request.Context(), sqlcdb.ListTransactionsByStudentParams{
+		StudentID: toPgUUID(student.ID),
+		Limit:     int32(historyPerPage),
+		Offset:    0,
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to fetch history")
+		return
+	}
+
+	unreadCount, err := h.queries.GetUnreadCount(c.Request.Context(), toPgUUID(userID))
+	if err != nil {
+		response.InternalError(c, "Failed to get unread count")
+		return
+	}
+
+	loanResponses := make([]TransactionResponse, len(loans))
+	for i, t := range loans {
+		loanResponses[i] = TransactionResponse{
+			ID:           t.ID.String(),
+			BookID:       t.BookID.String(),
+			BookCopyID:   fromPgUUID(t.CopyID).String(),
+			BookTitle:    t.BookTitle,
+			BookAuthor:   t.BookAuthor,
+			CopyNumber:   t.CopyNumber,
+			QRCode:       t.QrCode,
+			CheckoutDate: fromPgTimestamp(t.CheckoutDate),
+			DueDate:      formatPgDate(t.DueDate, "2006-01-02"),
+			Status:       getTransactionStatus(t.Status),
+			RenewCount:   fromPgInt4(t.RenewalCount),
+		}
+	}
+
+	currentLoans := int64(len(loanResponses))
+
+	fineResponses := make([]FineResponse, len(fines))
+	totalPendingFines := 0.0
+	for i, f := range fines {
+		status := getFineStatus(f.Status)
+		amount := fromPgNumeric(f.Amount)
+		if status == "pending" {
+			totalPendingFines += amount
+		}
+		fineResponses[i] = FineResponse{
+			ID:        f.ID.String(),
+			StudentID: fromPgUUID(f.StudentID).String(),
+			BookTitle: fromPgText(f.BookTitle),
+			Amount:    amount,
+			Reason:    fromPgText(f.Description),
+			Status:    status,
+			CreatedAt: fromPgTimestamp(f.CreatedAt),
+		}
+		if f.TransactionID.Valid {
+			fineResponses[i].TransactionID = uuid.UUID(f.TransactionID.Bytes).String()
+		}
+	}
+
+	historyResponses := make([]TransactionResponse, len(history))
+	for i, t := range history {
+		historyResponses[i] = TransactionResponse{
+			ID:           t.ID.String(),
+			BookID:       t.BookID.String(),
+			BookCopyID:   fromPgUUID(t.CopyID).String(),
+			BookTitle:    t.BookTitle,
+			BookAuthor:   t.BookAuthor,
+			CopyNumber:   t.CopyNumber,
+			QRCode:       t.QrCode,
+			CheckoutDate: fromPgTimestamp(t.CheckoutDate),
+			DueDate:      formatPgDate(t.DueDate, "2006-01-02"),
+			Status:       getTransactionStatus(t.Status),
+			RenewCount:   fromPgInt4(t.RenewalCount),
+		}
+		if t.ReturnDate.Valid {
+			historyResponses[i].ReturnDate = t.ReturnDate.Time.Format("2006-01-02")
+		}
+	}
+
+	profile := StudentResponse{
+		ID:              student.ID.String(),
+		Username:        student.Username,
+		Name:            student.UserName,
+		Email:           fromPgText(student.UserEmail),
+		Role:            "student",
+		StudentID:       student.StudentID,
+		GradeLevel:      student.GradeLevel,
+		Section:         student.Section,
+		RFID:            fromPgText(student.RfidCode),
+		GuardianName:    fromPgText(student.GuardianName),
+		GuardianContact: fromPgText(student.GuardianContact),
+		Status:          getStudentStatusFromNull(student.Status),
+		CurrentLoans:    currentLoans,
+		TotalFines:      totalPendingFines,
+		CreatedAt:       fromPgTimestamp(student.CreatedAt),
+	}
+
+	response.Success(c, StudentDashboardResponse{
+		Profile:     profile,
+		Loans:       loanResponses,
+		Fines:       fineResponses,
+		History:     historyResponses,
+		UnreadCount: unreadCount,
 	}, "")
 }
 

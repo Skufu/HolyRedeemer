@@ -94,16 +94,24 @@ export interface FavoriteBook {
 }
 
 export interface Achievement {
-  id: string;
-  code: string;
-  name: string;
-  description: string;
+	id: string;
+	code: string;
+	name: string;
+	description: string;
   icon: string;
   color: string;
   requirementType: string;
   requirementValue: number;
   unlockedAt?: string;
-  isUnlocked: boolean;
+	isUnlocked: boolean;
+}
+
+export interface StudentDashboard {
+	profile: StudentProfile;
+	loans: StudentLoan[];
+	fines: StudentFine[];
+	history: StudentLoan[];
+	unreadCount: number;
 }
 
 export interface ListStudentsParams {
@@ -129,10 +137,19 @@ export interface CreateStudentRequest {
 }
 
 export const studentsService = {
-  getMyProfile: async (): Promise<ApiResponse<StudentProfile>> => {
-    const response = await api.get<ApiResponse<StudentProfile>>('/students/me');
-    return response.data;
-  },
+	getMyProfile: async (): Promise<ApiResponse<StudentProfile>> => {
+		const response = await api.get<ApiResponse<StudentProfile>>('/students/me');
+		return response.data;
+	},
+
+	getMyDashboard: async (params?: {
+		loans_per_page?: number;
+		fines_per_page?: number;
+		history_per_page?: number;
+	}): Promise<ApiResponse<StudentDashboard>> => {
+		const response = await api.get<ApiResponse<StudentDashboard>>('/students/me/dashboard', { params });
+		return response.data;
+	},
 
   list: async (params?: ListStudentsParams): Promise<ApiResponse<Student[]>> => {
     const response = await api.get<ApiResponse<Student[]>>('/students', { params });

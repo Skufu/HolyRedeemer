@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/holyredeemer/library-api/internal/cache"
 	"github.com/holyredeemer/library-api/internal/config"
 	"github.com/holyredeemer/library-api/internal/database"
 	"github.com/holyredeemer/library-api/internal/handlers"
@@ -47,6 +48,9 @@ func main() {
 	// Initialize queries
 	queries := sqlcdb.New(db.Pool)
 
+	// Initialize cache
+	appCache := cache.New()
+
 	// Initialize JWT manager
 	jwtManager := utils.NewJWTManager(
 		cfg.JWTAccessSecret,
@@ -57,17 +61,18 @@ func main() {
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(queries, jwtManager)
-	bookHandler := handlers.NewBookHandler(queries, db.Pool)
+	bookHandler := handlers.NewBookHandler(queries, db.Pool, appCache)
 	studentHandler := handlers.NewStudentHandler(queries, db.Pool)
-	circulationHandler := handlers.NewCirculationHandler(queries, cfg, db.Pool)
-	reportHandler := handlers.NewReportHandler(queries)
-	fineHandler := handlers.NewFineHandler(queries, db.Pool)
+	circulationHandler := handlers.NewCirculationHandler(queries, cfg, db.Pool, appCache)
+	reportHandler := handlers.NewReportHandler(queries, appCache)
+	fineHandler := handlers.NewFineHandler(queries, db.Pool, appCache)
 	notificationHandler := handlers.NewNotificationHandler(queries)
 	auditHandler := handlers.NewAuditHandler(queries)
 	librarianHandler := handlers.NewLibrarianHandler(queries, db.Pool)
 	settingsHandler := handlers.NewSettingsHandler(queries)
-	requestHandler := handlers.NewRequestHandler(queries, cfg, db.Pool)
+	requestHandler := handlers.NewRequestHandler(queries, cfg, db.Pool, appCache)
 	adminHandler := handlers.NewAdminHandler(queries, db.Pool)
+	cacheAdminHandler := handlers.NewCacheAdminHandler(appCache)
 
 	// Initialize router
 	router := gin.New()
@@ -134,6 +139,7 @@ func main() {
 		students.Use(middleware.Auth(jwtManager))
 		{
 			students.GET("/me", studentHandler.GetMe)
+			students.GET("/me/dashboard", studentHandler.GetMyDashboard)
 			students.GET("/me/favorites", studentHandler.GetMyFavorites)
 			students.POST("/me/favorites", studentHandler.AddFavorite)
 			students.DELETE("/me/favorites/:bookId", studentHandler.RemoveFavorite)
@@ -222,6 +228,12 @@ func main() {
 			admins.GET("/:id", adminHandler.GetAdmin)
 			admins.PUT("/:id", adminHandler.UpdateAdmin)
 			admins.DELETE("/:id", adminHandler.DeleteAdmin)
+		}
+
+		cacheRoutes := v1.Group("/cache")
+		cacheRoutes.Use(middleware.Auth(jwtManager), middleware.RequireRoles("super_admin"))
+		{
+			cacheRoutes.POST("/clear", cacheAdminHandler.Clear)
 		}
 
 		// Settings routes

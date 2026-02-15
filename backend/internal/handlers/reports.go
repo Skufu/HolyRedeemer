@@ -1,17 +1,24 @@
 package handlers
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
+	"github.com/holyredeemer/library-api/internal/cache"
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/pkg/response"
 )
 
 type ReportHandler struct {
 	queries *sqlcdb.Queries
+	cache   *cache.Cache
 }
 
-func NewReportHandler(queries *sqlcdb.Queries) *ReportHandler {
-	return &ReportHandler{queries: queries}
+func NewReportHandler(queries *sqlcdb.Queries, cache *cache.Cache) *ReportHandler {
+	return &ReportHandler{
+		queries: queries,
+		cache:   cache,
+	}
 }
 
 // DashboardStatsResponse matches frontend DashboardStats interface
@@ -27,15 +34,21 @@ type DashboardStatsResponse struct {
 	DueToday       int64   `json:"dueToday"`
 }
 
-// GetDashboardStats returns dashboard statistics
+const dashboardStatsTTL = 5 * time.Minute
+
 func (h *ReportHandler) GetDashboardStats(c *gin.Context) {
+	if cached, found := h.cache.Get(cache.DashboardStatsKey); found {
+		response.Success(c, cached, "")
+		return
+	}
+
 	stats, err := h.queries.GetDashboardStats(c.Request.Context())
 	if err != nil {
 		response.InternalError(c, "Failed to fetch dashboard stats")
 		return
 	}
 
-	response.Success(c, DashboardStatsResponse{
+	statsResponse := DashboardStatsResponse{
 		TotalBooks:     stats.TotalBooks,
 		TotalCopies:    stats.TotalCopies,
 		ActiveStudents: stats.ActiveStudents,
@@ -45,7 +58,10 @@ func (h *ReportHandler) GetDashboardStats(c *gin.Context) {
 		CheckoutsToday: stats.CheckoutsToday,
 		ReturnsToday:   stats.ReturnsToday,
 		DueToday:       stats.DueToday,
-	}, "")
+	}
+
+	h.cache.Set(cache.DashboardStatsKey, statsResponse, dashboardStatsTTL)
+	response.Success(c, statsResponse, "")
 }
 
 // ChartDataPoint matches frontend ChartDataPoint interface
