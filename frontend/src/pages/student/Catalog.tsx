@@ -187,9 +187,9 @@ const StudentCatalog = () => {
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="h-8 w-[130px] text-xs">
+              <SelectTrigger className="h-8 w-full sm:w-[130px] text-xs">
                 <Filter className="h-3 w-3 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
@@ -202,7 +202,7 @@ const StudentCatalog = () => {
             </Select>
 
             <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
-              <SelectTrigger className="h-8 w-[130px] text-xs">
+              <SelectTrigger className="h-8 w-full sm:w-[130px] text-xs">
                 <CheckCircle className="h-3 w-3 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Availability" />
               </SelectTrigger>
@@ -214,7 +214,7 @@ const StudentCatalog = () => {
             </Select>
 
             <Select value={sortOption} onValueChange={setSortOption}>
-              <SelectTrigger className="h-8 w-[130px] text-xs">
+              <SelectTrigger className="h-8 w-full sm:w-[130px] text-xs">
                 <span className="mr-2 text-muted-foreground">Sort:</span>
                 <SelectValue />
               </SelectTrigger>
@@ -338,7 +338,7 @@ const StudentCatalog = () => {
         </motion.div>
       ) : (
         <motion.div
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
           initial={prefersReducedMotion ? "visible" : "hidden"}
           animate="visible"
           variants={staggerContainerVariants}

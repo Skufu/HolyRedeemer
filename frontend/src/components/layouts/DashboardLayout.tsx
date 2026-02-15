@@ -20,6 +20,8 @@ import {
   BookMarked, UserCircle, BellRing, Library, Clock, CalendarClock, CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
+import { pageVariants } from '@/lib/animations';
 
 const adminNavItems = [
   { to: '/admin/dashboard', icon: Home, label: 'Dashboard' },
@@ -172,7 +174,7 @@ const DashboardLayout: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Notification Bell */}
             <NotificationPopover>
               <Button
@@ -237,10 +239,19 @@ const DashboardLayout: React.FC = () => {
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="flex-1 overflow-auto">
-          <div className="animate-fade-in p-3 sm:p-4 md:p-6 lg:p-8 pt-0 sm:pt-0 md:pt-0 lg:pt-0">
-            <Outlet />
+          <div className="p-3 sm:p-4 md:p-6 lg:p-8 pt-0 sm:pt-0 md:pt-0 lg:pt-0">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                variants={pageVariants}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
           </div>
         </main>
 

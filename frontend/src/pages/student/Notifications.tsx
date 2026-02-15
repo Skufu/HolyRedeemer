@@ -251,14 +251,14 @@ const StudentNotifications = () => {
       </div>
 
       {/* Stats Cards - Kid friendly */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card className={`${unreadCount > 0 ? 'bg-amber-50 border-amber-300' : ''}`}>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className={`p-3 rounded-full ${unreadCount > 0 ? 'bg-amber-200' : 'bg-gray-100'}`}>
-              <Bell className={`h-6 w-6 ${unreadCount > 0 ? 'text-amber-700' : 'text-gray-500'}`} />
+          <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+            <div className={`p-2 sm:p-3 rounded-full ${unreadCount > 0 ? 'bg-amber-200' : 'bg-gray-100'}`}>
+              <Bell className={`h-5 w-5 sm:h-6 sm:w-6 ${unreadCount > 0 ? 'text-amber-700' : 'text-gray-500'}`} />
             </div>
             <div>
-              <p className={`text-3xl font-bold ${unreadCount > 0 ? 'text-amber-700' : 'text-gray-700'}`}>
+              <p className={`text-2xl sm:text-3xl font-bold ${unreadCount > 0 ? 'text-amber-700' : 'text-gray-700'}`}>
                 {unreadCount}
               </p>
               <p className="text-xs text-gray-600 font-medium">{getStatsLabel('unread')}</p>
@@ -267,12 +267,12 @@ const StudentNotifications = () => {
         </Card>
 
         <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 rounded-full bg-red-100">
-              <AlertTriangle className="h-6 w-6 text-red-600" />
+          <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+            <div className="p-2 sm:p-3 rounded-full bg-red-100">
+              <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
             </div>
             <div>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900">
                 {notifications.filter(n => n.type === 'overdue').length}
               </p>
               <p className="text-xs text-gray-600 font-medium">{getStatsLabel('overdue')}</p>
@@ -281,12 +281,12 @@ const StudentNotifications = () => {
         </Card>
 
         <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 rounded-full bg-amber-100">
-              <Clock className="h-6 w-6 text-amber-600" />
+          <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+            <div className="p-2 sm:p-3 rounded-full bg-amber-100">
+              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
             </div>
             <div>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900">
                 {notifications.filter(n => n.type === 'due_reminder').length}
               </p>
               <p className="text-xs text-gray-600 font-medium">{getStatsLabel('due_reminder')}</p>
@@ -295,12 +295,12 @@ const StudentNotifications = () => {
         </Card>
 
         <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 rounded-full bg-blue-100">
-              <Bookmark className="h-6 w-6 text-blue-600" />
+          <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+            <div className="p-2 sm:p-3 rounded-full bg-blue-100">
+              <Bookmark className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900">
                 {notifications.filter(n => n.type === 'request_update').length}
               </p>
               <p className="text-xs text-gray-600 font-medium">{getStatsLabel('request_update')}</p>
