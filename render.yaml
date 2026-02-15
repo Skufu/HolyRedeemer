@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: holyredeemer-backend
+    runtime: go
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: go build -o bin/server ./cmd/server
+    startCommand: ./bin/server
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRY
+        value: 15m
+      - key: JWT_REFRESH_EXPIRY
+        value: 168h
+      - key: CORS_ORIGINS
+        sync: false
