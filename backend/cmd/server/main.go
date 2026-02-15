@@ -84,6 +84,12 @@ func main() {
 		response.Success(c, gin.H{"status": "healthy"}, "Server is running")
 	})
 
+	// Lightweight healthz endpoint for uptime monitoring (UptimeRobot, etc.)
+	// Does not check DB to avoid unnecessary load from frequent pings
+	router.GET("/healthz", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
 	// API v1 routes
 	v1 := router.Group("/api/v1")
 	{
