@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   User,
@@ -55,6 +56,9 @@ const BookDetailsModal = ({ bookId, open, onOpenChange }: { bookId: string | nul
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-lg sm:text-xl pr-4">{isLoading ? 'Loading...' : book?.title}</DialogTitle>
+          <DialogDescription>
+            View book details and borrowing information
+          </DialogDescription>
         </DialogHeader>
 
         {isLoading ? (

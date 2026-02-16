@@ -1,0 +1,64 @@
+- generic [ref=e2]:
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications alt+T"
+  - generic [ref=e65]:
+    - banner [ref=e66]:
+      - generic [ref=e67]:
+        - button [ref=e68] [cursor=pointer]:
+          - img
+        - heading "Notifications" [level=1] [ref=e334]
+      - generic [ref=e71]:
+        - button [ref=e72] [cursor=pointer]:
+          - img
+        - button [ref=e73] [cursor=pointer]:
+          - generic [ref=e74]:
+            - img
+    - main [ref=e75]:
+      - generic [ref=e336]:
+        - generic [ref=e338]:
+          - heading "Your Messages" [level=1] [ref=e339]:
+            - img [ref=e340]
+            - text: Your Messages
+          - paragraph [ref=e343]: Here are important things about your library books!
+        - generic [ref=e344]:
+          - generic [ref=e346]:
+            - img [ref=e348]
+            - generic [ref=e351]:
+              - paragraph [ref=e352]: "0"
+              - paragraph [ref=e353]: New messages
+          - generic [ref=e355]:
+            - img [ref=e357]
+            - generic [ref=e359]:
+              - paragraph [ref=e360]: "0"
+              - paragraph [ref=e361]: Late books
+          - generic [ref=e363]:
+            - img [ref=e365]
+            - generic [ref=e368]:
+              - paragraph [ref=e369]: "1"
+              - paragraph [ref=e370]: Due soon
+          - generic [ref=e372]:
+            - img [ref=e374]
+            - generic [ref=e376]:
+              - paragraph [ref=e377]: "0"
+              - paragraph [ref=e378]: Books ready
+        - generic [ref=e379]:
+          - heading "All Messages" [level=2] [ref=e380]
+          - generic [ref=e385]:
+            - img [ref=e388]
+            - generic [ref=e391]:
+              - generic [ref=e393]:
+                - generic [ref=e395]: Due soon
+                - heading "Book Due Soon" [level=4] [ref=e396]
+                - paragraph [ref=e397]: Your borrowed book is due soon.
+              - generic [ref=e398]:
+                - generic [ref=e399]:
+                  - img [ref=e400]
+                  - text: 1 day ago
+                - link "See when to return" [ref=e403] [cursor=pointer]:
+                  - /url: /student/account?tab=current-loans
+                  - text: See when to return
+                  - img
+        - generic [ref=e405]:
+          - img [ref=e406]
+          - paragraph [ref=e409]: You've read all your messages! Keep up the good work!

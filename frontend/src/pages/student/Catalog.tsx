@@ -17,6 +17,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Table,
@@ -468,6 +469,9 @@ const StudentCatalog = () => {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="flex flex-row items-start justify-between">
             <DialogTitle className="font-display text-lg sm:text-xl pr-4">{selectedBook?.title}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Book details and availability
+            </DialogDescription>
             {selectedBook && (
               <Button
                 variant="ghost"
