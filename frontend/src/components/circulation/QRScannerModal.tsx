@@ -1,8 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Camera, CameraOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  Camera,
+  CameraOff,
+  AlertCircle,
+  CheckCircle2,
+  QrCode,
+} from 'lucide-react';
 import { useQRScanner } from '@/hooks/useQRScanner';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { scaleVariants, pulseRingVariants, slideUpVariants } from '@/lib/animations';
@@ -13,6 +26,8 @@ interface QRScannerModalProps {
   onScan: (qrCode: string) => void;
   title?: string;
   description?: string;
+  /** If true, keeps scanning after each code detected (for multi-book scanning) */
+  continuous?: boolean;
 }
 
 const QRScannerModal: React.FC<QRScannerModalProps> = ({
@@ -20,23 +35,42 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
   onClose,
   onScan,
   title = 'Scan QR Code',
-  description = 'Position the QR code within the scanner frame'
+  description = 'Position the QR code within the scanner frame',
+  continuous = false,
 }) => {
-  const [lastScanned, setLastScanned] = useState<string | null>(null);
+  const [scannedCodes, setScannedCodes] = useState<string[]>([]);
   const [scanError, setScanError] = useState<string | null>(null);
-  const [scanSuccess, setScanSuccess] = useState(false);
+  const [lastScanFlash, setLastScanFlash] = useState(false);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
 
-  const { isScanning, hasPermission, startScanning, stopScanning } = useQRScanner({
+  const {
+    isScanning,
+    hasPermission,
+    startScanning,
+    stopScanning,
+    resetLastScan,
+  } = useQRScanner({
+    continuous,
     onScan: (decodedText) => {
-      setLastScanned(decodedText);
-      setScanSuccess(true);
-      stopScanning();
-      setTimeout(() => {
+      if (continuous) {
+        // In continuous mode, accumulate codes and flash success
+        setScannedCodes((prev) => {
+          if (prev.includes(decodedText)) return prev;
+          return [...prev, decodedText];
+        });
+        setLastScanFlash(true);
+        setTimeout(() => setLastScanFlash(false), 600);
         onScan(decodedText);
-        onClose();
-      }, 800);
+      } else {
+        // Single scan mode: flash and close
+        setScannedCodes([decodedText]);
+        setLastScanFlash(true);
+        setTimeout(() => {
+          onScan(decodedText);
+          onClose();
+        }, 600);
+      }
     },
     onError: (error) => {
       setScanError(error);
@@ -45,17 +79,19 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
 
   useEffect(() => {
     if (open) {
-      setLastScanned(null);
+      setScannedCodes([]);
       setScanError(null);
-      setScanSuccess(false);
+      setLastScanFlash(false);
+      resetLastScan();
       // Small delay to ensure DOM is ready
       setTimeout(() => {
         startScanning('qr-reader');
-      }, 100);
+      }, 150);
     } else {
       stopScanning();
     }
-  }, [open, startScanning, stopScanning]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const handleClose = () => {
     stopScanning();
@@ -78,33 +114,37 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
           <motion.div
             ref={scannerContainerRef}
             className="relative w-full aspect-square max-w-[300px] rounded-lg overflow-hidden bg-muted border-2 border-dashed border-primary/30"
-            initial={prefersReducedMotion ? "visible" : "hidden"}
+            initial={prefersReducedMotion ? 'visible' : 'hidden'}
             animate="visible"
             variants={scaleVariants}
           >
             <div id="qr-reader" className="w-full h-full" />
-            
+
             {/* Scanning overlay */}
             <AnimatePresence>
-              {isScanning && !scanSuccess && (
-                <motion.div 
+              {isScanning && !lastScanFlash && (
+                <motion.div
                   className="absolute inset-0 pointer-events-none"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  <motion.div 
+                  <motion.div
                     className="absolute inset-0 border-2 border-primary/50 rounded-lg"
-                    animate={{ 
-                      borderColor: ["rgba(var(--primary), 0.5)", "rgba(var(--primary), 0.8)", "rgba(var(--primary), 0.5)"],
+                    animate={{
+                      borderColor: [
+                        'rgba(var(--primary), 0.5)',
+                        'rgba(var(--primary), 0.8)',
+                        'rgba(var(--primary), 0.5)',
+                      ],
                     }}
-                    transition={{ 
-                      duration: 1.5, 
+                    transition={{
+                      duration: 1.5,
                       repeat: Infinity,
-                      ease: "easeInOut"
+                      ease: 'easeInOut',
                     }}
                   />
-                  <motion.div 
+                  <motion.div
                     className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border-2 border-primary rounded-lg"
                     variants={pulseRingVariants}
                     initial="initial"
@@ -119,9 +159,10 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
               )}
             </AnimatePresence>
 
+            {/* Scan success flash */}
             <AnimatePresence>
-              {scanSuccess && (
-                <motion.div 
+              {lastScanFlash && (
+                <motion.div
                   className="absolute inset-0 flex items-center justify-center bg-green-500/20 pointer-events-none"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -130,7 +171,11 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 400,
+                      damping: 20,
+                    }}
                   >
                     <CheckCircle2 className="h-16 w-16 text-green-500" />
                   </motion.div>
@@ -154,10 +199,32 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
             </div>
           )}
 
-          {lastScanned && (
+          {/* Scanned codes list (continuous mode) */}
+          {continuous && scannedCodes.length > 0 && (
+            <div className="w-full space-y-2">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <QrCode className="h-4 w-4 text-primary" />
+                Scanned ({scannedCodes.length})
+              </p>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                {scannedCodes.map((code) => (
+                  <Badge
+                    key={code}
+                    variant="secondary"
+                    className="text-xs font-mono"
+                  >
+                    {code}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Single scan result */}
+          {!continuous && scannedCodes.length > 0 && (
             <div className="flex items-center gap-2 text-success text-sm">
               <CheckCircle2 className="h-4 w-4" />
-              Scanned: {lastScanned}
+              Scanned: {scannedCodes[0]}
             </div>
           )}
 
@@ -169,7 +236,9 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                 </span>
-                Scanning... Hold the QR code steady
+                {continuous
+                  ? 'Scanning... Point at each QR code'
+                  : 'Scanning... Hold the QR code steady'}
               </p>
             ) : (
               <p>Click Start to begin scanning</p>
@@ -179,15 +248,22 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
           {/* Controls */}
           <div className="flex gap-2 w-full">
             <Button variant="outline" onClick={handleClose} className="flex-1">
-              Cancel
+              {continuous && scannedCodes.length > 0 ? 'Done' : 'Cancel'}
             </Button>
             {!isScanning ? (
-              <Button onClick={() => startScanning('qr-reader')} className="flex-1 gap-2">
+              <Button
+                onClick={() => startScanning('qr-reader')}
+                className="flex-1 gap-2"
+              >
                 <Camera className="h-4 w-4" />
                 Start Scanning
               </Button>
             ) : (
-              <Button variant="secondary" onClick={stopScanning} className="flex-1 gap-2">
+              <Button
+                variant="secondary"
+                onClick={stopScanning}
+                className="flex-1 gap-2"
+              >
                 <CameraOff className="h-4 w-4" />
                 Stop
               </Button>

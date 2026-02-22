@@ -35,3 +35,4 @@ tmp/
 # Go
 backend/server
 .sisyphus/
+.agents

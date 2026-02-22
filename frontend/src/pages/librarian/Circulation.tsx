@@ -9,6 +9,13 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   QrCode,
   Search,
   BookOpen,
@@ -21,10 +28,12 @@ import {
   Camera,
   XCircle,
   Loader2,
-  Keyboard
+  Keyboard,
+  PartyPopper,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import QRScannerModal from '@/components/circulation/QRScannerModal';
+import QRCodeDisplay from '@/components/circulation/QRCodeDisplay';
 import { format, addDays } from 'date-fns';
 import { useRfidLookup, useCheckout, useReturn } from '@/hooks/useCirculation';
 import { useCopyByQRMutation, useBooks } from '@/hooks/useBooks';
@@ -67,10 +76,6 @@ const normalizeLookupStudent = (student: RfidStudentLookup): StudentDisplay => (
   totalFines: student.total_fines,
 });
 
-
-
-
-
 type BookSearchResult = BookType & { available_copies?: number };
 
 type BookCopyResponse = BookCopy & { copy_number?: number; qr_code?: string };
@@ -78,6 +83,23 @@ type BookCopyResponse = BookCopy & { copy_number?: number; qr_code?: string };
 interface ScannedBook {
   copy: BookCopy;
   book: BookType;
+  /** Book condition for returns */
+  returnCondition?: 'excellent' | 'good' | 'fair' | 'poor';
+}
+
+interface CheckoutResult {
+  bookTitle: string;
+  copyNumber: number;
+  studentName: string;
+  dueDate: string;
+  transactionId: string;
+}
+
+interface ReturnResult {
+  bookTitle: string;
+  copyNumber: number;
+  daysOverdue: number;
+  fineAmount?: number;
 }
 
 const Circulation: React.FC = () => {
@@ -93,6 +115,11 @@ const Circulation: React.FC = () => {
   const [bookSearch, setBookSearch] = useState('');
   const [manualBookQR, setManualBookQR] = useState('');
   const [manualStudentId, setManualStudentId] = useState('');
+
+  // Success state
+  const [checkoutResults, setCheckoutResults] = useState<CheckoutResult[]>([]);
+  const [returnResults, setReturnResults] = useState<ReturnResult[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const { toast } = useToast();
 
@@ -150,7 +177,6 @@ const Circulation: React.FC = () => {
     const target = targetOverride || scanTarget;
 
     if (target === 'student') {
-      // RFID lookup for student
       try {
         const result = await rfidLookup.mutateAsync(qrCode);
         if (result.data?.student) {
@@ -166,7 +192,6 @@ const Circulation: React.FC = () => {
         // Error toast is handled by the hook
       }
     } else {
-      // QR code lookup for book copy
       try {
         const result = await copyByQRMutation.mutateAsync(qrCode);
         if (result.data) {
@@ -176,7 +201,6 @@ const Circulation: React.FC = () => {
             copyNumber: copy.copy_number ?? copy.copyNumber,
             qrCode: copy.qr_code ?? copy.qrCode,
           };
-
 
           // Check if already scanned
           if (scannedBooks.some(sb => sb.copy.id === normalizedCopy.id)) {
@@ -208,13 +232,15 @@ const Circulation: React.FC = () => {
             return;
           }
 
-          setScannedBooks(prev => [...prev, { copy: normalizedCopy, book }]);
+          setScannedBooks(prev => [...prev, {
+            copy: normalizedCopy,
+            book,
+            returnCondition: 'good',
+          }]);
           toast({
             title: 'Book Scanned',
             description: `${book.title} (Copy #${normalizedCopy.copyNumber})`,
           });
-
-
         }
       } catch {
         toast({
@@ -253,8 +279,6 @@ const Circulation: React.FC = () => {
       });
       return;
     }
-
-    // For now, just show the book info - they need to scan the actual copy QR
     toast({
       title: 'Scan Book Copy',
       description: `Please scan the QR code on a copy of "${book.title}"`,
@@ -266,36 +290,50 @@ const Circulation: React.FC = () => {
     setScannedBooks(prev => prev.filter(sb => sb.copy.id !== copyId));
   };
 
+  const updateBookCondition = (copyId: string, condition: ScannedBook['returnCondition']) => {
+    setScannedBooks(prev =>
+      prev.map(sb =>
+        sb.copy.id === copyId ? { ...sb, returnCondition: condition } : sb
+      )
+    );
+  };
+
   const handleCheckout = async () => {
     if (!selectedStudent || scannedBooks.length === 0) return;
 
     const dueDate = addDays(new Date(), 14).toISOString();
-    const successfulIds: string[] = [];
+    const results: CheckoutResult[] = [];
     let failureCount = 0;
 
-    // Process each book checkout
-    for (const { copy } of scannedBooks) {
+    for (const { copy, book } of scannedBooks) {
       try {
-        await checkoutMutation.mutateAsync({
+        const response = await checkoutMutation.mutateAsync({
           student_id: selectedStudent.id,
           copy_id: copy.id,
           due_date: dueDate,
         });
-        successfulIds.push(copy.id);
-      } catch (error) {
+        results.push({
+          bookTitle: book.title,
+          copyNumber: copy.copyNumber,
+          studentName: selectedStudent.name,
+          dueDate: response.data.due_date,
+          transactionId: response.data.transaction_id,
+        });
+      } catch {
         failureCount++;
       }
     }
 
-    if (successfulIds.length > 0) {
-      setScannedBooks(prev => prev.filter(sb => !successfulIds.includes(sb.copy.id)));
-
+    if (results.length > 0) {
+      setCheckoutResults(results);
+      setShowSuccess(true);
+      setScannedBooks([]);
       if (failureCount === 0) {
         setSelectedStudent(null);
       } else {
         toast({
-          title: 'Partial Checkout Complete',
-          description: `${successfulIds.length} books checked out. ${failureCount} failed.`,
+          title: 'Partial Checkout',
+          description: `${results.length} books checked out. ${failureCount} failed.`,
           variant: 'default',
         });
       }
@@ -305,28 +343,34 @@ const Circulation: React.FC = () => {
   const handleReturn = async () => {
     if (scannedBooks.length === 0) return;
 
-    const successfulIds: string[] = [];
+    const results: ReturnResult[] = [];
     let failureCount = 0;
 
-    // Process each book return
-    for (const { copy } of scannedBooks) {
+    for (const { copy, book, returnCondition } of scannedBooks) {
       try {
-        await returnMutation.mutateAsync({
+        const response = await returnMutation.mutateAsync({
           copy_id: copy.id,
+          condition: returnCondition,
         });
-        successfulIds.push(copy.id);
-      } catch (error) {
+        results.push({
+          bookTitle: book.title,
+          copyNumber: copy.copyNumber,
+          daysOverdue: response.data.days_overdue,
+          fineAmount: response.data.fine?.amount,
+        });
+      } catch {
         failureCount++;
       }
     }
 
-    if (successfulIds.length > 0) {
-      setScannedBooks(prev => prev.filter(sb => !successfulIds.includes(sb.copy.id)));
-
+    if (results.length > 0) {
+      setReturnResults(results);
+      setShowSuccess(true);
+      setScannedBooks([]);
       if (failureCount > 0) {
         toast({
-          title: 'Partial Return Complete',
-          description: `${successfulIds.length} books returned. ${failureCount} failed.`,
+          title: 'Partial Return',
+          description: `${results.length} books returned. ${failureCount} failed.`,
           variant: 'default',
         });
       }
@@ -344,15 +388,128 @@ const Circulation: React.FC = () => {
     setStudentSearch('');
     setBookSearch('');
     setManualBookQR('');
+    setShowSuccess(false);
+    setCheckoutResults([]);
+    setReturnResults([]);
   };
 
   const isProcessing = checkoutMutation.isPending || returnMutation.isPending;
   const prefersReducedMotion = useReducedMotion();
 
+  // ----- Success Summary View -----
+  if (showSuccess) {
+    const isCheckoutSuccess = checkoutResults.length > 0;
+    const results = isCheckoutSuccess ? checkoutResults : returnResults;
+    const totalFines = returnResults.reduce((sum, r) => sum + (r.fineAmount || 0), 0);
+
+    return (
+      <motion.div
+        className="space-y-6"
+        initial={prefersReducedMotion ? 'visible' : 'hidden'}
+        animate="visible"
+        variants={fadeInUpVariants}
+      >
+        <Card className="border-success/30 bg-success/5">
+          <CardContent className="pt-8 pb-6 text-center space-y-4">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            >
+              <div className="mx-auto w-16 h-16 rounded-full bg-success/20 flex items-center justify-center">
+                {isCheckoutSuccess ? (
+                  <PartyPopper className="h-8 w-8 text-success" />
+                ) : (
+                  <CheckCircle2 className="h-8 w-8 text-success" />
+                )}
+              </div>
+            </motion.div>
+
+            <div>
+              <h2 className="text-xl font-display font-bold text-success">
+                {isCheckoutSuccess ? 'Checkout Complete!' : 'Return Complete!'}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {results.length} {results.length === 1 ? 'book' : 'books'}{' '}
+                {isCheckoutSuccess ? 'checked out' : 'returned'} successfully
+              </p>
+            </div>
+
+            {/* Books list */}
+            <div className="max-w-md mx-auto space-y-2">
+              {isCheckoutSuccess
+                ? checkoutResults.map((r, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-3 rounded-lg bg-background border text-left"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <QRCodeDisplay
+                        value={`Transaction: ${r.transactionId.slice(0, 8)}`}
+                        size={40}
+                      />
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{r.bookTitle}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Copy #{r.copyNumber} · Due{' '}
+                          {r.dueDate ? format(new Date(r.dueDate), 'MMM dd, yyyy') : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                    <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+                  </div>
+                ))
+                : returnResults.map((r, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-3 rounded-lg bg-background border text-left"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{r.bookTitle}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Copy #{r.copyNumber}
+                        {r.daysOverdue > 0 && ` · ${r.daysOverdue} days overdue`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {r.fineAmount ? (
+                        <Badge variant="destructive" className="text-xs">
+                          ₱{r.fineAmount.toFixed(2)}
+                        </Badge>
+                      ) : (
+                        <Badge variant="default" className="text-xs">
+                          On time
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+            </div>
+
+            {/* Total fines for returns */}
+            {!isCheckoutSuccess && totalFines > 0 && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 max-w-md mx-auto">
+                <p className="text-sm font-medium text-destructive">
+                  Total Fines: ₱{totalFines.toFixed(2)}
+                </p>
+              </div>
+            )}
+
+            <Button onClick={clearAll} className="gap-2 mt-4">
+              <RefreshCw className="h-4 w-4" />
+              New Transaction
+            </Button>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
+
+  // ----- Main Circulation View -----
   return (
     <motion.div
       className="space-y-4 sm:space-y-6"
-      initial={prefersReducedMotion ? "visible" : "hidden"}
+      initial={prefersReducedMotion ? 'visible' : 'hidden'}
       animate="visible"
       variants={fadeInUpVariants}
     >
@@ -381,6 +538,7 @@ const Circulation: React.FC = () => {
           </TabsTrigger>
         </TabsList>
 
+        {/* ==================== CHECKOUT TAB ==================== */}
         <TabsContent value="checkout" className="mt-4 sm:mt-6">
           <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Left Column - Student & Book Selection */}
@@ -451,7 +609,6 @@ const Circulation: React.FC = () => {
                   {normalizedStudents.length > 0 && (
                     <div className="border rounded-lg divide-y bg-card">
                       {normalizedStudents.map((student) => (
-
                         <button
                           key={student.id}
                           onClick={() => handleStudentSelect(student)}
@@ -460,7 +617,6 @@ const Circulation: React.FC = () => {
                           <div>
                             <p className="font-medium">{student.name}</p>
                             <p className="text-sm text-muted-foreground">{student.studentNumber} - Grade {student.gradeLevel}</p>
-
                           </div>
                           <Badge variant={student.status === 'active' ? 'default' : 'secondary'}>
                             {student.status}
@@ -595,20 +751,17 @@ const Circulation: React.FC = () => {
                           <Badge variant={book.availableCopies > 0 ? 'default' : 'secondary'}>
                             {book.availableCopies} available
                           </Badge>
-
-
                         </button>
                       ))}
                     </div>
                   )}
-
 
                   {/* Scanned Books List */}
                   <AnimatePresence mode="popLayout">
                     {scannedBooks.length > 0 && (
                       <motion.div
                         className="space-y-2"
-                        initial={prefersReducedMotion ? "visible" : "hidden"}
+                        initial={prefersReducedMotion ? 'visible' : 'hidden'}
                         animate="visible"
                         exit="exit"
                         variants={staggerContainerVariants}
@@ -619,20 +772,19 @@ const Circulation: React.FC = () => {
                             <motion.div
                               key={copy.id}
                               layout
-                              initial={prefersReducedMotion ? "visible" : "hidden"}
+                              initial={prefersReducedMotion ? 'visible' : 'hidden'}
                               animate="visible"
                               exit="exit"
                               variants={listItemVariants}
                               className="flex items-center justify-between p-2 sm:p-3 rounded-lg bg-muted/50 border"
                             >
                               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                                <div className="h-7 w-7 sm:h-8 sm:w-8 rounded bg-primary/10 flex items-center justify-center shrink-0">
-                                  <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-                                </div>
+                                {/* QR Code Display */}
+                                <QRCodeDisplay value={copy.qrCode} size={40} />
                                 <div className="min-w-0">
                                   <p className="font-medium text-xs sm:text-sm truncate">{book.title}</p>
                                   <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                                    Copy #{copy.copyNumber}
+                                    Copy #{copy.copyNumber} · {copy.qrCode}
                                   </p>
                                 </div>
                               </div>
@@ -736,19 +888,20 @@ const Circulation: React.FC = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="return" className="mt-6">
-          <div className="grid lg:grid-cols-2 gap-6">
+        {/* ==================== RETURN TAB ==================== */}
+        <TabsContent value="return" className="mt-4 sm:mt-6">
+          <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Book Scanning */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg font-display flex items-center gap-2">
-                  <QrCode className="h-5 w-5 text-primary" />
+              <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-3">
+                <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
+                  <QrCode className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                   Scan Books to Return
                 </CardTitle>
-                <CardDescription>Scan QR codes or search by title</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">Scan QR codes or search by title</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
+              <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -760,7 +913,7 @@ const Circulation: React.FC = () => {
                   </div>
                   <Button
                     onClick={() => openScanner('book')}
-                    className="gap-2"
+                    className="gap-2 shrink-0"
                     disabled={copyByQRMutation.isPending}
                   >
                     {copyByQRMutation.isPending ? (
@@ -768,7 +921,8 @@ const Circulation: React.FC = () => {
                     ) : (
                       <Camera className="h-4 w-4" />
                     )}
-                    Scan QR
+                    <span className="sm:hidden">Scan</span>
+                    <span className="hidden sm:inline">Scan QR</span>
                   </Button>
                 </div>
 
@@ -798,28 +952,81 @@ const Circulation: React.FC = () => {
                   </Button>
                 </div>
 
-                {/* Scanned Books for Return */}
+                {/* Scanned Books for Return — with condition selector */}
                 {scannedBooks.length > 0 && (
                   <div className="space-y-2">
-                    {scannedBooks.map(({ copy, book }) => (
+                    <p className="text-xs sm:text-sm font-medium">
+                      Books to Return ({scannedBooks.length})
+                    </p>
+                    {scannedBooks.map(({ copy, book, returnCondition }) => (
                       <div
                         key={copy.id}
-                        className="p-4 rounded-lg border bg-muted/50"
+                        className="p-3 sm:p-4 rounded-lg border bg-muted/50 space-y-3"
                       >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-medium">{book.title}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Copy #{copy.copyNumber} - {copy.qrCode}
-                            </p>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-3 min-w-0">
+                            <QRCodeDisplay value={copy.qrCode} size={48} />
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">{book.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Copy #{copy.copyNumber} · {copy.qrCode}
+                              </p>
+                            </div>
                           </div>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => removeScannedBook(copy.id)}
+                            className="shrink-0 h-7 w-7 p-0"
                           >
                             <XCircle className="h-4 w-4" />
                           </Button>
+                        </div>
+
+                        {/* Condition Selector */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            Condition:
+                          </span>
+                          <Select
+                            value={returnCondition || 'good'}
+                            onValueChange={(v) =>
+                              updateBookCondition(
+                                copy.id,
+                                v as ScannedBook['returnCondition']
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs flex-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="excellent">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                  Excellent
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="good">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-blue-500" />
+                                  Good
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="fair">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                  Fair
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="poor">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-red-500" />
+                                  Poor
+                                </span>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     ))}
@@ -836,22 +1043,57 @@ const Circulation: React.FC = () => {
             </Card>
 
             {/* Return Summary */}
-            <Card className="sticky top-6">
-              <CardHeader>
-                <CardTitle className="text-lg font-display flex items-center gap-2">
-                  <ArrowRightLeft className="h-5 w-5 text-primary" />
+            <Card className="lg:sticky lg:top-6 h-fit">
+              <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-3">
+                <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
+                  <ArrowRightLeft className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                   Return Summary
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-sm text-muted-foreground mb-1">Books to Return</p>
+              <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
+                <div className="p-2.5 sm:p-3 rounded-lg bg-muted/50">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Books to Return</p>
                   <p className="text-2xl font-bold">{scannedBooks.length}</p>
                 </div>
 
                 {scannedBooks.length > 0 && (
+                  <div className="p-2.5 sm:p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-2">Book List</p>
+                    <ul className="space-y-1 max-h-32 overflow-y-auto">
+                      {scannedBooks.map(({ book, copy, returnCondition }) => (
+                        <li key={copy.id} className="text-xs sm:text-sm flex items-center justify-between">
+                          <span className="flex items-center gap-2 truncate">
+                            <BookOpen className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{book.title}</span>
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] ml-2 shrink-0"
+                          >
+                            {returnCondition || 'good'}
+                          </Badge>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {scannedBooks.length > 0 && (
                   <>
                     <Separator />
+
+                    {/* Poor condition warning */}
+                    {scannedBooks.some(sb => sb.returnCondition === 'poor') && (
+                      <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-medium">Damaged Books</p>
+                          <p className="text-xs">
+                            {scannedBooks.filter(sb => sb.returnCondition === 'poor').length} book(s) marked as poor condition will be set to damaged status.
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     <Button
                       onClick={handleReturn}
@@ -879,6 +1121,7 @@ const Circulation: React.FC = () => {
         open={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onScan={handleQRScan}
+        continuous={scanTarget === 'book'}
         title={scanTarget === 'student' ? 'Scan Student ID' : 'Scan Book QR Code'}
         description={
           scanTarget === 'student'

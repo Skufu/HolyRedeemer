@@ -101,12 +101,11 @@ const DashboardLayout: React.FC = () => {
             onClick={() => setSidebarOpen(false)}
             className={({ isActive }) =>
               cn(
-                'nav-link opacity-0 animate-slide-in',
+                'nav-link',
                 isMobile && 'py-3.5 text-base',
                 isActive && 'nav-link-active'
               )
             }
-            style={{ animationDelay: `${index * 0.05}s`, animationFillMode: 'forwards' }}
           >
             <item.icon className={cn(isMobile ? "w-5 h-5" : "w-5 h-5")} />
             <span>{item.label}</span>
@@ -241,17 +240,7 @@ const DashboardLayout: React.FC = () => {
 
         <main className="flex-1 overflow-auto">
           <div className="p-3 sm:p-4 md:p-6 lg:p-8 pt-0 sm:pt-0 md:pt-0 lg:pt-0">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                variants={pageVariants}
-              >
-                <Outlet />
-              </motion.div>
-            </AnimatePresence>
+            <Outlet />
           </div>
         </main>
 
