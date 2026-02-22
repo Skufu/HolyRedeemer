@@ -2,11 +2,11 @@ package handlers
 
 import (
 	"bytes"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +20,7 @@ func TestLogout_Success(t *testing.T) {
 	})
 
 	req := RefreshTokenRequest{}
-	reqBody, _ := json.Marshal(req)
+	reqBody, _ := sonic.Marshal(req)
 
 	w := httptest.NewRecorder()
 	c, _ := http.NewRequest("POST", "/auth/logout", bytes.NewBuffer(reqBody))

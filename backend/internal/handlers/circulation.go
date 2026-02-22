@@ -508,6 +508,9 @@ type ActiveLoanResponse struct {
 func (h *CirculationHandler) ListCurrentLoans(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "50"))
+	if perPage > 100 {
+		perPage = 100
+	}
 	offset := (page - 1) * perPage
 
 	loans, err := h.queries.ListActiveTransactions(c.Request.Context(), sqlcdb.ListActiveTransactionsParams{
@@ -558,6 +561,9 @@ type OverdueLoanResponse struct {
 func (h *CirculationHandler) ListOverdue(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "50"))
+	if perPage > 100 {
+		perPage = 100
+	}
 	offset := (page - 1) * perPage
 
 	loans, err := h.queries.ListOverdueTransactions(c.Request.Context(), sqlcdb.ListOverdueTransactionsParams{

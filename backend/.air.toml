@@ -7,7 +7,7 @@ tmp_dir = "tmp"
 
 [build]
 # Just plain old go build command. You can use `go build -o ./tmp/main.exe .` if you want.
-cmd = "go build -o ./tmp/main.exe ./cmd/server"
+cmd = "go build -tags sonic -o ./tmp/main.exe ./cmd/server"
 # Binary file yields from `cmd`.
 bin = "./tmp/main.exe"
 # Customize binary.

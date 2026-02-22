@@ -14,6 +14,8 @@ type Config struct {
 
 	// Database
 	DatabaseURL string
+	DBMaxConns  int
+	DBMinConns  int
 
 	// JWT
 	JWTAccessSecret  string
@@ -42,6 +44,8 @@ func Load() *Config {
 
 		// Database
 		DatabaseURL: getEnv("DATABASE_URL", ""),
+		DBMaxConns:  getIntEnv("DB_MAX_CONNS", 50),
+		DBMinConns:  getIntEnv("DB_MIN_CONNS", 10),
 
 		// JWT - No defaults, must be set via environment variables
 		JWTAccessSecret:  os.Getenv("JWT_ACCESS_SECRET"),

@@ -515,9 +515,19 @@ func (h *BookHandler) BulkRegenerateQRCodes(c *gin.Context) {
 		return
 	}
 
+	// Begin transaction to fix N+1 query performance bottleneck
+	tx, err := h.db.Begin(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to begin transaction")
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	txQueries := h.queries.WithTx(tx)
+
 	for _, copy := range copies {
 		newQRCode := fmt.Sprintf("HR-%s-C%d", bookID.String()[:8], copy.CopyNumber)
-		_, err = h.queries.UpdateCopyQRCode(c.Request.Context(), sqlcdb.UpdateCopyQRCodeParams{
+		_, err = txQueries.UpdateCopyQRCode(c.Request.Context(), sqlcdb.UpdateCopyQRCodeParams{
 			ID:     copy.ID,
 			QrCode: newQRCode,
 		})
@@ -525,6 +535,11 @@ func (h *BookHandler) BulkRegenerateQRCodes(c *gin.Context) {
 			response.InternalError(c, fmt.Sprintf("Failed to update QR code for copy %d", copy.CopyNumber))
 			return
 		}
+	}
+
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		response.InternalError(c, "Failed to commit QR code updates")
+		return
 	}
 
 	response.Success(c, gin.H{

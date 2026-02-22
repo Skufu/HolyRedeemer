@@ -33,7 +33,7 @@ jobs:
       - name: Build binary
         working-directory: backend
         run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/server ./cmd/server
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags sonic -ldflags="-s -w" -o bin/server ./cmd/server
 
       - name: Deploy to Render (Staging)
         if: ${{ vars.RENDER_ENABLED == 'true' }}
@@ -69,7 +69,7 @@ jobs:
       - name: Build binary
         working-directory: backend
         run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/server ./cmd/server
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags sonic -ldflags="-s -w" -o bin/server ./cmd/server
 
       - name: Deploy to Render (Production)
         if: ${{ vars.RENDER_ENABLED == 'true' }}

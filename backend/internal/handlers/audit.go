@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"encoding/json"
 	"log"
 	"strconv"
 
+	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/holyredeemer/library-api/internal/middleware"
@@ -141,7 +141,7 @@ func LogAuditFromContext(c *gin.Context, queries *sqlcdb.Queries, action sqlcdb.
 
 	var newValuesJSON []byte
 	if newValues != nil {
-		newValuesJSON, _ = json.Marshal(newValues)
+		newValuesJSON, _ = sonic.Marshal(newValues)
 	}
 
 	queries.CreateAuditLog(c.Request.Context(), sqlcdb.CreateAuditLogParams{

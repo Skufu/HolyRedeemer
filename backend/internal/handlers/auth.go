@@ -12,6 +12,7 @@ import (
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/internal/utils"
 	"github.com/holyredeemer/library-api/pkg/response"
+	"golang.org/x/sync/errgroup"
 )
 
 type AuthHandler struct {
@@ -219,16 +220,34 @@ func (h *AuthHandler) RFIDLookup(c *gin.Context) {
 		return
 	}
 
-	// Get current loans and fines - use pgtype.UUID for the ID
-	loans, _ := h.queries.GetStudentCurrentLoans(c.Request.Context(), toPgUUID(student.ID))
-	fines, _ := h.queries.GetStudentTotalFines(c.Request.Context(), toPgUUID(student.ID))
+	// Get current loans, fines, and overdue count concurrently
+	var loans int64
+	var fines float64
+	var studentOverdueCount int64
 
-	// Check for overdue
-	hasOverdue := false
-	studentOverdueCount, _ := h.queries.CountStudentOverdueLoans(c.Request.Context(), toPgUUID(student.ID))
-	if studentOverdueCount > 0 {
-		hasOverdue = true
-	}
+	g, ctx := errgroup.WithContext(c.Request.Context())
+
+	g.Go(func() error {
+		var err error
+		loans, err = h.queries.GetStudentCurrentLoans(ctx, toPgUUID(student.ID))
+		return err
+	})
+
+	g.Go(func() error {
+		var err error
+		fines, err = h.queries.GetStudentTotalFines(ctx, toPgUUID(student.ID))
+		return err
+	})
+
+	g.Go(func() error {
+		var err error
+		studentOverdueCount, err = h.queries.CountStudentOverdueLoans(ctx, toPgUUID(student.ID))
+		return err
+	})
+
+	_ = g.Wait()
+
+	hasOverdue := studentOverdueCount > 0
 
 	response.Success(c, gin.H{
 		"student": StudentLookupResponse{

@@ -11,6 +11,7 @@ import (
 	"github.com/holyredeemer/library-api/internal/utils"
 	"github.com/holyredeemer/library-api/pkg/response"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/errgroup"
 )
 
 type StudentHandler struct {
@@ -154,8 +155,24 @@ func (h *StudentHandler) GetStudent(c *gin.Context) {
 		return
 	}
 
-	loans, _ := h.queries.GetStudentCurrentLoans(c.Request.Context(), toPgUUID(student.ID))
-	fines, _ := h.queries.GetStudentTotalFines(c.Request.Context(), toPgUUID(student.ID))
+	var loans int64
+	var fines float64
+
+	g, ctx := errgroup.WithContext(c.Request.Context())
+
+	g.Go(func() error {
+		var err error
+		loans, err = h.queries.GetStudentCurrentLoans(ctx, toPgUUID(student.ID))
+		return err
+	})
+
+	g.Go(func() error {
+		var err error
+		fines, err = h.queries.GetStudentTotalFines(ctx, toPgUUID(student.ID))
+		return err
+	})
+
+	_ = g.Wait()
 
 	response.Success(c, StudentResponse{
 		ID:              student.ID.String(),
@@ -192,8 +209,24 @@ func (h *StudentHandler) GetMe(c *gin.Context) {
 		return
 	}
 
-	loans, _ := h.queries.GetStudentCurrentLoans(c.Request.Context(), toPgUUID(student.ID))
-	fines, _ := h.queries.GetStudentTotalFines(c.Request.Context(), toPgUUID(student.ID))
+	var loans int64
+	var fines float64
+
+	g, ctx := errgroup.WithContext(c.Request.Context())
+
+	g.Go(func() error {
+		var err error
+		loans, err = h.queries.GetStudentCurrentLoans(ctx, toPgUUID(student.ID))
+		return err
+	})
+
+	g.Go(func() error {
+		var err error
+		fines, err = h.queries.GetStudentTotalFines(ctx, toPgUUID(student.ID))
+		return err
+	})
+
+	_ = g.Wait()
 
 	response.Success(c, StudentResponse{
 		ID:              student.ID.String(),
@@ -263,39 +296,55 @@ func (h *StudentHandler) GetMyDashboard(c *gin.Context) {
 		historyPerPage = 100
 	}
 
-	loans, err := h.queries.ListActiveTransactions(c.Request.Context(), sqlcdb.ListActiveTransactionsParams{
-		Limit:     int32(loansPerPage),
-		Offset:    0,
-		StudentID: toPgUUID(student.ID),
-	})
-	if err != nil {
-		response.InternalError(c, "Failed to fetch loans")
-		return
-	}
+	var loans []sqlcdb.ListActiveTransactionsRow
+	var fines []sqlcdb.ListFinesByStudentRow
+	var history []sqlcdb.ListTransactionsByStudentRow
+	var unreadCount int64
 
-	fines, err := h.queries.ListFinesByStudent(c.Request.Context(), sqlcdb.ListFinesByStudentParams{
-		StudentID: toPgUUID(student.ID),
-		Limit:     int32(finesPerPage),
-		Offset:    0,
-	})
-	if err != nil {
-		response.InternalError(c, "Failed to fetch fines")
-		return
-	}
+	g, ctx := errgroup.WithContext(c.Request.Context())
 
-	history, err := h.queries.ListTransactionsByStudent(c.Request.Context(), sqlcdb.ListTransactionsByStudentParams{
-		StudentID: toPgUUID(student.ID),
-		Limit:     int32(historyPerPage),
-		Offset:    0,
+	// Fetch loans
+	g.Go(func() error {
+		var err error
+		loans, err = h.queries.ListActiveTransactions(ctx, sqlcdb.ListActiveTransactionsParams{
+			Limit:     int32(loansPerPage),
+			Offset:    0,
+			StudentID: toPgUUID(student.ID),
+		})
+		return err
 	})
-	if err != nil {
-		response.InternalError(c, "Failed to fetch history")
-		return
-	}
 
-	unreadCount, err := h.queries.GetUnreadCount(c.Request.Context(), toPgUUID(userID))
-	if err != nil {
-		response.InternalError(c, "Failed to get unread count")
+	// Fetch fines
+	g.Go(func() error {
+		var err error
+		fines, err = h.queries.ListFinesByStudent(ctx, sqlcdb.ListFinesByStudentParams{
+			StudentID: toPgUUID(student.ID),
+			Limit:     int32(finesPerPage),
+			Offset:    0,
+		})
+		return err
+	})
+
+	// Fetch history
+	g.Go(func() error {
+		var err error
+		history, err = h.queries.ListTransactionsByStudent(ctx, sqlcdb.ListTransactionsByStudentParams{
+			StudentID: toPgUUID(student.ID),
+			Limit:     int32(historyPerPage),
+			Offset:    0,
+		})
+		return err
+	})
+
+	// Fetch unread count
+	g.Go(func() error {
+		var err error
+		unreadCount, err = h.queries.GetUnreadCount(ctx, toPgUUID(userID))
+		return err
+	})
+
+	if err := g.Wait(); err != nil {
+		response.InternalError(c, "Failed to fetch dashboard data: "+err.Error())
 		return
 	}
 
