@@ -27,7 +27,7 @@ const StudentFees = () => {
   const { data: finesData, isLoading: finesLoading } = useStudentFines(studentId);
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [selectedFine, setSelectedFine] = useState<StudentFine | null>(null);
-  
+
   const myFines = finesData?.data || [];
   const pendingFines = myFines.filter((f: StudentFine) => f.status === 'pending');
   const totalPending = pendingFines.reduce((acc: number, f: StudentFine) => acc + f.amount, 0);
@@ -82,8 +82,8 @@ const StudentFees = () => {
                     <p className="text-2xl font-bold">₱{totalPending.toFixed(2)}</p>
                   </div>
                 </div>
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   onClick={() => {
                     toast({
                       title: "Pay All Fees",
@@ -110,7 +110,7 @@ const StudentFees = () => {
           <div className="grid grid-cols-1 gap-3">
             {myFines.map((fine: StudentFine) => (
               <Card key={fine.id} className="hover:bg-muted/30 transition-colors">
-                <CardContent className="p-4 flex items-center justify-between">
+                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
                   <div className="flex items-start gap-3">
                     <div className={`p-2 rounded-full ${fine.status === 'paid' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                       <CreditCard className="h-4 w-4" />
@@ -123,13 +123,13 @@ const StudentFees = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-lg">₱{fine.amount.toFixed(2)}</p>
-                    <div className="mt-1">
+                  <div className="text-left sm:text-right flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-0 border-border/10 sm:border-transparent">
+                    <p className="font-bold text-lg w-full sm:w-auto">₱{fine.amount.toFixed(2)}</p>
+                    <div className="mt-0 sm:mt-1 shrink-0">
                       {fine.status === 'pending' ? (
-                        <Button size="sm" variant="outline" onClick={() => handlePayFine(fine)}>Pay Now</Button>
+                        <Button size="sm" variant="outline" className="min-h-[44px] sm:min-h-0" onClick={() => handlePayFine(fine)}>Pay Now</Button>
                       ) : (
-                        <Badge variant="outline" className="text-green-600 border-green-200">Paid</Badge>
+                        <Badge variant="outline" className="text-green-600 border-green-200 flex items-center h-[44px] sm:h-auto px-4 sm:px-2.5">Paid</Badge>
                       )}
                     </div>
                   </div>

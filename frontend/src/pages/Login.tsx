@@ -90,11 +90,11 @@ const Login: React.FC = () => {
           </div>
 
           <div className="text-center mb-6 shrink-0">
-            <span className="text-[#6B1528] text-[9px] font-bold uppercase tracking-[0.25em] mb-2 block opacity-80">Holy Redeemer School</span>
+            <span className="text-[#6B1528] text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block opacity-80">Holy Redeemer School</span>
             <h2 className="text-xl md:text-2xl font-bold text-[#1A1A1A] mb-1.5 leading-tight tracking-tight">
               Welcome Back
             </h2>
-            <p className="text-muted-foreground text-xs font-sans px-2">
+            <p className="text-muted-foreground text-xs sm:text-sm font-sans px-2">
               Enter your credentials to access your library account.
             </p>
           </div>
@@ -117,9 +117,9 @@ const Login: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <div className="flex justify-between items-end px-1">
+              <div className="flex justify-between items-center px-1 mb-1">
                 <Label htmlFor="password" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Password</Label>
-                <button type="button" className="text-[10px] font-bold text-[#6B1528] hover:underline uppercase tracking-widest transition-colors">Forgot?</button>
+                <button type="button" className="text-[10px] sm:text-xs font-bold text-[#6B1528] hover:underline uppercase tracking-widest transition-colors min-h-[44px] sm:min-h-0 flex items-center">Forgot?</button>
               </div>
               <div className="relative group">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 group-focus-within:text-[#6B1528] transition-colors" />
@@ -135,21 +135,21 @@ const Login: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground transition-all"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground transition-all min-w-[44px] min-h-[44px] flex items-center justify-center p-0"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2 px-1">
+            <div className="flex items-center space-x-2 px-1 min-h-[44px] sm:min-h-0">
               <Checkbox
                 id="remember"
                 checked={rememberMe}
                 onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                className="w-4 h-4 rounded-full border-muted-foreground/30 data-[state=checked]:bg-[#6B1528] data-[state=checked]:border-[#6B1528]"
+                className="w-5 h-5 sm:w-4 sm:h-4 rounded-full border-muted-foreground/30 data-[state=checked]:bg-[#6B1528] data-[state=checked]:border-[#6B1528]"
               />
-              <Label htmlFor="remember" className="text-xs font-semibold text-muted-foreground cursor-pointer select-none">
+              <Label htmlFor="remember" className="text-xs sm:text-sm font-semibold text-muted-foreground cursor-pointer select-none">
                 Keep me signed in
               </Label>
             </div>
@@ -169,36 +169,36 @@ const Login: React.FC = () => {
 
           {/* Quick Demo Access */}
           <div className="mt-6 pt-5 border-t border-border/10 shrink-0">
-            <p className="text-center text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 mb-3 font-sans">Quick Demo Access</p>
-            <div className="flex flex-wrap justify-center gap-2">
+            <p className="text-center text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 mb-3 sm:mb-4 font-sans">Quick Demo Access</p>
+            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={() => fillDemoCredentials('admin')}
-                className="btn-demo h-9 px-3 rounded-full flex items-center gap-1.5 text-[10px] font-bold"
+                className="btn-demo h-12 sm:h-9 w-full sm:w-auto px-4 sm:px-3 rounded-xl sm:rounded-full flex items-center justify-center gap-2 text-xs sm:text-[10px] font-bold"
               >
-                <Shield className="w-3 h-3 text-red-600" />
+                <Shield className="w-4 h-4 sm:w-3 sm:h-3 text-red-600" />
                 Admin
               </button>
               <button
                 type="button"
                 onClick={() => fillDemoCredentials('librarian')}
-                className="btn-demo h-9 px-3 rounded-full flex items-center gap-1.5 text-[10px] font-bold"
+                className="btn-demo h-12 sm:h-9 w-full sm:w-auto px-4 sm:px-3 rounded-xl sm:rounded-full flex items-center justify-center gap-2 text-xs sm:text-[10px] font-bold"
               >
-                <Book className="w-3 h-3 text-amber-600" />
+                <Book className="w-4 h-4 sm:w-3 sm:h-3 text-amber-600" />
                 Librarian
               </button>
               <button
                 type="button"
                 onClick={() => fillDemoCredentials('student')}
-                className="btn-demo h-9 px-3 rounded-full flex items-center gap-1.5 text-[10px] font-bold"
+                className="btn-demo h-12 sm:h-9 w-full sm:w-auto px-4 sm:px-3 rounded-xl sm:rounded-full flex items-center justify-center gap-2 text-xs sm:text-[10px] font-bold"
               >
-                <GraduationCap className="w-3 h-3 text-rose-600" />
+                <GraduationCap className="w-4 h-4 sm:w-3 sm:h-3 text-rose-600" />
                 Student
               </button>
             </div>
 
-            <p className="text-center text-[10px] text-muted-foreground/60 mt-4 font-sans">
-              Need help? <button className="font-bold text-[#1A1A1A] hover:underline">Contact Librarian</button>
+            <p className="text-center text-[10px] sm:text-xs text-muted-foreground/60 mt-4 sm:mt-6 font-sans">
+              Need help? <button className="font-bold text-[#1A1A1A] hover:underline min-h-[44px] sm:min-h-0 px-2 sm:px-0 inline-flex items-center">Contact Librarian</button>
             </p>
           </div>
         </div>

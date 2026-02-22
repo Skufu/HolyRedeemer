@@ -107,14 +107,14 @@ const BookDetailsModal = ({ bookId, open, onOpenChange }: { bookId: string | nul
                 <p className="text-sm text-muted-foreground leading-relaxed">{book.description}</p>
               </div>
             )}
-            
+
             <div className="pt-4 border-t">
-                 <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Library Availability: </span>
-                    <Badge variant={(book.availableCopies || 0) > 0 ? "secondary" : "destructive"}>
-                        {(book.availableCopies || 0) > 0 ? `${book.availableCopies} Available` : "Out of Stock"}
-                    </Badge>
-                 </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Library Availability: </span>
+                <Badge variant={(book.availableCopies || 0) > 0 ? "secondary" : "destructive"}>
+                  {(book.availableCopies || 0) > 0 ? `${book.availableCopies} Available` : "Out of Stock"}
+                </Badge>
+              </div>
             </div>
           </div>
         ) : (
@@ -140,7 +140,7 @@ const StudentHistory = () => {
   const { data: historyData, isLoading: historyLoading } = useStudentHistory(studentId);
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const prefersReducedMotion = useReducedMotion();
-  
+
   const history = historyData?.data?.filter((loan: StudentLoan) => loan.status === 'returned') || [];
   const isLoading = profileLoading || historyLoading;
 
@@ -183,15 +183,15 @@ const StudentHistory = () => {
               <TableRow>
                 <TableHead className="w-[80px]">Book</TableHead>
                 <TableHead>Details</TableHead>
-                <TableHead>Borrowed</TableHead>
-                <TableHead>Returned</TableHead>
+                <TableHead className="hidden sm:table-cell">Borrowed</TableHead>
+                <TableHead className="hidden sm:table-cell">Returned</TableHead>
                 <TableHead className="text-right">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {history.map((loan: StudentLoan) => (
-                <TableRow 
-                  key={loan.id} 
+                <TableRow
+                  key={loan.id}
                   className="hover:bg-muted/50 cursor-pointer"
                   onClick={() => setSelectedBookId(loan.bookId)}
                 >
@@ -204,10 +204,10 @@ const StudentHistory = () => {
                     <p className="font-medium text-sm">{loan.bookTitle}</p>
                     <p className="text-xs text-muted-foreground">{loan.bookAuthor}</p>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">
                     {format(parseISO(loan.checkoutDate), 'MMM dd, yyyy')}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">
                     {loan.returnDate ? format(parseISO(loan.returnDate), 'MMM dd, yyyy') : '-'}
                   </TableCell>
                   <TableCell className="text-right">{getStatusBadge(loan.status)}</TableCell>
@@ -218,10 +218,10 @@ const StudentHistory = () => {
         </Card>
       )}
 
-      <BookDetailsModal 
-        bookId={selectedBookId} 
-        open={!!selectedBookId} 
-        onOpenChange={(open) => !open && setSelectedBookId(null)} 
+      <BookDetailsModal
+        bookId={selectedBookId}
+        open={!!selectedBookId}
+        onOpenChange={(open) => !open && setSelectedBookId(null)}
       />
     </div>
   );

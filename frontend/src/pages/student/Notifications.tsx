@@ -138,17 +138,15 @@ const StudentNotifications = () => {
         exit="exit"
         transition={transitions.normal}
       >
-        <Card className={`transition-all overflow-hidden ${
-          isNew 
-            ? 'border-2 border-amber-400 bg-amber-50 shadow-md' 
+        <Card className={`transition-all overflow-hidden ${isNew
+            ? 'border-2 border-amber-400 bg-amber-50 shadow-md'
             : 'border border-gray-200'
-        }`}>
+          }`}>
           <CardContent className="p-4">
             <div className="flex gap-4">
               <div className="flex-shrink-0">
-                <div className={`p-3 rounded-full ${
-                  isNew ? 'bg-amber-100' : 'bg-gray-100'
-                }`}>
+                <div className={`p-3 rounded-full ${isNew ? 'bg-amber-100' : 'bg-gray-100'
+                  }`}>
                   {getNotificationIcon(notification.type)}
                 </div>
               </div>
@@ -167,7 +165,7 @@ const StudentNotifications = () => {
                     <p className="text-gray-700 mt-1">{notification.message}</p>
                   </div>
                 </div>
-                
+
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4">
                   <div className="flex items-center gap-2 text-sm text-gray-500">
                     <Calendar className="h-4 w-4" />
@@ -181,18 +179,18 @@ const StudentNotifications = () => {
                         size="sm"
                         onClick={() => markAsRead(notification.id)}
                         disabled={markAsReadMutation.isPending}
-                        className="border-amber-400 text-amber-700 hover:bg-amber-100"
+                        className="border-amber-400 text-amber-700 hover:bg-amber-100 min-h-[44px] sm:min-h-0"
                       >
                         <ThumbsUp className="h-4 w-4 mr-1" />
                         Got it!
                       </Button>
                     )}
-                    
+
                     {actionLink && (
-                      <Button 
-                        variant={isNew ? "default" : "outline"} 
-                        size="sm" 
-                        className={isNew ? "bg-primary" : ""}
+                      <Button
+                        variant={isNew ? "default" : "outline"}
+                        size="sm"
+                        className={`min-h-[44px] sm:min-h-0 ${isNew ? "bg-primary" : ""}`}
                         asChild
                       >
                         <Link to={actionLink} className="flex items-center gap-1">
@@ -238,7 +236,7 @@ const StudentNotifications = () => {
             size="sm"
             onClick={markAllAsRead}
             disabled={markAllAsReadMutation.isPending}
-            className="self-start"
+            className="self-start min-h-[44px] sm:min-h-0"
           >
             {markAllAsReadMutation.isPending ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />

@@ -134,15 +134,15 @@ const DashboardLayout: React.FC = () => {
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-72 p-0 bg-sidebar border-sidebar-border">
+        <SheetContent side="left" className="w-[280px] sm:w-72 p-0 bg-sidebar border-sidebar-border">
           <SidebarContent isMobile />
         </SheetContent>
       </Sheet>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden w-full">
         {/* Header */}
-        <header className="z-50 bg-card border-b border-border px-3 sm:px-4 lg:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4 transition-all shrink-0">
+        <header className="z-50 bg-card border-b border-border px-3 sm:px-4 lg:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4 transition-all shrink-0 w-full">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
             <Button
               variant="ghost"
@@ -155,7 +155,7 @@ const DashboardLayout: React.FC = () => {
             {/* Mobile: Just show current page */}
             <div className="flex flex-col min-w-0 sm:hidden">
               {currentPage && (
-                <h1 className="text-base font-display font-semibold text-foreground truncate">
+                <h1 className="text-base font-display font-semibold text-foreground truncate pr-2">
                   {currentPage.label}
                 </h1>
               )}
@@ -238,8 +238,8 @@ const DashboardLayout: React.FC = () => {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto">
-          <div className="p-3 sm:p-4 md:p-6 lg:p-8 pt-0 sm:pt-0 md:pt-0 lg:pt-0">
+        <main className="flex-1 overflow-auto w-full">
+          <div className="p-3 sm:p-4 md:p-6 lg:p-8 pt-0 sm:pt-0 md:pt-0 lg:pt-0 pb-16 sm:pb-8 max-w-full overflow-x-hidden">
             <Outlet />
           </div>
         </main>

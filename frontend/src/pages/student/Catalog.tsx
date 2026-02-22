@@ -178,19 +178,19 @@ const StudentCatalog = () => {
     >
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b -mx-4 px-4 sm:-mx-6 sm:px-6 py-3 transition-all">
         <div className="flex flex-col md:flex-row gap-3 items-center justify-between max-w-[1920px] mx-auto">
-          <div className="relative w-full md:w-64 lg:w-80">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <div className="relative w-full md:w-64 lg:w-80 shrink-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search books..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-8 text-sm bg-muted/50 focus:bg-background transition-colors"
+              className="pl-9 h-11 sm:h-8 text-sm bg-muted/50 focus:bg-background transition-colors w-full"
             />
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
+          <div className="grid grid-cols-2 sm:flex flex-row items-center gap-2 sm:gap-2 w-full md:w-auto">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="h-8 w-full sm:w-[130px] text-xs">
+              <SelectTrigger className="h-11 sm:h-8 w-full sm:w-[130px] text-xs">
                 <Filter className="h-3 w-3 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
@@ -203,7 +203,7 @@ const StudentCatalog = () => {
             </Select>
 
             <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
-              <SelectTrigger className="h-8 w-full sm:w-[130px] text-xs">
+              <SelectTrigger className="h-11 sm:h-8 w-full sm:w-[130px] text-xs">
                 <CheckCircle className="h-3 w-3 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Availability" />
               </SelectTrigger>
@@ -215,7 +215,7 @@ const StudentCatalog = () => {
             </Select>
 
             <Select value={sortOption} onValueChange={setSortOption}>
-              <SelectTrigger className="h-8 w-full sm:w-[130px] text-xs">
+              <SelectTrigger className="h-11 sm:h-8 w-full sm:w-[130px] col-span-2 sm:col-span-1 text-xs">
                 <span className="mr-2 text-muted-foreground">Sort:</span>
                 <SelectValue />
               </SelectTrigger>
@@ -227,21 +227,23 @@ const StudentCatalog = () => {
               </SelectContent>
             </Select>
 
-            <div className="h-8 w-px bg-border mx-1 shrink-0" />
+            <div className="h-8 w-px bg-border mx-1 shrink-0 hidden sm:block" />
 
-            <ToggleGroup
-              type="single"
-              value={viewMode}
-              onValueChange={(v) => v && setViewMode(v as 'grid' | 'compact')}
-              className="shrink-0"
-            >
-              <ToggleGroupItem value="grid" size="sm" className="h-8 w-8 p-0" aria-label="Grid view">
-                <LayoutGrid className="h-4 w-4" />
-              </ToggleGroupItem>
-              <ToggleGroupItem value="compact" size="sm" className="h-8 w-8 p-0" aria-label="Compact view">
-                <Rows className="h-4 w-4" />
-              </ToggleGroupItem>
-            </ToggleGroup>
+            <div className="col-span-2 sm:col-span-1 flex justify-center w-full mt-1 sm:mt-0">
+              <ToggleGroup
+                type="single"
+                value={viewMode}
+                onValueChange={(v) => v && setViewMode(v as 'grid' | 'compact')}
+                className="shrink-0"
+              >
+                <ToggleGroupItem value="grid" size="sm" className="h-11 w-11 sm:h-8 sm:w-8 p-0" aria-label="Grid view">
+                  <LayoutGrid className="h-5 w-5 sm:h-4 sm:w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="compact" size="sm" className="h-11 w-11 sm:h-8 sm:w-8 p-0" aria-label="Compact view">
+                  <Rows className="h-5 w-5 sm:h-4 sm:w-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
           </div>
         </div>
       </div>
@@ -261,8 +263,8 @@ const StudentCatalog = () => {
           <BookOpen className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
           <h3 className="text-sm font-semibold text-foreground">No books found</h3>
           <p className="text-xs text-muted-foreground mb-4">Try adjusting your filters</p>
-          <Button variant="outline" size="sm" onClick={handleClearFilters} className="h-8 gap-2">
-            <X className="h-3 w-3" />
+          <Button variant="outline" size="sm" onClick={handleClearFilters} className="h-11 sm:h-8 min-w-[120px] gap-2">
+            <X className="h-4 w-4 sm:h-3 sm:w-3" />
             Clear filters
           </Button>
         </div>
@@ -280,11 +282,11 @@ const StudentCatalog = () => {
               whileHover={prefersReducedMotion ? undefined : { scale: 1.01 }}
               className="group"
             >
-              <Card 
-                className="cursor-pointer overflow-hidden hover:shadow-md transition-all flex h-28 sm:h-32 border-transparent hover:border-border"
+              <Card
+                className="cursor-pointer overflow-hidden hover:shadow-md transition-all flex h-auto sm:h-32 border-transparent hover:border-border"
                 onClick={() => setSelectedBook(book)}
               >
-                <div className="w-20 sm:w-24 shrink-0 h-full bg-muted relative">
+                <div className="w-[100px] sm:w-24 shrink-0 bg-muted relative">
                   <BookCover
                     title={book.title}
                     author={book.author}
@@ -303,34 +305,34 @@ const StudentCatalog = () => {
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{book.author}</p>
                     <div className="flex items-center gap-2 mt-1.5">
-                       <Badge variant="outline" className="text-[10px] h-4 px-1 font-normal text-muted-foreground">
+                      <Badge variant="outline" className="text-[10px] h-4 px-1 font-normal text-muted-foreground">
                         {book.category || 'General'}
-                       </Badge>
-                       {book.publicationYear && (
-                         <span className="text-[10px] text-muted-foreground">{book.publicationYear}</span>
-                       )}
+                      </Badge>
+                      {book.publicationYear && (
+                        <span className="text-[10px] text-muted-foreground">{book.publicationYear}</span>
+                      )}
                     </div>
                   </div>
-                  
-                   <div className="flex items-center justify-end gap-2 mt-2">
-                     <Button 
-                       variant="ghost" 
-                       size="sm" 
-                       className="h-7 w-7 p-0"
-                       onClick={(e) => handleToggleFavorite(e, book.id)}
-                     >
-                       <Heart className={`h-4 w-4 ${favoriteBookIds.has(book.id) ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} />
-                     </Button>
-                     <Button variant="ghost" size="sm" className="h-7 text-xs">Details</Button>
-                     {(book.availableCopies || 0) > 0 && (
-                        <Button 
-                          size="sm" 
-                          className="h-7 text-xs px-3"
-                          onClick={(e) => handleQuickReserve(e, book)}
-                        >
-                          Reserve
-                        </Button>
-                     )}
+
+                  <div className="flex flex-wrap items-center justify-end gap-2 mt-3 sm:mt-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-11 w-11 sm:h-7 sm:w-7 p-0"
+                      onClick={(e) => handleToggleFavorite(e, book.id)}
+                    >
+                      <Heart className={`h-5 w-5 sm:h-4 sm:w-4 ${favoriteBookIds.has(book.id) ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-11 sm:h-7 text-sm sm:text-xs">Details</Button>
+                    {(book.availableCopies || 0) > 0 && (
+                      <Button
+                        size="sm"
+                        className="h-11 sm:h-7 text-sm sm:text-xs px-4 sm:px-3"
+                        onClick={(e) => handleQuickReserve(e, book)}
+                      >
+                        Reserve
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -339,7 +341,7 @@ const StudentCatalog = () => {
         </motion.div>
       ) : (
         <motion.div
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+          className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 sm:gap-4"
           initial={prefersReducedMotion ? "visible" : "hidden"}
           animate="visible"
           variants={staggerContainerVariants}
@@ -366,16 +368,16 @@ const StudentCatalog = () => {
                     isbn={book.isbn}
                   />
                   <button
-                    className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+                    className="absolute top-2 right-2 z-10 p-2 sm:p-1.5 rounded-full bg-background/80 flex items-center justify-center h-[44px] w-[44px] sm:h-auto sm:w-auto min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 backdrop-blur-sm shadow-sm md:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
                     onClick={(e) => handleToggleFavorite(e, book.id)}
                   >
-                    <Heart className={`h-4 w-4 ${favoriteBookIds.has(book.id) ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} />
+                    <Heart className={`h-5 w-5 sm:h-4 sm:w-4 ${favoriteBookIds.has(book.id) ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} />
                   </button>
                   {(book.availableCopies || 0) > 0 && (
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4">
-                      <Button 
-                        size="sm" 
-                        className="w-full font-semibold shadow-lg translate-y-2 group-hover:translate-y-0 transition-transform duration-200"
+                    <div className="absolute inset-0 bg-black/40 md:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4">
+                      <Button
+                        size="sm"
+                        className="w-[90%] sm:w-full min-h-[44px] sm:min-h-0 font-semibold shadow-lg translate-y-2 group-hover:translate-y-0 transition-transform duration-200"
                         onClick={(e) => handleQuickReserve(e, book)}
                       >
                         Reserve
@@ -406,56 +408,56 @@ const StudentCatalog = () => {
           <Button
             variant="outline"
             size="icon"
-            className="h-8 w-8"
+            className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8"
             onClick={() => handlePageChange(page - 1)}
             disabled={page <= 1}
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4" />
           </Button>
-          
+
           <div className="flex items-center gap-1 mx-2">
-             {Array.from({ length: Math.min(5, meta.total_pages) }, (_, i) => {
-                let p = page;
-                if (meta.total_pages <= 5) p = i + 1;
-                else if (page <= 3) p = i + 1;
-                else if (page >= meta.total_pages - 2) p = meta.total_pages - 4 + i;
-                else p = page - 2 + i;
-                
-                return (
-                  <Button
-                    key={p}
-                    variant={p === page ? "default" : "outline"}
-                    size="sm"
-                    className={`h-8 w-8 p-0 text-xs ${p === page ? "" : "text-muted-foreground"}`}
-                    onClick={() => handlePageChange(p)}
-                  >
-                    {p}
-                  </Button>
-                );
-             })}
-             {meta.total_pages > 5 && page < meta.total_pages - 2 && (
-               <>
-                 <span className="text-muted-foreground text-xs px-1">...</span>
-                 <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 w-8 p-0 text-xs text-muted-foreground"
-                    onClick={() => handlePageChange(meta.total_pages)}
-                  >
-                    {meta.total_pages}
-                  </Button>
-               </>
-             )}
+            {Array.from({ length: Math.min(5, meta.total_pages) }, (_, i) => {
+              let p = page;
+              if (meta.total_pages <= 5) p = i + 1;
+              else if (page <= 3) p = i + 1;
+              else if (page >= meta.total_pages - 2) p = meta.total_pages - 4 + i;
+              else p = page - 2 + i;
+
+              return (
+                <Button
+                  key={p}
+                  variant={p === page ? "default" : "outline"}
+                  size="sm"
+                  className={`min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:h-8 sm:w-8 sm:p-0 text-sm sm:text-xs ${p === page ? "" : "text-muted-foreground"}`}
+                  onClick={() => handlePageChange(p)}
+                >
+                  {p}
+                </Button>
+              );
+            })}
+            {meta.total_pages > 5 && page < meta.total_pages - 2 && (
+              <>
+                <span className="text-muted-foreground font-bold text-center w-8">...</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 sm:p-0 text-sm sm:text-xs text-muted-foreground"
+                  onClick={() => handlePageChange(meta.total_pages)}
+                >
+                  {meta.total_pages}
+                </Button>
+              </>
+            )}
           </div>
 
           <Button
             variant="outline"
             size="icon"
-            className="h-8 w-8"
+            className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8"
             onClick={() => handlePageChange(page + 1)}
             disabled={page >= meta.total_pages}
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" />
           </Button>
         </div>
       )}
@@ -476,7 +478,7 @@ const StudentCatalog = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 shrink-0"
+                className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 p-0 shrink-0 flex items-center justify-center"
                 onClick={() => {
                   if (favoriteBookIds.has(selectedBook.id)) {
                     removeFavorite.mutate(selectedBook.id);

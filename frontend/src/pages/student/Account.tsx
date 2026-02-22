@@ -43,7 +43,6 @@ import { useBook } from '@/hooks/useBooks';
 import BookCover from '@/components/BookCover';
 import { staggerContainerVariants, staggerItemVariants } from '@/lib/animations';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
-import type { FavoriteBook } from '@/services/students';
 
 const BookDetailsModal = ({ bookId, open, onOpenChange }: { bookId: string | null, open: boolean, onOpenChange: (open: boolean) => void }) => {
   const { data: bookResponse, isLoading } = useBook(bookId || '');
@@ -114,14 +113,14 @@ const BookDetailsModal = ({ bookId, open, onOpenChange }: { bookId: string | nul
                 <p className="text-sm text-muted-foreground leading-relaxed">{book.description}</p>
               </div>
             )}
-            
+
             <div className="pt-4 border-t">
-                 <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Library Availability: </span>
-                    <Badge variant={(book.availableCopies || 0) > 0 ? "secondary" : "destructive"}>
-                        {(book.availableCopies || 0) > 0 ? `${book.availableCopies} Available` : "Out of Stock"}
-                    </Badge>
-                 </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Library Availability: </span>
+                <Badge variant={(book.availableCopies || 0) > 0 ? "secondary" : "destructive"}>
+                  {(book.availableCopies || 0) > 0 ? `${book.availableCopies} Available` : "Out of Stock"}
+                </Badge>
+              </div>
             </div>
           </div>
         ) : (
@@ -156,7 +155,7 @@ const StudentAccount = () => {
   const booksReadThisYear = history.filter((h) => h.status === 'returned').length;
   const requiredBooks = 12;
   const quotaProgress = Math.min(Math.round((booksReadThisYear / requiredBooks) * 100), 100);
-  
+
   const isLoading = profileLoading || loansLoading || historyLoading || finesLoading || favoritesLoading || achievementsLoading;
 
   if (isLoading) {
@@ -225,7 +224,7 @@ const StudentAccount = () => {
                   <p className="font-medium">{profile.studentId}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-primary/10">
                   <Mail className="h-4 w-4 text-primary" />
@@ -235,7 +234,7 @@ const StudentAccount = () => {
                   <p className="font-medium text-sm">{profile.email || 'N/A'}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-primary/10">
                   <GraduationCap className="h-4 w-4 text-primary" />
@@ -245,7 +244,7 @@ const StudentAccount = () => {
                   <p className="font-medium">Grade {profile.gradeLevel}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-primary/10">
                   <Users className="h-4 w-4 text-primary" />
@@ -255,7 +254,7 @@ const StudentAccount = () => {
                   <p className="font-medium">{profile.section}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-primary/10">
                   <Phone className="h-4 w-4 text-primary" />
@@ -274,14 +273,14 @@ const StudentAccount = () => {
                 <Trophy className="h-5 w-5 text-yellow-500" />
                 <h3 className="font-semibold">Reading Goal</h3>
               </div>
-              
+
               <div className="text-center mb-4">
                 <span className="text-4xl font-bold text-primary">{booksReadThisYear}</span>
                 <span className="text-muted-foreground"> / {requiredBooks} books</span>
               </div>
-              
+
               <Progress value={quotaProgress} className="h-3 mb-2" />
-              
+
               <p className="text-sm text-center text-muted-foreground">
                 {quotaProgress >= 100 ? (
                   <span className="text-green-600 font-medium flex items-center justify-center gap-1">
@@ -303,7 +302,7 @@ const StudentAccount = () => {
                 <Star className="h-5 w-5 text-yellow-500" />
                 <h3 className="font-semibold">Quick Stats</h3>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-3 bg-muted rounded-lg">
                   <p className="text-2xl font-bold text-primary">{activeLoans.length}</p>
@@ -334,14 +333,14 @@ const StudentAccount = () => {
                   <Heart className="h-5 w-5 text-red-500" />
                   <h3 className="font-semibold">My Favorite Books</h3>
                 </div>
-                <Button variant="outline" size="sm" asChild>
+                <Button variant="outline" size="sm" className="min-h-[44px] sm:min-h-0" asChild>
                   <Link to="/student/catalog">
                     <BookOpen className="h-4 w-4 mr-1" />
                     Find Books
                   </Link>
                 </Button>
               </div>
-              
+
               {favoriteBooks.length === 0 ? (
                 <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed">
                   <Heart className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
@@ -351,22 +350,22 @@ const StudentAccount = () => {
                   </p>
                 </div>
               ) : (
-                <motion.div 
+                <motion.div
                   className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
                   initial={prefersReducedMotion ? "visible" : "hidden"}
                   animate="visible"
                   variants={staggerContainerVariants}
                 >
                   {favoriteBooks.map((book: FavoriteBook) => (
-                    <motion.div 
-                      key={book.id} 
+                    <motion.div
+                      key={book.id}
                       variants={staggerItemVariants}
                       className="cursor-pointer group"
                       onClick={() => setSelectedBookId(book.bookId)}
                     >
                       <div className="aspect-[2/3] bg-muted rounded-lg overflow-hidden shadow-sm group-hover:shadow-md transition-shadow">
-                        <BookCover 
-                          title={book.title} 
+                        <BookCover
+                          title={book.title}
                           author={book.author}
                           coverImage={book.coverImage}
                           isbn={book.isbn}
@@ -389,11 +388,11 @@ const StudentAccount = () => {
                   <BookOpen className="h-5 w-5 text-primary" />
                   <h3 className="font-semibold">Currently Borrowed</h3>
                 </div>
-                <Button variant="outline" size="sm" asChild>
+                <Button variant="outline" size="sm" className="min-h-[44px] sm:min-h-0" asChild>
                   <Link to="/student/my-books">View All</Link>
                 </Button>
               </div>
-              
+
               {activeLoans.length === 0 ? (
                 <div className="text-center py-8 bg-muted/30 rounded-lg border border-dashed">
                   <p className="text-muted-foreground">No books borrowed</p>
@@ -401,8 +400,8 @@ const StudentAccount = () => {
               ) : (
                 <div className="space-y-3">
                   {activeLoans.slice(0, 3).map((loan) => (
-                    <div 
-                      key={loan.id} 
+                    <div
+                      key={loan.id}
                       className="flex gap-3 p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => setSelectedBookId(loan.bookId)}
                     >
@@ -437,7 +436,7 @@ const StudentAccount = () => {
                   {achievements.filter((a: Achievement) => a.isUnlocked).length} / {achievements.length}
                 </Badge>
               </div>
-              
+
               {achievements.length === 0 ? (
                 <div className="text-center py-8 bg-muted/30 rounded-lg border border-dashed">
                   <Award className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
@@ -447,21 +446,21 @@ const StudentAccount = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {achievements.map((achievement: Achievement) => {
                     const IconComponent = achievement.icon === 'zap' ? Zap :
-                                          achievement.icon === 'shield' ? Shield :
-                                          achievement.icon === 'compass' ? Compass :
-                                          achievement.icon === 'heart' ? Heart :
-                                          achievement.icon === 'book-open' ? BookOpen :
-                                          Award;
-                    
+                      achievement.icon === 'shield' ? Shield :
+                        achievement.icon === 'compass' ? Compass :
+                          achievement.icon === 'heart' ? Heart :
+                            achievement.icon === 'book-open' ? BookOpen :
+                              Award;
+
                     return (
                       <div
                         key={achievement.id}
-                        className={`p-3 rounded-lg border ${achievement.isUnlocked 
-                          ? 'bg-primary/5 border-primary/20' 
+                        className={`p-3 rounded-lg border ${achievement.isUnlocked
+                          ? 'bg-primary/5 border-primary/20'
                           : 'bg-muted/30 border-muted opacity-60'}`}
                       >
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${achievement.isUnlocked 
-                          ? `bg-${achievement.color}-100` 
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${achievement.isUnlocked
+                          ? `bg-${achievement.color}-100`
                           : 'bg-muted'}`}
                         >
                           {achievement.isUnlocked ? (
@@ -482,10 +481,10 @@ const StudentAccount = () => {
         </div>
       </div>
 
-      <BookDetailsModal 
-        bookId={selectedBookId} 
-        open={!!selectedBookId} 
-        onOpenChange={(open) => !open && setSelectedBookId(null)} 
+      <BookDetailsModal
+        bookId={selectedBookId}
+        open={!!selectedBookId}
+        onOpenChange={(open) => !open && setSelectedBookId(null)}
       />
     </div>
   );
