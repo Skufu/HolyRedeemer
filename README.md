@@ -2,7 +2,7 @@
 
 A complete library management system for Holy Redeemer School of Cabuyao, featuring RFID-based circulation, QR code tracking, fine management, and comprehensive reporting.
 
-**Status:** ~85% Complete | [Paper Implementation Check](docs/PAPER_IMPLEMENTATION_CHECK.md)
+**Status:** ~90% Complete | [Paper Implementation Check](docs/PAPER_IMPLEMENTATION_CHECK.md)
 
 ---
 
@@ -11,12 +11,14 @@ A complete library management system for Holy Redeemer School of Cabuyao, featur
 - **🎯 Role-Based Access Control** - Admin, Librarian, and Student portals with appropriate permissions
 - **📚 Book Management** - Full CRUD operations with multiple copy tracking
 - **🔍 Catalog Search** - Full-text search by title, author, ISBN, and category
-- **📦 QR Code System** - Automatic QR generation for every book copy (format: `HR-XXXXXXX-C1`)
+- **📦 QR Code System** - Automatic QR generation for every book copy (format: `HR-{id[:8]}-C{n}`)
 - **🔄 Circulation** - RFID/QR-based checkout, return, and renewal
 - **💰 Fine Management** - Automatic fine calculation, partial payments, and tracking
 - **📊 Analytics & Reports** - Interactive charts, usage statistics, and exportable reports
 - **🔐 Security** - JWT authentication, audit logging, password hashing
 - **📱 Responsive Design** - Mobile-friendly interface for students
+- **🏆 Student Achievements** - Gamification system with badges and reading goals
+- **⭐ Favorites** - Students can bookmark books for later
 
 ---
 
@@ -33,7 +35,7 @@ Run everything with a single command:
 # After setup, run the application
 ./setup_and_run.sh --run
 
-# Reset database with seed data (runs migrations that include seed inserts)
+# Reset database with seed data
 ./setup_and_run.sh --seed
 ```
 
@@ -103,7 +105,7 @@ Frontend runs on: **http://localhost:4127**
 
 ```
 HolyRedeemer/
-├── backend/              # Go REST API
+├── backend/              # Go 1.24 + Gin REST API
 │   ├── cmd/server/       # Application entry point
 │   ├── internal/
 │   │   ├── config/       # Configuration management
@@ -113,21 +115,21 @@ HolyRedeemer/
 │   │   ├── handlers/     # HTTP request handlers
 │   │   ├── middleware/   # Auth, CORS, logging
 │   │   ├── repositories/ # Generated sqlc code
+│   │   ├── cache/        # In-memory caching
 │   │   └── utils/        # JWT, password, QR utilities
-│   ├── pkg/response/      # Standardized API responses
-│   ├── Makefile           # Build commands
+│   ├── pkg/response/     # Standardized API responses
+│   ├── Makefile          # Build commands
 │   └── README.md         # Backend-specific docs
 │
-├── frontend/             # React web application
+├── frontend/             # React 18.3 + TypeScript + Vite
 │   ├── src/
-│   │   ├── components/    # React components
-│   │   ├── contexts/      # React Context providers
-│   │   ├── hooks/         # Custom React hooks
-│   │   ├── pages/         # Page components by role
+│   │   ├── components/   # React components (shadcn/ui)
+│   │   ├── hooks/        # Custom React hooks
+│   │   ├── pages/        # Page components by role
 │   │   │   ├── admin/    # Admin pages
-│   │   │   ├── librarian/ # Librarian pages
+│   │   │   ├── librarian/# Librarian pages
 │   │   │   └── student/  # Student pages
-│   │   ├── services/      # API service layer
+│   │   ├── services/     # API service layer
 │   │   └── stores/       # Zustand state stores
 │   ├── package.json
 │   └── README.md         # Frontend-specific docs
@@ -136,11 +138,11 @@ HolyRedeemer/
 │   ├── api/              # API reference
 │   ├── architecture/     # System architecture
 │   ├── guides/           # Development guides
-│   └── project/         # Project specifications
+│   └── project/          # Project specifications
 │
 ├── .github/workflows/    # CI/CD pipelines
 ├── setup_and_run.sh      # Quick setup script
-├── docker-compose.yml     # Database container
+├── docker-compose.yml    # Database container
 └── README.md            # This file
 ```
 
@@ -163,23 +165,24 @@ HolyRedeemer/
 
 ### Backend
 - **Language:** Go 1.24+
-- **Framework:** Gin
+- **Framework:** Gin 1.11
 - **Database:** PostgreSQL 15 (Neon serverless)
 - **Tools:**
   - sqlc - Type-safe SQL code generation
   - goose - Database migrations
   - Bcrypt - Password hashing
   - JWT - Authentication
+  - In-memory cache - Performance optimization
 
 ### Frontend
-- **Framework:** React 18
-- **Language:** TypeScript 5.8
-- **Build Tool:** Vite 5.4
-- **Styling:** TailwindCSS 3.4
+- **Framework:** React 18.3.1
+- **Language:** TypeScript 5.8.3
+- **Build Tool:** Vite 5.4.19
+- **Styling:** TailwindCSS 3.4.17
 - **UI Components:** Shadcn/UI (Radix UI)
 - **State Management:**
   - TanStack Query 5.83 - Server state & caching
-  - Zustand 5.0 - Client state
+  - Zustand 5.0.9 - Client state
 - **Specialized Libraries:**
   - html5-qrcode - QR/barcode scanning
   - qrcode.react - QR generation
@@ -189,11 +192,13 @@ HolyRedeemer/
   - React Router DOM - Client routing
   - React Hook Form - Form management
   - Zod - Schema validation
+  - Framer Motion - Animations
 
 ### Infrastructure
-- **Database:** PostgreSQL 15 (via Docker for local dev, Neon for production)
+- **Database:** PostgreSQL 15 (Docker for local dev, Neon for production)
 - **Authentication:** JWT (15min access, 7 day refresh)
 - **API:** RESTful API with Gin framework
+- **Ports:** Frontend 4127, Backend 8080, PostgreSQL 5433
 
 ---
 
@@ -207,6 +212,7 @@ HolyRedeemer/
 - **Settings** - Configure library policies (fine rates, loan periods, limits)
 - **Audit Logs** - Track all system actions for security
 - **Reports** - Visual analytics and downloadable reports
+- **Cache Management** - Clear server cache when needed
 
 ### Librarian Module
 - **Dashboard** - Daily operations overview
@@ -222,6 +228,8 @@ HolyRedeemer/
 - **Account** - View borrowing history, active requests, and fine details
 - **Notifications** - In-app alerts for due dates and request updates
 - **Book Requests** - Reserve or request unavailable books
+- **Favorites** - Bookmark books for quick access
+- **Achievements** - Earn badges for reading milestones
 
 ---
 
@@ -250,9 +258,10 @@ make clean        # Remove build artifacts
 cd frontend
 
 npm run dev          # Start dev server
-npm run build         # Production build
-npm run preview       # Preview production build
+npm run build        # Production build
+npm run preview      # Preview production build
 npm run test         # Run Vitest tests
+npm run test:e2e     # Run Playwright E2E tests
 npm run lint         # Run ESLint
 ```
 
@@ -265,6 +274,7 @@ npm run lint         # Run ESLint
 - **users** - Authentication and user accounts
 - **students** - Student profiles with RFID codes
 - **librarians** - Staff accounts
+- **admins** - Administrator accounts
 - **books** - Book catalog
 - **book_copies** - Individual physical copies with QR codes
 - **transactions** - Circulation records (checkout/return)
@@ -276,6 +286,8 @@ npm run lint         # Run ESLint
 - **library_settings** - System configuration
 - **categories** - Book categorization
 - **refresh_tokens** - JWT refresh token management
+- **student_favorites** - Student bookmarked books
+- **achievements** - Gamification badges
 
 See [Architecture](docs/architecture/ARCHITECTURE.md) for complete schema details.
 
@@ -295,7 +307,7 @@ See [Architecture](docs/architecture/ARCHITECTURE.md) for complete schema detail
 
 ## 📝 Implementation Status
 
-The system is approximately **85% complete** relative to the research paper requirements.
+The system is approximately **90% complete** relative to the research paper requirements.
 
 **Implemented:**
 - ✅ Complete circulation workflow (checkout, return, renewal)
@@ -306,6 +318,9 @@ The system is approximately **85% complete** relative to the research paper requ
 - ✅ Reports and analytics
 - ✅ Role-based access control
 - ✅ Audit logging
+- ✅ Admin management
+- ✅ Cache management
+- ✅ Student achievements and favorites
 
 **Pending:**
 - ⚠️ New School Year Setup workflow
@@ -336,6 +351,13 @@ npm run test
 ```
 
 Current status: 89/92 tests passing (3 known jsdom issues)
+
+### E2E Tests
+
+```bash
+cd frontend
+npm run test:e2e
+```
 
 ---
 

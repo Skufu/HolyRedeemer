@@ -1,6 +1,6 @@
 # Holy Redeemer Library Management System - Frontend
 
-A modern React 18 web application for the Holy Redeemer School Library Management System, providing role-based portals for Admin, Librarian, and Student users.
+A modern React 18.3 web application for the Holy Redeemer School Library Management System, providing role-based portals for Admin, Librarian, and Student users.
 
 ## 📚 Documentation
 
@@ -12,14 +12,26 @@ A modern React 18 web application for the Holy Redeemer School Library Managemen
 
 ## 🚀 Quick Start
 
+### Using Setup Script (Recommended)
+
 ```bash
-# From project root (recommended)
+# From project root
 ./setup_and_run.sh --setup   # Full setup (first time)
 ./setup_and_run.sh --run     # Run both backend + frontend
+```
 
-# Or manually:
+### Manual Setup
+
+```bash
 cd frontend
+
+# Copy environment file
+cp .env.example .env
+
+# Install dependencies
 npm install
+
+# Start dev server
 npm run dev
 ```
 
@@ -37,19 +49,19 @@ npm run dev
 frontend/
 ├── public/                     # Static assets
 ├── src/
-│   ├── components/              # React components
-│   │   ├── ui/               # shadcn/ui components (Radix UI primitives)
-│   │   ├── circulation/       # Feature-specific components
-│   │   ├── layouts/          # Layout components (DashboardLayout)
-│   │   ├── BookCover.tsx     # Book display component
-│   │   ├── NavLink.tsx       # Navigation link component
-│   │   └── ProtectedRoute.tsx # Auth/role guard
-│   ├── contexts/              # React Context providers
-│   │   └── AuthContext.tsx   # Authentication context
-│   ├── hooks/                 # Custom React hooks
-│   │   └── use-mobile.tsx   # Mobile detection hook
-│   ├── pages/                 # Page components by role
-│   │   ├── admin/           # Admin-only pages
+│   ├── components/             # React components
+│   │   ├── ui/                 # shadcn/ui components (Radix UI primitives)
+│   │   ├── circulation/        # Feature-specific components
+│   │   ├── layouts/            # Layout components (DashboardLayout)
+│   │   ├── BookCover.tsx       # Book display component
+│   │   ├── NavLink.tsx         # Navigation link component
+│   │   └── ProtectedRoute.tsx  # Auth/role guard
+│   ├── contexts/               # React Context providers
+│   │   └── AuthContext.tsx     # Authentication context
+│   ├── hooks/                  # Custom React hooks
+│   │   └── use-mobile.tsx      # Mobile detection hook
+│   ├── pages/                  # Page components by role
+│   │   ├── admin/              # Admin-only pages
 │   │   │   ├── Dashboard.tsx
 │   │   │   ├── BooksManagement.tsx
 │   │   │   ├── UsersManagement.tsx
@@ -58,47 +70,48 @@ frontend/
 │   │   │   ├── Reports.tsx
 │   │   │   ├── Settings.tsx
 │   │   │   └── AuditLogs.tsx
-│   │   ├── librarian/       # Librarian-only pages
+│   │   ├── librarian/          # Librarian-only pages
 │   │   │   ├── Dashboard.tsx
 │   │   │   ├── Circulation.tsx
 │   │   │   ├── Books.tsx
 │   │   │   ├── StudentLookup.tsx
 │   │   │   ├── DailyOperations.tsx
 │   │   │   └── Reports.tsx
-│   │   ├── student/         # Student-only pages
+│   │   ├── student/            # Student-only pages
 │   │   │   ├── Dashboard.tsx
 │   │   │   ├── Catalog.tsx
 │   │   │   ├── Account.tsx
-│   │   │   └── Notifications.tsx
-│   │   ├── Login.tsx         # Authentication page
-│   │   ├── Index.tsx         # Landing/redirect page
-│   │   └── NotFound.tsx      # 404 page
-│   ├── services/              # API service layer
-│   │   ├── api.ts           # Axios instance with interceptors
-│   │   ├── auth.ts          # Authentication API
-│   │   ├── books.ts         # Books API
-│   │   ├── students.ts       # Students API
-│   │   ├── circulation.ts   # Circulation API
-│   │   ├── fines.ts         # Fines API
-│   │   ├── requests.ts      # Book requests API
-│   │   ├── settings.ts      # Settings API
-│   │   ├── reports.ts       # Reports API
-│   │   ├── audit.ts         # Audit logs API
-│   │   ├── notifications.ts # Notifications API
-│   │   └── index.ts        # Service exports
-│   ├── stores/               # Zustand state stores
-│   │   ├── authStore.ts     # Authentication state
+│   │   │   ├── Notifications.tsx
+│   │   │   └── Favorites.tsx
+│   │   ├── Login.tsx           # Authentication page
+│   │   ├── Index.tsx           # Landing/redirect page
+│   │   └── NotFound.tsx        # 404 page
+│   ├── services/               # API service layer
+│   │   ├── api.ts              # Axios instance with interceptors
+│   │   ├── auth.ts             # Authentication API
+│   │   ├── books.ts            # Books API
+│   │   ├── students.ts         # Students API
+│   │   ├── circulation.ts      # Circulation API
+│   │   ├── fines.ts            # Fines API
+│   │   ├── requests.ts         # Book requests API
+│   │   ├── settings.ts         # Settings API
+│   │   ├── reports.ts          # Reports API
+│   │   ├── audit.ts            # Audit logs API
+│   │   ├── notifications.ts    # Notifications API
+│   │   └── index.ts            # Service exports
+│   ├── stores/                 # Zustand state stores
+│   │   ├── authStore.ts        # Authentication state
 │   │   └── authStore.test.ts
-│   ├── test/                 # Testing utilities
+│   ├── test/                   # Testing utilities
 │   │   └── test-utils.tsx
-│   ├── App.tsx              # Root component with routing
-│   └── main.tsx             # Application entry point
-├── index.html               # HTML template
-├── package.json             # Dependencies
-├── tsconfig.json           # TypeScript configuration
-├── vite.config.ts          # Vite configuration
-├── tailwind.config.js      # Tailwind CSS configuration
-└── .env.example           # Environment variables template
+│   ├── App.tsx                 # Root component with routing
+│   └── main.tsx                # Application entry point
+├── index.html                  # HTML template
+├── package.json                # Dependencies
+├── tsconfig.json               # TypeScript configuration
+├── vite.config.ts              # Vite configuration
+├── tailwind.config.js          # Tailwind CSS configuration
+└── .env.example                # Environment variables template
 ```
 
 ## 🔧 Tech Stack
@@ -131,11 +144,13 @@ frontend/
 - **Recharts 2.15.4** - Charting library for reports
 - **date-fns 3.6.0** - Date manipulation
 - **xlsx 0.18.5** - Excel file handling (import/export)
+- **Framer Motion 12.29.2** - Animations
 
 ### Testing
 - **Vitest 3.0.0** - Unit testing framework
 - **React Testing Library** - Component testing
 - **MSW 2.7.3** - API mocking for tests
+- **Playwright 1.57.0** - E2E testing
 
 ## 🔐 Authentication
 
@@ -158,23 +173,26 @@ Three user roles with different access levels:
 
 | Role | Access | Default Page |
 |------|---------|--------------|
+| **Super Admin** | Full system access, settings, audit logs, admin management, cache management | `/admin/dashboard` |
 | **Admin** | Full system access, settings, audit logs | `/admin/dashboard` |
 | **Librarian** | Circulation, books, reports, daily operations | `/librarian/dashboard` |
-| **Student** | Catalog, account, notifications, requests | `/student/dashboard` |
+| **Student** | Catalog, account, notifications, requests, favorites, achievements | `/student/dashboard` |
 
 ## 🛠️ Development
 
 ### Available Scripts
 
 ```bash
-npm run dev          # Start development server (Vite)
+npm run dev           # Start development server (Vite)
 npm run build         # Production build
 npm run build:dev     # Development build
 npm run preview       # Preview production build
-npm run lint         # Run ESLint
-npm run test         # Run Vitest tests
-npm run test:run     # Run tests once
+npm run lint          # Run ESLint
+npm run test          # Run Vitest tests
+npm run test:run      # Run tests once
 npm run test:coverage # Run tests with coverage
+npm run test:e2e      # Run Playwright E2E tests
+npm run test:e2e:ui   # Run E2E tests with UI
 ```
 
 ### Environment Variables
@@ -234,12 +252,6 @@ export const createBook = async (data: CreateBookDto): Promise<ApiResponse<Book>
 };
 ```
 
-**Benefits:**
-- Type-safe API calls
-- Centralized error handling
-- Easy testing (mock services)
-- Consistent response format
-
 ### Routing Structure
 
 Routes defined in `App.tsx` using React Router:
@@ -271,6 +283,7 @@ Routes defined in `App.tsx` using React Router:
 - `/student/catalog` - Book catalog
 - `/student/account` - Account details
 - `/student/notifications` - Notifications
+- `/student/favorites` - Favorite books
 
 ## 🎨 UI Components
 
@@ -382,6 +395,7 @@ const { user, isAuthenticated, logout } = useAuthStore();
 
 - Unit tests in `src/services/*.test.ts`
 - Component tests can be added in `src/components/*.test.tsx`
+- E2E tests in `tests/e2e/`
 - Test utilities in `src/test/test-utils.tsx`
 
 ### Running Tests
@@ -395,6 +409,12 @@ npm run test:run
 
 # Run with coverage
 npm run test:coverage
+
+# Run E2E tests
+npm run test:e2e
+
+# Run E2E tests with UI
+npm run test:e2e:ui
 ```
 
 ## 🔄 Data Synchronization
@@ -412,7 +432,6 @@ TanStack Query automatically refetches data on:
 For features requiring real-time updates:
 - Polling (set `refetchInterval` in useQuery)
 - Manual refetch on specific actions
-- WebSocket integration (future feature)
 
 ## 📦 Build & Deployment
 
@@ -463,7 +482,7 @@ CORS_ORIGINS=http://localhost:4127,https://your-frontend.com
 Ensure backend is running on port 8080:
 ```bash
 # Terminal 1
-cd backend && go run cmd/server/main.go
+cd backend && make dev
 
 # Terminal 2
 cd frontend && npm run dev

@@ -1,6 +1,6 @@
 # Holy Redeemer Library Management System - Backend API
 
-A robust Go-based REST API for school library management, featuring JWT authentication, role-based access control, and comprehensive circulation management.
+A robust Go-based REST API for school library management, featuring JWT authentication, role-based access control, comprehensive circulation management, and in-memory caching.
 
 ## 📚 Documentation
 
@@ -10,12 +10,22 @@ A robust Go-based REST API for school library management, featuring JWT authenti
 
 ## 🚀 Quick Start
 
+### Using Setup Script (Recommended)
+
+```bash
+# From project root
+./setup_and_run.sh --setup   # First time setup
+./setup_and_run.sh --run     # Start both backend + frontend
+```
+
+### Manual Setup
+
 ```bash
 cd backend
 
 # Copy environment file
 cp .env.example .env
-# Edit .env with your database URL and secrets
+# Edit .env with your database URL and secrets (min 32 chars for JWT)
 
 # Install tools
 make install-tools
@@ -23,7 +33,7 @@ make install-tools
 # Run migrations
 make migrate-up
 
-# Seed demo data (runs migrations that include seed inserts)
+# Seed demo data
 make seed
 
 # Start development server
@@ -32,10 +42,11 @@ make dev
 
 ## 📋 Requirements
 
-- **Go** 1.22+
-- **PostgreSQL** 14+ (or Neon serverless)
+- **Go** 1.24+
+- **PostgreSQL** 15+ (or Neon serverless)
 - **sqlc** (installed via `make install-tools`)
 - **goose** (installed via `make install-tools`)
+- **air** (installed via `make install-tools`)
 
 ## 🏗️ Project Structure
 
@@ -50,8 +61,9 @@ backend/
 │   ├── handlers/         # HTTP request handlers
 │   ├── middleware/       # Auth, CORS, logging middleware
 │   ├── repositories/     # Generated sqlc code
+│   ├── cache/            # In-memory caching layer
 │   ├── testutil/         # Test utilities & fixtures
-│   └── utils/            # JWT, password utilities
+│   └── utils/            # JWT, password, QR utilities
 ├── pkg/response/         # Standardized API responses
 ├── Makefile              # Build & development commands
 └── sqlc.yaml             # sqlc configuration
@@ -63,7 +75,7 @@ backend/
 
 | Role | Username | Password |
 |------|----------|----------|
-| Admin | `admin` | `admin123` |
+| Super Admin | `admin` | `admin123` |
 | Librarian | `librarian` | `lib123` |
 | Student | `student001` | `student123` |
 
@@ -71,101 +83,100 @@ backend/
 
 - **Access Token**: 15 minutes (configurable)
 - **Refresh Token**: 7 days (configurable)
+- **Secrets**: Must be at least 32 characters
+
+Generate secrets:
+```bash
+openssl rand -base64 32
+```
 
 ## 🛠️ Development
 
 ### Make Commands
 
 ```bash
+make dev            # Run with hot reload (air)
+make run            # Build and run
 make build          # Build binary
-make run            # Run server
-make dev            # Run with hot-reload
 make test           # Run tests
 make lint           # Run linter
 make sqlc           # Regenerate sqlc code
 make migrate-up     # Apply migrations
 make migrate-down   # Rollback migration
+make migrate-create name=xyz  # Create migration
 make seed           # Seed demo data
+make reset-db       # Drop and re-create database (DESTRUCTIVE)
+make clean          # Clean build artifacts
+make install-tools  # Install development tools
 ```
 
-## 🔧 Configuration
+### Environment Variables
 
-See `.env.example` for all configuration options:
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `PORT` | Server port | No | `8080` |
+| `DATABASE_URL` | PostgreSQL connection string | Yes | - |
+| `JWT_ACCESS_SECRET` | Access token secret (≥32 chars) | Yes | - |
+| `JWT_REFRESH_SECRET` | Refresh token secret (≥32 chars) | Yes | - |
+| `JWT_ACCESS_EXPIRY` | Access token lifetime | No | `15m` |
+| `JWT_REFRESH_EXPIRY` | Refresh token lifetime | No | `168h` |
+| `CORS_ORIGINS` | Allowed origins (comma-separated) | No | `*` |
+| `DEFAULT_LOAN_DAYS` | Default loan period | No | `14` |
+| `DEFAULT_MAX_BOOKS` | Max books per student | No | `5` |
+| `DEFAULT_FINE_PER_DAY` | Daily fine rate | No | `5.0` |
+| `DEFAULT_GRACE_PERIOD` | Grace period before fines | No | `3` |
+| `DEFAULT_MAX_FINE_CAP` | Maximum fine per book | No | `200.0` |
+| `DEFAULT_BLOCK_THRESHOLD` | Fine amount that blocks borrowing | No | `100.0` |
 
-## 💾 Database Transactions
+## 💾 Database
 
-**IMPORTANT**: Always use database transactions for multi-step operations to ensure data integrity.
+### Migrations
 
-### When to Use Transactions
+```bash
+# Create new migration
+make migrate-create name=add_new_table
 
-Use transactions when your handler performs multiple database writes that must succeed or fail together:
+# Apply migrations
+make migrate-up
 
-- **Circulation**: Checkout and Return (transaction + copy status update)
-- **Book Creation**: Create book with initial copies
-- **Any multi-table write operation**
+# Rollback one migration
+make migrate-down
 
-### Transaction Pattern
-
-```go
-// Handler struct must include database pool
-type Handler struct {
-    queries *sqlcdb.Queries
-    db      *pgxpool.Pool
-}
-
-// Begin transaction
-tx, err := h.db.Begin(ctx)
-if err != nil {
-    response.InternalError(c, "Failed to begin transaction")
-    return
-}
-defer tx.Rollback(ctx)  // Auto-rollback if not committed
-
-// Use transactional queries
-queries := h.queries.WithTx(tx)
-
-// Perform operations
-result1, err := queries.CreateSomething(ctx, params)
-if err != nil {
-    return  // Rollback automatically
-}
-
-result2, err := queries.UpdateSomething(ctx, params)
-if err != nil {
-    return  // Rollback automatically
-}
-
-// Commit transaction
-if err := tx.Commit(ctx); err != nil {
-    log.Printf("Failed to commit transaction: %v", err)
-    response.InternalError(c, "Failed to complete operation")
-    return
-}
-
-response.Success(c, result1, "Operation successful")
+# Reset database (DESTRUCTIVE)
+make reset-db
 ```
 
-### Key Points
+### Regenerating sqlc Code
 
-1. **Always use `defer tx.Rollback(ctx)`** - ensures rollback if commit fails
-2. **Use `queries.WithTx(tx)`** - creates transactional query object
-3. **Handle errors properly** - return immediately on error to trigger rollback
-4. **Commit at the end** - only commit if all operations succeed
-5. **Log commit failures** - helps debug transaction issues
+After modifying SQL queries:
 
-### Configuration
+```bash
+make sqlc
+```
 
-See `.env.example` for all configuration options:
+Generated files go to `internal/repositories/sqlcdb/`.
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `8080` |
-| `DATABASE_URL` | PostgreSQL connection string | Required |
-| `JWT_ACCESS_SECRET` | Access token secret | Required |
-| `JWT_REFRESH_SECRET` | Refresh token secret | Required |
-| `CORS_ORIGINS` | Allowed origins | `http://localhost:4127` |
+## 🧪 Testing
 
-## 🚢 Deployment
+```bash
+# Run all tests
+make test
+
+# Run with coverage
+make test TEST_FLAGS="-cover"
+
+# Run specific package
+go test -v ./internal/handlers/...
+
+# Run specific test
+go test -v ./internal/handlers/... -run TestCheckout
+```
+
+### Test Coverage
+
+Current coverage: ~87% for handlers
+
+## 🚀 Deployment
 
 ### Render
 
@@ -175,6 +186,56 @@ See `.env.example` for all configuration options:
 4. Set start command: `./backend/bin/server`
 5. Add environment variables
 
+### Docker (Database Only)
+
+```bash
+docker run -d --name library-db \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=library_dev \
+  -p 5433:5432 postgres:15
+```
+
+## 📊 API Endpoints
+
+| Endpoint | Method | Description | Auth |
+|----------|--------|-------------|------|
+| `/health` | GET | Health check | Public |
+| `/healthz` | GET | Lightweight health check | Public |
+| `/api/v1/auth/login` | POST | Login | Public |
+| `/api/v1/auth/refresh` | POST | Refresh token | Public |
+| `/api/v1/auth/logout` | POST | Logout | Required |
+| `/api/v1/auth/rfid/lookup` | POST | RFID lookup | Required |
+| `/api/v1/books` | GET | List books | Required |
+| `/api/v1/books` | POST | Create book | Staff |
+| `/api/v1/books/:id` | GET | Get book | Required |
+| `/api/v1/books/:id` | PUT | Update book | Staff |
+| `/api/v1/books/:id` | DELETE | Delete book | Admin |
+| `/api/v1/circulation/checkout` | POST | Checkout book | Staff |
+| `/api/v1/circulation/return` | POST | Return book | Staff |
+| `/api/v1/circulation/renew` | POST | Renew loan | Required |
+| `/api/v1/students` | GET | List students | Staff |
+| `/api/v1/students/:id` | GET | Get student | Required |
+| `/api/v1/reports/dashboard` | GET | Dashboard stats | Required |
+| `/api/v1/cache/clear` | POST | Clear cache | Super Admin |
+
+See [API Reference](../docs/api/API.md) for complete documentation.
+
+## 🔧 Caching
+
+The API uses an in-memory cache for performance optimization:
+
+- Book lists
+- Dashboard statistics
+- Reports and analytics
+- Settings
+
+Cache can be cleared via: `POST /api/v1/cache/clear` (super_admin only)
+
 ## 📄 License
 
 MIT License
+
+## 🤝 Contributing
+
+Please see [Contributing Guide](../docs/guides/CONTRIBUTING.md) for development setup and guidelines.

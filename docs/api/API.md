@@ -8,6 +8,11 @@ Complete endpoint reference for the Holy Redeemer Library API.
 
 ## Authentication
 
+All protected endpoints require:
+```
+Authorization: Bearer <access_token>
+```
+
 ### POST /auth/login
 Authenticate user and receive tokens.
 
@@ -50,7 +55,7 @@ Refresh access token.
 ### POST /auth/logout
 Invalidate refresh token.
 
-### POST /auth/rfid-lookup
+### POST /auth/rfid/lookup
 Lookup student by RFID card.
 
 **Request:**
@@ -59,6 +64,9 @@ Lookup student by RFID card.
   "rfid_code": "ABC123456"
 }
 ```
+
+### POST /auth/rfid/register
+Register RFID card (student only).
 
 ---
 
@@ -126,16 +134,13 @@ Create new book. **Staff only.**
 Update book. **Staff only.**
 
 ### DELETE /books/:id
-Archive book. **Staff only.**
+Archive book. **Admin only.**
 
 ### GET /books/:id/copies
 List all copies of a book.
 
 ### POST /books/:id/copies
 Add copy to book. **Staff only.**
-
-### GET /copies/qr/:code
-Lookup copy by QR code.
 
 ---
 
@@ -145,11 +150,42 @@ Lookup copy by QR code.
 List all categories.
 
 ### POST /categories
-Create category. **Staff only.**
+Create category. **Admin only.**
+
+---
+
+## Book Copies
+
+### GET /copies/:qr_code
+Lookup copy by QR code.
+
+### POST /copies/:qr_code/regenerate
+Regenerate QR code. **Admin only.**
+
+### POST /books/:id/copies/bulk-regenerate
+Bulk regenerate QR codes. **Admin only.**
 
 ---
 
 ## Students
+
+### GET /students/me
+Get current student profile.
+
+### GET /students/me/dashboard
+Get student dashboard data.
+
+### GET /students/me/favorites
+Get student's favorite books.
+
+### POST /students/me/favorites
+Add book to favorites.
+
+### DELETE /students/me/favorites/:bookId
+Remove book from favorites.
+
+### GET /students/me/achievements
+Get student's achievements.
 
 ### GET /students
 List students. **Staff only.**
@@ -166,7 +202,7 @@ List students. **Staff only.**
 Get student details.
 
 ### POST /students
-Create student. **Staff only.**
+Create student. **Admin only.**
 
 **Request:**
 ```json
@@ -194,6 +230,9 @@ Get student's borrowing history.
 
 ### GET /students/:id/fines
 Get student's fines.
+
+### GET /students/:id/requests
+Get student's requests.
 
 ---
 
@@ -270,11 +309,18 @@ Renew loan (extend due date).
 }
 ```
 
-### GET /circulation/loans
+### GET /circulation/current
 List all active loans. **Staff only.**
 
 ### GET /circulation/overdue
 List overdue loans. **Staff only.**
+
+---
+
+## Transactions
+
+### GET /transactions
+List all transactions.
 
 ---
 
@@ -332,17 +378,160 @@ Dashboard statistics.
 }
 ```
 
-### GET /reports/books-by-category
+### GET /reports/charts/categories
 Books grouped by category for charts.
 
-### GET /reports/monthly-trends
+### GET /reports/charts/trends
 Monthly checkout/return trends.
 
-### GET /reports/top-books
+### GET /reports/charts/top-borrowed
 Most borrowed books.
 
 ### GET /reports/activity
 Recent library activity.
+
+---
+
+## Notifications
+
+### GET /notifications
+List notifications.
+
+**Query Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| is_read | bool | Filter by read status |
+
+### GET /notifications/unread-count
+Get unread notification count.
+
+### PUT /notifications/:id/read
+Mark notification as read.
+
+### PUT /notifications/read-all
+Mark all notifications as read.
+
+---
+
+## Librarians
+
+### GET /librarians
+List librarians. **Admin only.**
+
+### GET /librarians/:id
+Get librarian details. **Admin only.**
+
+### POST /librarians
+Create librarian. **Admin only.**
+
+### PUT /librarians/:id
+Update librarian. **Admin only.**
+
+### DELETE /librarians/:id
+Delete librarian. **Admin only.**
+
+---
+
+## Admins
+
+### GET /admins
+List admins. **Super Admin only.**
+
+### GET /admins/:id
+Get admin details. **Super Admin only.**
+
+### POST /admins
+Create admin. **Super Admin only.**
+
+### PUT /admins/:id
+Update admin. **Super Admin only.**
+
+### DELETE /admins/:id
+Delete admin. **Super Admin only.**
+
+---
+
+## Audit Logs
+
+### GET /audit-logs
+Get audit logs. **Admin only.**
+
+**Query Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| user_id | uuid | Filter by user |
+| action | string | Filter by action type |
+| entity_type | string | Filter by entity type |
+
+---
+
+## Settings
+
+### GET /settings
+List all settings.
+
+### GET /settings/:key
+Get specific setting.
+
+### PUT /settings
+Update settings. **Admin only.**
+
+**Request:**
+```json
+{
+  "loan_duration_days": "7",
+  "max_books_per_student": "3",
+  "fine_per_day": "5.00"
+}
+```
+
+### GET /settings/borrowing
+Get borrowing-related settings.
+
+### GET /settings/fines
+Get fine-related settings.
+
+---
+
+## Cache Management
+
+### POST /cache/clear
+Clear server cache. **Super Admin only.**
+
+---
+
+## Requests
+
+### GET /requests
+List book requests. **Staff only.**
+
+### POST /requests
+Create book request.
+
+**Request:**
+```json
+{
+  "book_id": "uuid",
+  "request_type": "reservation|request",
+  "notes": "For research project"
+}
+```
+
+### GET /requests/pending-count
+Get pending requests count.
+
+### PUT /requests/:id/approve
+Approve request. **Staff only.**
+
+### PUT /requests/:id/reject
+Reject request. **Staff only.**
+
+---
+
+## Achievements
+
+### GET /students/achievements
+List all available achievements.
 
 ---
 
@@ -372,6 +561,14 @@ All errors follow this format:
 | 404 | Not Found |
 | 409 | Conflict |
 | 500 | Internal Error |
+
+---
+
+## Rate Limits
+
+API requests are subject to rate limiting. Current limits:
+- 100 requests per minute per IP
+- 1000 requests per hour per user
 
 ---
 

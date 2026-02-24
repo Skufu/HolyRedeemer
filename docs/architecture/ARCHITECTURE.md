@@ -11,6 +11,8 @@ holy-redeemer-api/
 ├── cmd/server/main.go          # Entry point, router setup
 ├── internal/
 │   ├── config/config.go        # Environment configuration
+│   ├── cache/
+│   │   └── cache.go            # In-memory caching layer
 │   ├── database/
 │   │   ├── db.go               # PostgreSQL connection pool
 │   │   ├── migrations/         # Goose SQL migrations
@@ -18,10 +20,17 @@ holy-redeemer-api/
 │   ├── handlers/               # HTTP request handlers
 │   │   ├── auth.go             # Login, logout, refresh, RFID
 │   │   ├── books.go            # Book CRUD, copies, categories
-│   │   ├── students.go         # Student CRUD, loans, history
+│   │   ├── students.go         # Student CRUD, loans, history, favorites, achievements
 │   │   ├── circulation.go      # Checkout, return, renew
 │   │   ├── fines.go            # Fine management, payments
 │   │   ├── reports.go          # Dashboard, charts, activity
+│   │   ├── librarians.go       # Librarian management
+│   │   ├── admins.go           # Admin management
+│   │   ├── notifications.go    # Notification management
+│   │   ├── requests.go         # Book requests
+│   │   ├── settings.go         # Library settings
+│   │   ├── audit.go            # Audit logs
+│   │   ├── cache_admin.go      # Cache management
 │   │   └── helpers.go          # pgtype conversion utilities
 │   ├── middleware/
 │   │   ├── auth.go             # JWT authentication
@@ -31,8 +40,10 @@ holy-redeemer-api/
 │   ├── testutil/               # Test utilities, fixtures
 │   └── utils/
 │       ├── jwt.go              # Token generation/validation
-│       └── password.go         # bcrypt hashing
-└── pkg/response/response.go    # Standardized API responses
+│       ├── password.go         # bcrypt hashing
+│       └── qr_code.go          # QR code generation
+├── pkg/response/response.go    # Standardized API responses
+└── sqlc.yaml                   # sqlc configuration
 ```
 
 ---
@@ -40,15 +51,19 @@ holy-redeemer-api/
 ## Key Patterns
 
 ### Handler Pattern
+
 All handlers follow this structure:
+
 ```go
 type XxxHandler struct {
     queries *sqlcdb.Queries
-    config  *config.Config  // Optional, for circulation
+    db      *pgxpool.Pool       // For transactions
+    config  *config.Config      // Optional, for circulation
+    cache   *cache.Cache        // Optional, for caching
 }
 
-func NewXxxHandler(q *sqlcdb.Queries) *XxxHandler {
-    return &XxxHandler{queries: q}
+func NewXxxHandler(q *sqlcdb.Queries, db *pgxpool.Pool, cfg *config.Config, cache *cache.Cache) *XxxHandler {
+    return &XxxHandler{queries: q, db: db, config: cfg, cache: cache}
 }
 
 func (h *XxxHandler) Action(c *gin.Context) {
@@ -60,18 +75,24 @@ func (h *XxxHandler) Action(c *gin.Context) {
 ```
 
 ### Response Format
+
 All responses use `pkg/response`:
+
 ```go
 response.Success(c, data, "message")
+response.SuccessWithMeta(c, data, meta)
 response.Created(c, data, "message")
 response.BadRequest(c, "error message")
 response.Unauthorized(c, "error message")
+response.Forbidden(c, "error message")
 response.NotFound(c, "error message")
 response.InternalError(c, "error message")
 ```
 
 ### Type Conversions (pgtype)
+
 Use helpers in `handlers/helpers.go`:
+
 ```go
 toPgUUID(uuid)             // uuid.UUID → pgtype.UUID
 fromPgUUID(pgUUID)         // pgtype.UUID → uuid.UUID
@@ -94,23 +115,33 @@ formatPgDate(d, layout)    // pgtype.Date → formatted string
 | `users` | Authentication | username, password_hash, role, status |
 | `students` | Student profiles | user_id, student_id, grade_level, rfid_code |
 | `librarians` | Staff profiles | user_id, employee_id, department |
+| `admins` | Admin profiles | user_id, name |
 | `books` | Book catalog | title, author, isbn, category_id |
 | `book_copies` | Physical copies | book_id, qr_code, status, condition |
 | `categories` | Book categories | name, color_code |
 | `transactions` | Circulation | student_id, copy_id, checkout_date, due_date |
 | `fines` | Fine records | transaction_id, student_id, amount, status |
 | `payments` | Payment records | fine_id, amount, payment_method |
+| `notifications` | In-app alerts | user_id, type, title, message |
+| `book_requests` | Reservations | student_id, book_id, status |
+| `student_favorites` | Bookmarked books | student_id, book_id |
+| `achievements` | Gamification badges | name, description, icon |
+| `library_settings` | System config | key, value, category |
+| `audit_logs` | Security trail | user_id, action, entity_type, old/new values |
 
 ### Enums
 
 ```sql
--- user_role: admin, librarian, student
+-- user_role: super_admin, admin, librarian, student
 -- user_status: active, inactive, suspended
--- student_status: active, inactive, graduated, suspended
+-- student_status: active, inactive, graduated, transferred, suspended
 -- book_status: active, discontinued, archived
--- copy_status: available, borrowed, damaged, lost, reserved
+-- copy_status: available, borrowed, damaged, lost, reserved, retired
+-- copy_condition: excellent, good, fair, poor
 -- transaction_status: borrowed, returned, overdue, lost
 -- fine_status: pending, partial, paid, waived
+-- request_status: pending, approved, rejected, fulfilled, cancelled
+-- notification_type: due_reminder, overdue, fine, request_update, system
 ```
 
 ---
@@ -135,11 +166,12 @@ formatPgDate(d, layout)    // pgtype.Date → formatted string
 
 ### Role Permissions
 
-| Role | Books | Students | Circulation | Fines | Reports |
-|------|-------|----------|-------------|-------|---------|
-| admin | Full | Full | Full | Full | Full |
-| librarian | Full | Read | Full | Full | Full |
-| student | Read | Self | Self | Self | None |
+| Role | Books | Students | Circulation | Fines | Reports | Settings | Admins |
+|------|-------|----------|-------------|-------|---------|----------|--------|
+| super_admin | Full | Full | Full | Full | Full | Full | Full |
+| admin | Full | Full | Full | Full | Full | Full | View |
+| librarian | Full | Read | Full | Full | Full | None | None |
+| student | Read | Self | Self | Self | None | None | None |
 
 ---
 
@@ -147,8 +179,10 @@ formatPgDate(d, layout)    // pgtype.Date → formatted string
 
 ```go
 // Public routes
-router.POST("/login")
-router.POST("/refresh")
+router.GET("/health")
+router.GET("/healthz")
+router.POST("/auth/login")
+router.POST("/auth/refresh")
 
 // Protected routes (require JWT)
 api := router.Group("/api/v1", authMiddleware)
@@ -157,7 +191,45 @@ api := router.Group("/api/v1", authMiddleware)
 staff := api.Group("", requireRoles("admin", "librarian"))
 
 // Admin only routes
-admin := api.Group("", requireRoles("admin"))
+admin := api.Group("", requireRoles("admin", "super_admin"))
+
+// Super admin only routes
+superAdmin := api.Group("", requireRoles("super_admin"))
+```
+
+---
+
+## Caching Strategy
+
+### When to Use Cache
+
+- Read-heavy operations (book lists, dashboard stats)
+- Expensive queries (reports, aggregations)
+- Static reference data (categories, settings)
+
+### Cache Pattern
+
+```go
+// Check cache first
+cacheKey := fmt.Sprintf("books:list:%s", paramsHash)
+if cached, found := h.cache.Get(cacheKey); found {
+    response.Success(c, cached, "Books retrieved from cache")
+    return
+}
+
+// Fetch from DB
+books, err := h.queries.ListBooks(ctx, params)
+// ... process ...
+
+// Store in cache (5 minute TTL)
+h.cache.Set(cacheKey, books, 5*time.Minute)
+```
+
+### Cache Invalidation
+
+```bash
+# Clear all cache (super_admin only)
+POST /api/v1/cache/clear
 ```
 
 ---
@@ -173,6 +245,12 @@ admin := api.Group("", requireRoles("admin"))
 | Transactions | `queries/transactions.sql` | `handlers/circulation.go` |
 | Fines | `queries/fines.sql` | `handlers/fines.go` |
 | Reports | `queries/reports.sql` | `handlers/reports.go` |
+| Notifications | `queries/notifications.sql` | `handlers/notifications.go` |
+| Settings | `queries/settings.sql` | `handlers/settings.go` |
+| Audit logs | `queries/audit_logs.sql` | `handlers/audit.go` |
+| Librarians | `queries/librarians.sql` | `handlers/librarians.go` |
+| Admins | `queries/admins.sql` | `handlers/admins.go` |
+| Requests | `queries/requests.sql` | `handlers/requests.go` |
 
 ---
 
@@ -187,11 +265,18 @@ go test -cover ./internal/...
 
 # Run specific package
 go test -v ./internal/utils/...
+
+# Run specific test
+go test -v ./internal/handlers/... -run TestCheckout
 ```
 
 ### Test Files
+
 - `internal/utils/jwt_test.go` - Token tests
 - `internal/utils/password_test.go` - Hashing tests
+- `internal/config/config_test.go` - Config validation tests
+- `internal/handlers/auth_test.go` - Auth handler tests
+- `internal/handlers/students_test.go` - Student handler tests
 - `internal/testutil/testutil.go` - Test fixtures
 
 ---
@@ -202,14 +287,17 @@ go test -v ./internal/utils/...
 |----------|------|---------|-------------|
 | PORT | string | 8080 | Server port |
 | DATABASE_URL | string | - | PostgreSQL URL |
-| JWT_ACCESS_SECRET | string | - | Access token secret |
-| JWT_REFRESH_SECRET | string | - | Refresh token secret |
+| JWT_ACCESS_SECRET | string | - | Access token secret (min 32 chars) |
+| JWT_REFRESH_SECRET | string | - | Refresh token secret (min 32 chars) |
 | JWT_ACCESS_EXPIRY | duration | 15m | Access token lifetime |
 | JWT_REFRESH_EXPIRY | duration | 168h | Refresh token lifetime |
 | CORS_ORIGINS | string | * | Comma-separated origins |
 | DEFAULT_LOAN_DAYS | int | 14 | Loan period |
 | DEFAULT_MAX_BOOKS | int | 5 | Max concurrent loans |
 | DEFAULT_FINE_PER_DAY | float | 5.0 | Daily fine rate |
+| DEFAULT_GRACE_PERIOD | int | 3 | Grace period before fines |
+| DEFAULT_MAX_FINE_CAP | float | 200.0 | Maximum fine per book |
+| DEFAULT_BLOCK_THRESHOLD | float | 100.0 | Fine amount that blocks borrowing |
 
 ---
 
@@ -238,3 +326,39 @@ make sqlc  # If tables changed
 make sqlc
 # Files generated to internal/repositories/sqlcdb/
 ```
+
+---
+
+## Tech Stack Summary
+
+| Component | Technology | Version |
+|-----------|------------|---------|
+| Language | Go | 1.24.1 |
+| Framework | Gin | 1.11.0 |
+| Database | PostgreSQL | 15 |
+| Query Builder | sqlc | latest |
+| Migrations | goose | latest |
+| Auth | JWT | v5 |
+| Password Hash | bcrypt | latest |
+| Testing | testify | latest |
+
+---
+
+## Ports
+
+| Service | Port | Notes |
+|---------|------|-------|
+| Backend API | 8080 | Main application server |
+| Frontend | 4127 | Vite dev server |
+| PostgreSQL | 5433 | Docker (not 5432 to avoid conflicts) |
+
+---
+
+## Notes
+
+- QR format: `HR-{book_id[:8]}-C{copy_number}` (e.g., `HR-a1b2c3d4-C1`)
+- Date format: Backend `"2006-01-02"`, Frontend `date-fns`
+- Demo creds: admin/admin123, librarian/lib123, student001/student123
+- Cache clear endpoint: `POST /api/v1/cache/clear` (super_admin only)
+- All monetary values stored as `NUMERIC` in PostgreSQL
+- All UUIDs use `github.com/google/uuid` (not pgtype.UUID directly)

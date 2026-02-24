@@ -17,11 +17,12 @@
 8. [Fines Management](#fines-management)
 9. [Requests & Reservations](#requests--reservations)
 10. [Librarian Management](#librarian-management)
-11. [Reports & Analytics](#reports--analytics)
-12. [Notifications](#notifications)
-13. [Settings](#settings)
-14. [Audit Logs](#audit-logs)
-15. [Gap Analysis](#gap-analysis)
+11. [Admin Management](#admin-management)
+12. [Reports & Analytics](#reports--analytics)
+13. [Notifications](#notifications)
+14. [Settings](#settings)
+15. [Audit Logs](#audit-logs)
+16. [Cache Management](#cache-management)
 
 ---
 
@@ -45,8 +46,8 @@
         ▼                   ▼
 ┌───────────────┐   ┌─────────────┐
 │   Middleware  │   │   Handlers  │
-│   - Auth     │   │ (11 files)  │
-│   - RBAC     │   │  61 methods │
+│   - Auth     │   │ (12 files)  │
+│   - RBAC     │   │  65+ methods│
 │   - Logging   │   └──────┬──────┘
 └───────────────┘          │
                            ▼
@@ -83,7 +84,7 @@
 | `student` | Regular student users | View books, self-loans, fines, create requests |
 | `librarian` | Library staff | Full circulation, book management, fines |
 | `admin` | Administrators | All librarian + user management + settings |
-| `super_admin` | Super administrator | All admin privileges + audit logs |
+| `super_admin` | Super administrator | All admin privileges + audit logs + cache management |
 
 ---
 
@@ -122,8 +123,6 @@
 
 **Authentication**: Public
 
-**Handler**: `main.go` (inline handler)
-
 **Purpose**: Infrastructure monitoring - checks database connectivity
 
 **Response**:
@@ -134,9 +133,19 @@
 }
 ```
 
-**Database Query**:
-```go
-db.Health(ctx)
+### Lightweight Health Check
+
+**Endpoint**: `GET /healthz`
+
+**Authentication**: Public
+
+**Purpose**: Uptime monitoring (no DB check to avoid load)
+
+**Response**:
+```json
+{
+  "status": "ok"
+}
 ```
 
 ---
@@ -716,6 +725,18 @@ db.Health(ctx)
 
 ---
 
+### Get My Dashboard
+
+**Endpoint**: `GET /api/v1/students/me/dashboard`
+
+**Authentication**: Auth Required (Student only)
+
+**Handler**: `studentHandler.GetMyDashboard` (students.go)
+
+**Response**: Dashboard data with loans, fines, favorites, and achievements
+
+---
+
 ### List Students
 
 **Endpoint**: `GET /api/v1/students`
@@ -900,6 +921,62 @@ db.Health(ctx)
 
 ---
 
+### Get Student Requests
+
+**Endpoint**: `GET /api/v1/students/:id/requests`
+
+**Authentication**: Auth Required
+
+**Handler**: `studentHandler.GetStudentRequests` (students.go)
+
+**Authorization**: Same as GetStudent
+
+---
+
+### Student Favorites
+
+**Endpoint**: `GET /api/v1/students/me/favorites`
+
+**Authentication**: Auth Required (Student only)
+
+**Handler**: `studentHandler.GetMyFavorites`
+
+---
+
+**Endpoint**: `POST /api/v1/students/me/favorites`
+
+**Authentication**: Auth Required (Student only)
+
+**Handler**: `studentHandler.AddFavorite`
+
+---
+
+**Endpoint**: `DELETE /api/v1/students/me/favorites/:bookId`
+
+**Authentication**: Auth Required (Student only)
+
+**Handler**: `studentHandler.RemoveFavorite`
+
+---
+
+### Student Achievements
+
+**Endpoint**: `GET /api/v1/students/me/achievements`
+
+**Authentication**: Auth Required (Student only)
+
+**Handler**: `studentHandler.GetMyAchievements`
+
+---
+
+**Endpoint**: `GET /api/v1/students/achievements`
+
+**Authentication**: Auth Required
+
+**Handler**: `studentHandler.GetAllAchievements`
+
+---
+
 ## Circulation (Checkout/Return/Renew)
 
 ### Checkout
@@ -915,7 +992,7 @@ db.Health(ctx)
 {
   "student_id": "uuid (required)",
   "copy_id": "uuid (required)",
-  "due_date": "2024-12-31", // optional, uses default
+  "due_date": "2024-12-31",
   "notes": "string"
 }
 ```
@@ -1418,10 +1495,8 @@ db.Health(ctx)
 5. Return created librarian
 
 **Database Queries** (Transactional):
-- `CreateUser` - Create user account (note: password not set here)
+- `CreateUser` - Create user account
 - `CreateLibrarian` - Create librarian profile
-
-**Note**: Password handling incomplete - see Gap Analysis
 
 ---
 
@@ -1468,6 +1543,99 @@ db.Health(ctx)
 **Database Queries**:
 - `GetLibrarianByID` - Get user ID
 - `DeleteUser` - Delete user (cascade deletes librarian)
+
+---
+
+## Admin Management
+
+### List Admins
+
+**Endpoint**: `GET /api/v1/admins`
+
+**Authentication**: Auth Required (Roles: `super_admin`)
+
+**Handler**: `adminHandler.ListAdmins` (admins.go)
+
+**Flow**:
+1. Parse pagination
+2. Query admins (`ListAdmins`)
+3. Return list
+
+---
+
+### Get Admin
+
+**Endpoint**: `GET /api/v1/admins/:id`
+
+**Authentication**: Auth Required (Roles: `super_admin`)
+
+**Handler**: `adminHandler.GetAdmin` (admins.go)
+
+**Flow**:
+1. Parse admin ID
+2. Query admin (`GetAdminByID`)
+3. Return admin details
+
+---
+
+### Create Admin
+
+**Endpoint**: `POST /api/v1/admins`
+
+**Authentication**: Auth Required (Roles: `super_admin`)
+
+**Handler**: `adminHandler.CreateAdmin` (admins.go)
+
+**Request Body**:
+```json
+{
+  "username": "string (required)",
+  "password": "string (required)",
+  "name": "string (required)",
+  "email": "string"
+}
+```
+
+**Flow**: (Transaction)
+1. Begin transaction
+2. Create user record with `admin` role
+3. Create admin record
+4. Commit transaction
+5. Return created admin
+
+---
+
+### Update Admin
+
+**Endpoint**: `PUT /api/v1/admins/:id`
+
+**Authentication**: Auth Required (Roles: `super_admin`)
+
+**Handler**: `adminHandler.UpdateAdmin` (admins.go)
+
+**Request Body**: All fields optional
+
+**Flow**:
+1. Parse admin ID
+2. Get existing admin
+3. Update user and/or admin fields
+4. Return success
+
+---
+
+### Delete Admin
+
+**Endpoint**: `DELETE /api/v1/admins/:id`
+
+**Authentication**: Auth Required (Roles: `super_admin`)
+
+**Handler**: `adminHandler.DeleteAdmin` (admins.go)
+
+**Flow**:
+1. Parse admin ID
+2. Get admin to get user ID
+3. Delete user record (cascades to admin)
+4. Return success
 
 ---
 
@@ -1791,165 +1959,19 @@ db.Health(ctx)
 
 ---
 
-## Gap Analysis
+## Cache Management
 
-### 1. **Missing: Admin Handler (HIGH PRIORITY)**
+### Clear Cache
 
-**Status**: NOT IMPLEMENTED
+**Endpoint**: `POST /api/v1/cache/clear`
 
-**Location**: `backend/cmd/server/main.go` lines 70, 203-212
+**Authentication**: Auth Required (Roles: `super_admin`)
 
-**Commented Code**:
-```go
-// adminHandler := handlers.NewAdminHandler(queries) // TODO: Implement AdminHandler
+**Handler**: `cacheAdminHandler.Clear` (cache_admin.go)
 
-// Admin routes - TODO: Implement AdminHandler
-// admins := v1.Group("/admins")
-// admins.Use(middleware.Auth(jwtManager), middleware.RequireRoles("super_admin"))
-// {
-//     admins.GET("", adminHandler.ListAdmins)
-//     admins.POST("", adminHandler.CreateAdmin)
-//     admins.GET("/:id", adminHandler.GetAdmin)
-//     admins.PUT("/:id", adminHandler.UpdateAdmin)
-//     admins.DELETE("/:id", adminHandler.DeleteAdmin)
-// }
-```
-
-**Missing Endpoints**:
-- `GET /api/v1/admins` - List admins
-- `POST /api/v1/admins` - Create admin
-- `GET /api/v1/admins/:id` - Get admin
-- `PUT /api/v1/admins/:id` - Update admin
-- `DELETE /api/v1/admins/:id` - Delete admin
-
-**Required Implementation**:
-1. Create `internal/handlers/admins.go` (similar to librarians.go)
-2. Implement AdminHandler struct with methods
-3. Add SQL queries to `internal/database/queries/admins.sql`
-4. Uncomment and wire up in `main.go`
-
-**Database Queries Needed** (likely exist in admins.sql):
-- `CreateAdmin`
-- `ListAdmins`
-- `GetAdminByID`
-- `UpdateAdmin`
-- `DeleteAdmin`
-
----
-
-### 2. **Incomplete: Librarian Password Handling (MEDIUM PRIORITY)**
-
-**Issue**: `CreateLibrarian` handler does not hash password
-
-**Location**: `librarians.go:137-142`
-
-**Current Code**:
-```go
-user, err := queries.CreateUser(c.Request.Context(), sqlcdb.CreateUserParams{
-    Username:     req.Username,
-    PasswordHash: "",  // ❌ Empty - password not hashed!
-    Role:         sqlcdb.UserRoleLibrarian,
-    Name:         req.Name,
-    Email:        toPgText(req.Email),
-    Status:       sqlcdb.NullUserStatus{UserStatus: sqlcdb.UserStatusActive, Valid: true},
-})
-```
-
-**Expected Code**:
-```go
-passwordHash, err := utils.HashPassword(req.Password)
-if err != nil {
-    response.InternalError(c, "Failed to hash password")
-    return
-}
-
-user, err := queries.CreateUser(c.Request.Context(), sqlcdb.CreateUserParams{
-    Username:     req.Username,
-    PasswordHash: passwordHash,  // ✅ Hash password
-    Role:         sqlcdb.UserRoleLibrarian,
-    Name:         req.Name,
-    Email:        toPgText(req.Email),
-    Status:       sqlcdb.NullUserStatus{UserStatus: sqlcdb.UserStatusActive, Valid: true},
-})
-```
-
-**Impact**: Librarians created via API will have empty password hashes and cannot log in
-
----
-
-### 3. **Potential: Transaction Status Not Updated on Fine Creation (LOW PRIORITY)**
-
-**Issue**: When creating overdue fines on return, transaction status not updated
-
-**Location**: `circulation.go:330-351`
-
-**Current Behavior**:
-- Fine created successfully
-- Transaction remains in `borrowed` or `overdue` status
-
-**Suggested Enhancement**:
-- Consider updating transaction status to `overdue_with_fine` or similar
-- This would differentiate between newly overdue and already-fined overdue books
-
-**Impact**: Minor - mostly cosmetic/reporting
-
----
-
-### 4. **Potential: No Audit Trail Creation (LOW PRIORITY)**
-
-**Issue**: Audit log handler exists but no code creates audit entries
-
-**Location**: `audit.go` - handler exists but never called
-
-**Current State**:
-- `AuditHandler.ListAuditLogs` exists and works
-- But no audit entries are being created anywhere in handlers
-- Audit log table exists in schema but remains empty
-
-**Suggested Enhancement**:
-- Add audit logging to critical operations:
-  - Book create/update/delete
-  - Student create/update
-  - Checkout/return
-  - Fine payments/waivers
-
-**Implementation Example**:
-```go
-// In Checkout handler, after success:
-_, _ = h.queries.CreateAuditLog(c.Request.Context(), sqlcdb.CreateAuditLogParams{
-    UserID:     toPgUUID(librarianUserID),
-    Action:     "checkout",
-    EntityType: "transaction",
-    EntityID:   toPgUUID(txn.ID),
-    OldValues:  nil,
-    NewValues:  []byte(`{"student_id": studentID, "copy_id": copyID}`),
-    IPAddress:  c.ClientIP(),
-    UserAgent:  c.GetHeader("User-Agent"),
-})
-```
-
-**Impact**: Low - audit functionality exists but unused
-
----
-
-### 5. **Potential: No Request-to-Checkout Integration (LOW PRIORITY)**
-
-**Issue**: Approved book requests don't automatically create checkouts
-
-**Current Behavior**:
-- Students can request books
-- Librarians can approve requests
-- But approval doesn't create a checkout or reservation
-
-**Suggested Enhancement**:
-- When `request_type = "reservation"` is approved:
-  - Check if available copies exist
-  - Create a reservation record
-  - Notify student
-- When librarian scans QR code for reservation:
-  - Convert reservation to checkout
-
-**Impact**: Low - current workflow is manual
+**Flow**:
+1. Clear all cached entries
+2. Return success
 
 ---
 
@@ -1957,14 +1979,12 @@ _, _ = h.queries.CreateAuditLog(c.Request.Context(), sqlcdb.CreateAuditLogParams
 
 | Metric | Count |
 |---------|--------|
-| **Total API Endpoints** | 52 |
-| **Handler Files** | 11 |
-| **Handler Methods** | 61 |
+| **Total API Endpoints** | 65+ |
+| **Handler Files** | 12 |
+| **Handler Methods** | 65+ |
 | **SQL Query Files** | 14 |
 | **Database Operations** | 70+ |
-| **Missing Implementations** | 1 (AdminHandler) |
-| **Incomplete Implementations** | 1 (Librarian password) |
-| **Potential Enhancements** | 3 |
+| **Missing Implementations** | 0 |
 
 ---
 
@@ -1974,6 +1994,7 @@ _, _ = h.queries.CreateAuditLog(c.Request.Context(), sqlcdb.CreateAuditLogParams
 - ✅ `users` (auth.go)
 - ✅ `students` (students.go)
 - ✅ `librarians` (librarians.go)
+- ✅ `admins` (admins.go)
 - ✅ `books` (books.go)
 - ✅ `categories` (books.go)
 - ✅ `book_copies` (books.go)
@@ -1984,7 +2005,8 @@ _, _ = h.queries.CreateAuditLog(c.Request.Context(), sqlcdb.CreateAuditLogParams
 - ✅ `notifications` (notifications.go)
 - ✅ `settings` (settings.go)
 - ✅ `audit_logs` (audit.go - read only)
-- ❌ `admins` (missing handler)
+- ✅ `student_favorites` (students.go)
+- ✅ `achievements` (students.go)
 
 ---
 
@@ -1994,136 +2016,13 @@ _, _ = h.queries.CreateAuditLog(c.Request.Context(), sqlcdb.CreateAuditLogParams
 
 | Operation | Handler | Transaction Used |
 |-----------|----------|-----------------|
-| Create Book | `CreateBook` | ✅ Yes (line 188-242) |
-| Create Librarian | `CreateLibrarian` | ✅ Yes (line 126-163) |
-| Update Librarian | `UpdateLibrarian` | ✅ Yes (line 197-220) |
-| Checkout | `Checkout` | ✅ Yes (line 92-190) |
-| Return | `Return` | ✅ Yes (line 250-359) |
-| Renew | `Renew` | ✅ Yes (line 383-456) |
-
-**Transaction Pattern**:
-1. Begin transaction (`h.db.Begin(ctx)`)
-2. Defer rollback (`defer tx.Rollback(ctx)`)
-3. Use transactional queries (`queries := h.queries.WithTx(tx)`)
-4. Perform operations
-5. Commit on success (`tx.Commit(ctx)`)
-6. Return on error (triggers rollback)
-
----
-
-## Flow Tracing Examples
-
-### Example 1: Complete Checkout Flow
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ 1. Client Request                                         │
-│    POST /api/v1/circulation/checkout                         │
-│    Body: {student_id, copy_id, due_date}                    │
-└─────────────────────┬───────────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 2. Middleware Chain                                       │
-│    - CORSConfig()                                           │
-│    - Logger()                                               │
-│    - Recovery()                                             │
-│    - Auth(jwtManager) → Validate JWT, get user ID           │
-│    - RequireRoles("librarian", "admin", "super_admin")      │
-└─────────────────────┬───────────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 3. Handler: circulationHandler.Checkout (circulation.go:57) │
-│    - Parse request body                                      │
-│    - Get librarian ID from JWT                               │
-│    - Begin database transaction                               │
-│    - Validate student (GetStudentByID)                         │
-│      - Check status active                                     │
-│      - Check current loans < max (GetStudentCurrentLoans)       │
-│      - Check unpaid fines < threshold (GetStudentTotalFines)     │
-│    - Validate copy with lock (GetCopyByIDForUpdate)             │
-│      - Check status available                                  │
-│    - Calculate due date                                      │
-│    - Create transaction (CreateTransaction)                      │
-│    - Update copy status (UpdateCopyStatus)                      │
-│    - Commit transaction                                       │
-└─────────────────────┬───────────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 4. Response                                                │
-│    - Success with transaction ID, due date                     │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-### Example 2: Book List with Search Flow
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ 1. Client Request                                         │
-│    GET /api/v1/books?page=1&search=harry&category_id=xxx    │
-└─────────────────────┬───────────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 2. Middleware: Auth only (no role check)                  │
-└─────────────────────┬───────────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 3. Handler: bookHandler.ListBooks (books.go:52)          │
-│    - Parse page=1, per_page=20                           │
-│    - Parse search="harry"                                   │
-│    - Parse category_id="xxx"                                │
-│    - Convert to pgtype types                                │
-│    - Execute ListBooks query with params                       │
-│    - Execute CountBooks query with params                      │
-│    - Transform results to BookResponse[]                     │
-└─────────────────────┬───────────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 4. Database: ListBooks (books.sql:42)                     │
-│    SELECT b.*, c.name as category_name, ...                  │
-│    FROM books b                                            │
-│    LEFT JOIN categories c ON b.category_id = c.id             │
-│    WHERE b.status != 'archived'                             │
-│      AND (category_id IS NULL OR b.category_id = $1)         │
-│      AND (search IS NULL OR title ILIKE '%harry%' OR ...)    │
-│    ORDER BY b.created_at DESC                                │
-│    LIMIT 20 OFFSET 0                                       │
-└─────────────────────┬───────────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 5. Response: paginated book list                           │
-│    {success: true, data: [...], meta: {page, total...}}   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Conclusion
-
-The Holy Redeemer Library Management System API is **well-structured and nearly complete** with:
-
-### ✅ Strengths:
-1. **Comprehensive Coverage**: 52 endpoints covering all major library operations
-2. **Proper Transaction Management**: Critical operations (checkout, return) use transactions with row locking
-3. **Type-Safe Database Layer**: sqlc generates type-safe query code
-4. **Consistent Response Format**: All responses follow same structure
-5. **Role-Based Access Control**: Proper middleware for authorization
-6. **No TODOs in Handlers**: All implemented handlers are complete
-
-### ⚠️ Gaps:
-1. **Admin Handler Missing** (HIGH): 5 endpoints commented out, need implementation
-2. **Librarian Password Bug** (MEDIUM): Password not hashed on creation
-3. **Audit Logging Unused** (LOW): Infrastructure exists but not used
-4. **Request Integration** (LOW): Approved requests don't trigger workflows
-
-### 📊 Overall Health: **95% Complete**
-
-The API is production-ready with one high-priority gap (AdminHandler) that should be addressed before full deployment.
+| Create Book | `CreateBook` | ✅ Yes |
+| Create Librarian | `CreateLibrarian` | ✅ Yes |
+| Update Librarian | `UpdateLibrarian` | ✅ Yes |
+| Create Admin | `CreateAdmin` | ✅ Yes |
+| Update Admin | `UpdateAdmin` | ✅ Yes |
+| Checkout | `Checkout` | ✅ Yes |
+| Return | `Return` | ✅ Yes |
+| Renew | `Renew` | ✅ Yes |
+| Pay Fine | `PayFine` | ✅ Yes |
+| Create Student | `CreateStudent` | ✅ Yes |

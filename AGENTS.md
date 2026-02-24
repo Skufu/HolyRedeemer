@@ -1,8 +1,8 @@
 # AGENTS.md - Development Guide for Agentic Coding
 
-**Generated:** 2026-02-09 | **Branch:** main
+**Generated:** 2026-02-25 | **Branch:** main
 
-Holy Redeemer Library Management System - Go backend + React frontend for school library circulation.
+Holy Redeemer Library Management System - Go 1.24 backend + React 18.3 frontend for school library circulation.
 
 ## STRUCTURE
 
@@ -15,9 +15,10 @@ HolyRedeemer/
 │       ├── database/      # Migrations + SQL queries for sqlc
 │       ├── repositories/  # Generated sqlc code (DO NOT EDIT)
 │       ├── middleware/    # Auth, CORS, logging
+│       ├── cache/         # In-memory caching layer
 │       ├── utils/         # JWT, password, QR code utilities
 │       └── testutil/      # Test helpers
-├── frontend/              # React 18 + TypeScript + Vite
+├── frontend/              # React 18.3 + TypeScript 5.8 + Vite
 │   └── src/
 │       ├── services/      # Axios API layer
 │       ├── hooks/         # TanStack Query wrappers
@@ -34,6 +35,7 @@ HolyRedeemer/
 ```bash
 ./setup_and_run.sh --setup    # First time setup (DB + deps + migrations)
 ./setup_and_run.sh --run      # Start both backend + frontend
+./setup_and_run.sh --seed     # Reset DB with seed data
 ```
 
 ### Backend (Go)
@@ -78,6 +80,8 @@ npm run test:run              # Run tests once
 npm run test:run -- src/services/auth.test.ts   # Run single test file
 npm run test:run -- --reporter=verbose          # Verbose output
 npm run test:coverage         # Run with coverage report
+npm run test:e2e              # Run Playwright E2E tests
+npm run test:e2e:ui           # Run E2E tests with UI
 
 # Code Quality
 npm run lint                  # Run ESLint
@@ -213,6 +217,23 @@ if err := tx.Commit(c.Request.Context()); err != nil {
 }
 ```
 
+### Caching Pattern (MANDATORY for read-heavy operations)
+```go
+// Check cache first
+cacheKey := fmt.Sprintf("books:list:%s", paramsHash)
+if cached, found := h.cache.Get(cacheKey); found {
+    response.Success(c, cached, "Books retrieved from cache")
+    return
+}
+
+// Fetch from DB
+books, err := h.queries.ListBooks(ctx, params)
+// ... process ...
+
+// Store in cache
+h.cache.Set(cacheKey, books, 5*time.Minute)
+```
+
 ### Frontend Query Keys
 ```typescript
 // Domain-based query keys for proper caching
@@ -221,6 +242,8 @@ if err := tx.Commit(c.Request.Context()); err != nil {
 ['books', params]           // Filtered list
 ['student-loans', id]       // Related data
 ['dashboard']               // Dashboard stats
+['student-favorites']       // Student favorites
+['achievements']            // Gamification
 ```
 
 ## ANTI-PATTERNS
@@ -232,6 +255,7 @@ if err := tx.Commit(c.Request.Context()); err != nil {
 - **NEVER** put business logic in SQL queries - keep in handlers
 - **NEVER** use inline styles in React - use Tailwind classes
 - **NEVER** call `h.queries` directly in transactional code
+- **NEVER** cache without cache invalidation strategy
 
 ## TESTING
 
@@ -257,6 +281,9 @@ npm run test:run -- --grep "login"
 
 # Debug mode
 npm run test -- --reporter=verbose
+
+# E2E tests
+npm run test:e2e
 ```
 
 ## WHERE TO LOOK
@@ -270,6 +297,9 @@ npm run test -- --reporter=verbose
 | Modify auth | `backend/internal/middleware/auth.go` | JWT logic here |
 | Change fine rules | `backend/internal/handlers/circulation.go` | Fine calc embedded |
 | QR code format | `backend/internal/utils/qr_code.go` | Format: `HR-{id[:8]}-C{n}` |
+| Cache management | `backend/internal/cache/cache.go` | In-memory cache |
+| Admin handlers | `backend/internal/handlers/admins.go` | Admin CRUD operations |
+| Student features | `backend/internal/handlers/students.go` | Favorites, achievements |
 
 ## ENVIRONMENT
 
@@ -292,3 +322,7 @@ CORS_ORIGINS=http://localhost:4127,http://localhost:3000,http://localhost:5173
 - Date format: Backend `"2006-01-02"`, Frontend `date-fns`
 - Demo creds: admin/admin123, librarian/lib123, student001/student123
 - Ports: Frontend 4127, Backend 8080, PostgreSQL 5433
+- Go version: 1.24.1
+- React version: 18.3.1
+- TypeScript version: 5.8.3
+- Cache invalidation: Call `POST /api/v1/cache/clear` as super_admin when needed
