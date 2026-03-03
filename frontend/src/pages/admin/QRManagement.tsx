@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Search, Printer, QrCode, Check, BookOpen, Loader2, Download, MoreHorizontal, RefreshCw, Edit } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { useToast } from '@/hooks/use-toast';
 import { useBooks, useBookCopies, useRegenerateQRCode } from '@/hooks/useBooks';
 import { BookCopy } from '@/services/books';
@@ -108,42 +109,64 @@ const QRManagement: React.FC = () => {
   const executePrint = () => {
     if (selectedCopies.size === 0) return;
 
+    // Generate QR code SVG strings for each selected copy
+    const labels = Array.from(selectedCopies).map((copyId) => {
+      const copy = allCopies.find((c) => c.id === copyId);
+      if (!copy) return '';
+      const book = getBook(copy.bookId);
+      const qrSvg = renderToStaticMarkup(
+        <QRCodeSVG value={copy.qrCode} size={100} level="M" includeMargin={false} />
+      );
+      return `
+        <div class="qr-label">
+          <div class="label-header">Holy Redeemer School Library</div>
+          <div class="label-title">${book?.title || copy.bookTitle}</div>
+          <div class="label-copy">Copy #${copy.copyNumber}</div>
+          <div class="label-qr">${qrSvg}</div>
+          <div class="label-code">${copy.qrCode}</div>
+        </div>
+      `;
+    }).join('');
+
     const printWindow = window.open('', '_blank');
     if (printWindow) {
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>QR Labels</title>
-          <link rel="stylesheet" href="/src/pages/admin/QRManagement.print.css">
-          <style>
-            body { margin: 0; padding: 20px; }
-          </style>
-        </head>
-        <body>
-          ${Array.from(selectedCopies).map((copyId) => {
-        const copy = allCopies.find((c) => c.id === copyId);
-        if (!copy) return '';
-        const book = getBook(copy.bookId);
-
-        return `
-              <div class="qr-label">
-                <div class="qr-label-header">Holy Redeemer School Library</div>
-                <div class="qr-label-title">${book?.title || copy.bookTitle}</div>
-                <div class="qr-label-copy-number">Copy #${copy.copyNumber}</div>
-                <div class="qr-label-qr-code">${copy.qrCode}</div>
-                <div class="qr-label-footer">
-                  ${copy.condition ? `<span class="badge">${copy.condition}</span>` : ''}
-                  ${copy.status ? `<span class="badge">${copy.status}</span>` : ''}
-                </div>
-              </div>
-            `;
-      }).join('')}
-        </body>
-        </html>
-      `);
+      printWindow.document.write(`<!DOCTYPE html><html>
+<head>
+  <title>QR Labels - Holy Redeemer School Library</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; padding: 10px; }
+    .labels-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .qr-label {
+      border: 1px dashed #999;
+      border-radius: 4px;
+      padding: 10px 8px;
+      text-align: center;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .label-header { font-size: 9pt; font-weight: bold; margin-bottom: 4px; }
+    .label-title { font-size: 8pt; margin-bottom: 3px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .label-copy { font-size: 7pt; color: #666; margin-bottom: 6px; }
+    .label-qr { display: flex; justify-content: center; margin-bottom: 4px; }
+    .label-qr svg { width: 100px; height: 100px; }
+    .label-code { font-family: 'Courier New', monospace; font-size: 7pt; color: #444; }
+    @media print {
+      body { padding: 0; margin: 0; }
+      .labels-grid { gap: 4px; }
+      .qr-label { border: 1px dashed #000; }
+    }
+  </style>
+</head><body>
+  <div class="labels-grid">${labels}</div>
+</body></html>`);
       printWindow.document.close();
-      printWindow.print();
+      // Small delay to ensure SVGs render before printing
+      setTimeout(() => printWindow.print(), 300);
 
       toast({
         title: 'Print Job Sent',
@@ -186,6 +209,13 @@ const QRManagement: React.FC = () => {
   };
 
   const generateAllLabels = () => {
+    if (bookFilter === 'all') {
+      toast({
+        title: 'Select a Book',
+        description: 'Please select a specific book to generate labels for all its copies.',
+      });
+      return;
+    }
     setSelectedCopies(new Set(allCopies.map((c) => c.id)));
     setIsPrintModalOpen(true);
   };
