@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -141,15 +141,25 @@ const Circulation: React.FC = () => {
   }, [paramStudent]);
 
   // Search queries
-  const { data: studentsData } = useStudents({
-    search: studentSearch,
-    per_page: 5
-  });
-  const { data: booksData } = useBooks({
-    search: bookSearch,
-    per_page: 5,
-    available_only: mode === 'checkout'
-  });
+  const studentParams = useMemo(
+    () => ({
+      search: studentSearch,
+      per_page: 5,
+    }),
+    [studentSearch],
+  );
+
+  const bookParams = useMemo(
+    () => ({
+      search: bookSearch,
+      per_page: 5,
+      available_only: mode === 'checkout',
+    }),
+    [bookSearch, mode],
+  );
+
+  const { data: studentsData } = useStudents(studentParams);
+  const { data: booksData } = useBooks(bookParams);
 
   // Get student loans when student is selected
   const { data: studentLoansData } = useStudentLoans(selectedStudent?.id || '');

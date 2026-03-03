@@ -43,7 +43,19 @@ export interface ListFinesParams {
 export const finesService = {
   list: async (params?: ListFinesParams): Promise<ApiResponse<Fine[]>> => {
     const response = await api.get<ApiResponse<Fine[]>>('/fines', { params });
-    return response.data;
+    if (!response.data.data) {
+      return response.data;
+    }
+
+    return {
+      ...response.data,
+      data: response.data.data.map((fine) => ({
+        ...fine,
+        fine_type: fine.fine_type ?? (fine as Fine & { type?: Fine['fine_type'] }).type,
+        student_name: fine.student_name ?? (fine as Fine & { studentName?: string }).studentName,
+        book_title: fine.book_title ?? (fine as Fine & { bookTitle?: string }).bookTitle,
+      })),
+    };
   },
 
   get: async (id: string): Promise<ApiResponse<Fine>> => {

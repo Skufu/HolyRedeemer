@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/holyredeemer/library-api/internal/config"
 	"github.com/holyredeemer/library-api/internal/middleware"
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/internal/utils"
@@ -17,10 +18,11 @@ import (
 type StudentHandler struct {
 	queries *sqlcdb.Queries
 	db      *pgxpool.Pool
+	config  *config.Config
 }
 
-func NewStudentHandler(queries *sqlcdb.Queries, db *pgxpool.Pool) *StudentHandler {
-	return &StudentHandler{queries: queries, db: db}
+func NewStudentHandler(queries *sqlcdb.Queries, db *pgxpool.Pool, cfg *config.Config) *StudentHandler {
+	return &StudentHandler{queries: queries, db: db, config: cfg}
 }
 
 // StudentResponse represents a student in API responses (matches frontend types.ts)
@@ -77,12 +79,16 @@ func (h *StudentHandler) ListStudents(c *gin.Context) {
 		return
 	}
 
-	total, _ := h.queries.CountStudents(c.Request.Context(), sqlcdb.CountStudentsParams{
+	total, err := h.queries.CountStudents(c.Request.Context(), sqlcdb.CountStudentsParams{
 		Search:     toPgText(search),
 		GradeLevel: toPgInt4(int32(gradeLevel)),
 		Section:    toPgText(section),
 		Status:     toPgStudentStatus(status),
 	})
+	if err != nil {
+		response.InternalError(c, "Failed to count students")
+		return
+	}
 
 	studentResponses := make([]StudentResponse, len(students))
 	for i, s := range students {
@@ -172,7 +178,10 @@ func (h *StudentHandler) GetStudent(c *gin.Context) {
 		return err
 	})
 
-	_ = g.Wait()
+	if err := g.Wait(); err != nil {
+		response.InternalError(c, "Failed to fetch student data")
+		return
+	}
 
 	response.Success(c, StudentResponse{
 		ID:              student.ID.String(),
@@ -226,7 +235,10 @@ func (h *StudentHandler) GetMe(c *gin.Context) {
 		return err
 	})
 
-	_ = g.Wait()
+	if err := g.Wait(); err != nil {
+		response.InternalError(c, "Failed to fetch student data")
+		return
+	}
 
 	response.Success(c, StudentResponse{
 		ID:              student.ID.String(),
@@ -964,8 +976,12 @@ func (h *StudentHandler) ReserveBook(c *gin.Context) {
 	}
 
 	// Check student's current loans (limit total active loans + reservations)
-	currentLoans, _ := h.queries.GetStudentCurrentLoans(c.Request.Context(), toPgUUID(student.ID))
-	if currentLoans >= 5 { // Assuming max 5 active reservations/loans combined
+	currentLoans, err := h.queries.GetStudentCurrentLoans(c.Request.Context(), toPgUUID(student.ID))
+	if err != nil {
+		response.InternalError(c, "Failed to fetch current loans")
+		return
+	}
+	if currentLoans >= int64(h.config.DefaultMaxBooks) {
 		response.BadRequest(c, "You have reached the maximum limit for loans and reservations")
 		return
 	}
@@ -990,18 +1006,17 @@ func (h *StudentHandler) ReserveBook(c *gin.Context) {
 		return
 	}
 
-	// Check if student already has an active reservation for this book
-	activeRequests, _ := h.queries.ListRequests(c.Request.Context(), sqlcdb.ListRequestsParams{
-		Limit:     1000,
-		Offset:    0,
-		Status:    sqlcdb.NullRequestStatus{RequestStatus: sqlcdb.RequestStatusPending, Valid: true},
+	reservationExists, err := h.queries.HasPendingReservation(c.Request.Context(), sqlcdb.HasPendingReservationParams{
 		StudentID: toPgUUID(student.ID),
+		BookID:    toPgUUID(bookID),
 	})
-	for _, r := range activeRequests {
-		if r.BookID == toPgUUID(bookID) && r.RequestType == sqlcdb.RequestTypeReservation {
-			response.BadRequest(c, "You already have a pending reservation for this book")
-			return
-		}
+	if err != nil {
+		response.InternalError(c, "Failed to validate existing reservations")
+		return
+	}
+	if reservationExists {
+		response.BadRequest(c, "You already have a pending reservation for this book")
+		return
 	}
 
 	// Create the reservation request

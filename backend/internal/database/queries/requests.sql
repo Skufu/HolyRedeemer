@@ -63,3 +63,13 @@ LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 SELECT COUNT(*)
 FROM book_requests
 WHERE status = 'pending';
+
+-- name: HasPendingReservation :one
+SELECT EXISTS(
+  SELECT 1
+  FROM book_requests
+  WHERE student_id = $1
+    AND book_id = $2
+    AND request_type = 'reservation'
+    AND status = 'pending'
+);

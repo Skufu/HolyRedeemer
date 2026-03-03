@@ -42,6 +42,8 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
   const [scanError, setScanError] = useState<string | null>(null);
   const [lastScanFlash, setLastScanFlash] = useState(false);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prefersReducedMotion = useReducedMotion();
 
   const {
@@ -59,14 +61,20 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
           if (prev.includes(decodedText)) return prev;
           return [...prev, decodedText];
         });
+        if (flashTimeoutRef.current) {
+          clearTimeout(flashTimeoutRef.current);
+        }
         setLastScanFlash(true);
-        setTimeout(() => setLastScanFlash(false), 600);
+        flashTimeoutRef.current = setTimeout(() => setLastScanFlash(false), 600);
         onScan(decodedText);
       } else {
         // Single scan mode: flash and close
         setScannedCodes([decodedText]);
+        if (flashTimeoutRef.current) {
+          clearTimeout(flashTimeoutRef.current);
+        }
         setLastScanFlash(true);
-        setTimeout(() => {
+        flashTimeoutRef.current = setTimeout(() => {
           onScan(decodedText);
           onClose();
         }, 600);
@@ -84,14 +92,34 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
       setLastScanFlash(false);
       resetLastScan();
       // Small delay to ensure DOM is ready
-      setTimeout(() => {
+      if (startTimeoutRef.current) {
+        clearTimeout(startTimeoutRef.current);
+      }
+      startTimeoutRef.current = setTimeout(() => {
         startScanning('qr-reader');
       }, 150);
     } else {
       stopScanning();
     }
+    return () => {
+      if (startTimeoutRef.current) {
+        clearTimeout(startTimeoutRef.current);
+        startTimeoutRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  useEffect(() => () => {
+    if (flashTimeoutRef.current) {
+      clearTimeout(flashTimeoutRef.current);
+      flashTimeoutRef.current = null;
+    }
+    if (startTimeoutRef.current) {
+      clearTimeout(startTimeoutRef.current);
+      startTimeoutRef.current = null;
+    }
+  }, []);
 
   const handleClose = () => {
     stopScanning();

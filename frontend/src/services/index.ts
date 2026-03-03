@@ -9,3 +9,5 @@ export * from './requests';
 export * from './settings';
 export * from './audit';
 export * from './notifications';
+export * from './schoolYear';
+export * from './backup';

@@ -145,6 +145,29 @@ func (q *Queries) GetRequestByID(ctx context.Context, id uuid.UUID) (GetRequestB
 	return i, err
 }
 
+const hasPendingReservation = `-- name: HasPendingReservation :one
+SELECT EXISTS(
+  SELECT 1
+  FROM book_requests
+  WHERE student_id = $1
+    AND book_id = $2
+    AND request_type = 'reservation'
+    AND status = 'pending'
+)
+`
+
+type HasPendingReservationParams struct {
+	StudentID pgtype.UUID `json:"student_id"`
+	BookID    pgtype.UUID `json:"book_id"`
+}
+
+func (q *Queries) HasPendingReservation(ctx context.Context, arg HasPendingReservationParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasPendingReservation, arg.StudentID, arg.BookID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const listRequests = `-- name: ListRequests :many
 SELECT br.id, br.student_id, br.book_id, br.request_type, br.status, br.request_date, br.notes, br.processed_by, br.processed_at, br.created_at,
        s.student_id,

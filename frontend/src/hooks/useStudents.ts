@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 import {
 	studentsService,
 	ListStudentsParams,
@@ -9,9 +10,11 @@ import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/services/api';
 
 export const useMyProfile = () => {
+	const { isAuthenticated } = useAuth();
 	return useQuery({
 		queryKey: ['student-profile', 'me'],
 		queryFn: () => studentsService.getMyProfile(),
+		enabled: isAuthenticated,
 	});
 };
 
@@ -20,9 +23,11 @@ export const useMyDashboard = (params?: {
 	fines_per_page?: number;
 	history_per_page?: number;
 }) => {
+	const { isAuthenticated } = useAuth();
 	return useQuery({
 		queryKey: ['student-dashboard', params],
 		queryFn: () => studentsService.getMyDashboard(params),
+		enabled: isAuthenticated,
 	});
 };
 
@@ -30,6 +35,7 @@ export const useStudents = (params?: ListStudentsParams) => {
   return useQuery({
     queryKey: ['students', params],
     queryFn: () => studentsService.list(params),
+    staleTime: 5 * 60 * 1000,
   });
 };
 
@@ -38,6 +44,7 @@ export const useStudent = (id: string) => {
     queryKey: ['student', id],
     queryFn: () => studentsService.get(id),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   });
 };
 
@@ -46,6 +53,7 @@ export const useStudentLoans = (id: string) => {
     queryKey: ['student-loans', id],
     queryFn: () => studentsService.getLoans(id),
     enabled: !!id,
+    staleTime: 60 * 1000,
   });
 };
 
@@ -54,6 +62,7 @@ export const useStudentHistory = (id: string, params?: { page?: number; per_page
     queryKey: ['student-history', id, params],
     queryFn: () => studentsService.getHistory(id, params),
     enabled: !!id,
+    staleTime: 60 * 1000,
   });
 };
 
@@ -62,6 +71,7 @@ export const useStudentFines = (id: string) => {
     queryKey: ['student-fines', id],
     queryFn: () => studentsService.getFines(id),
     enabled: !!id,
+    staleTime: 60 * 1000,
   });
 };
 
@@ -73,6 +83,7 @@ export const useStudentRequests = (
     queryKey: ['student-requests', id, params],
     queryFn: () => studentsService.getRequests(id, params),
     enabled: !!id,
+    staleTime: 60 * 1000,
   });
 };
 
@@ -148,10 +159,13 @@ export const useUpdateStudent = () => {
 };
 
 export const useFavoriteBooks = () => {
-  return useQuery({
-    queryKey: ['student-favorites'],
-    queryFn: () => studentsService.getFavorites(),
-  });
+	const { isAuthenticated } = useAuth();
+	return useQuery({
+		queryKey: ['student-favorites'],
+		queryFn: () => studentsService.getFavorites(),
+		enabled: isAuthenticated,
+		staleTime: 5 * 60 * 1000,
+	});
 };
 
 export const useAddFavorite = () => {
@@ -195,15 +209,21 @@ export const useRemoveFavorite = () => {
 };
 
 export const useMyAchievements = () => {
-  return useQuery({
-    queryKey: ['student-achievements'],
-    queryFn: () => studentsService.getMyAchievements(),
-  });
+	const { isAuthenticated } = useAuth();
+	return useQuery({
+		queryKey: ['student-achievements'],
+		queryFn: () => studentsService.getMyAchievements(),
+		enabled: isAuthenticated,
+		staleTime: 5 * 60 * 1000,
+	});
 };
 
 export const useAllAchievements = () => {
-  return useQuery({
-    queryKey: ['all-achievements'],
-    queryFn: () => studentsService.getAllAchievements(),
-  });
+	const { isAuthenticated } = useAuth();
+	return useQuery({
+		queryKey: ['all-achievements'],
+		queryFn: () => studentsService.getAllAchievements(),
+		enabled: isAuthenticated,
+		staleTime: 5 * 60 * 1000,
+	});
 };

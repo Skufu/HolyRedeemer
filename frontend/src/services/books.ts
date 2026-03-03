@@ -37,6 +37,13 @@ export interface BookCopy {
   notes?: string;
 }
 
+type BookCopyResponse = BookCopy & {
+  book_id?: string;
+  book_title?: string;
+  copy_number?: number;
+  qr_code?: string;
+};
+
 export interface ListBooksParams {
   page?: number;
   per_page?: number;
@@ -86,18 +93,65 @@ export const booksService = {
   },
 
   listCopies: async (bookId: string): Promise<ApiResponse<BookCopy[]>> => {
-    const response = await api.get<ApiResponse<BookCopy[]>>(`/books/${bookId}/copies`);
-    return response.data;
+    const response = await api.get<ApiResponse<BookCopyResponse[]>>(`/books/${bookId}/copies`);
+    if (!response.data.data) {
+      return response.data as ApiResponse<BookCopy[]>;
+    }
+
+    return {
+      ...response.data,
+      data: response.data.data.map((copy) => ({
+        id: copy.id,
+        bookId: copy.bookId ?? copy.book_id ?? '',
+        bookTitle: copy.bookTitle ?? copy.book_title,
+        copyNumber: copy.copyNumber ?? copy.copy_number ?? 0,
+        qrCode: copy.qrCode ?? copy.qr_code ?? '',
+        status: copy.status,
+        condition: copy.condition,
+        notes: copy.notes,
+      })),
+    };
   },
 
   createCopy: async (bookId: string, data: Partial<BookCopy>): Promise<ApiResponse<BookCopy>> => {
-    const response = await api.post<ApiResponse<BookCopy>>(`/books/${bookId}/copies`, data);
-    return response.data;
+    const response = await api.post<ApiResponse<BookCopyResponse>>(`/books/${bookId}/copies`, data);
+    if (!response.data.data) {
+      return response.data as ApiResponse<BookCopy>;
+    }
+
+    const copy = response.data.data;
+    return {
+      ...response.data,
+      data: {
+        id: copy.id,
+        bookId: copy.bookId ?? copy.book_id ?? bookId,
+        bookTitle: copy.bookTitle ?? copy.book_title,
+        copyNumber: copy.copyNumber ?? copy.copy_number ?? 0,
+        qrCode: copy.qrCode ?? copy.qr_code ?? '',
+        status: copy.status ?? 'available',
+        condition: copy.condition ?? 'good',
+        notes: copy.notes,
+      },
+    };
   },
 
   getCopyByQR: async (qrCode: string): Promise<ApiResponse<BookCopy & { book: Book; current_loan?: unknown }>> => {
-    const response = await api.get<ApiResponse<BookCopy & { book: Book; current_loan?: unknown }>>(`/copies/${qrCode}`);
-    return response.data;
+    const response = await api.get<ApiResponse<BookCopyResponse & { book: Book; current_loan?: unknown }>>(`/copies/${qrCode}`);
+    if (!response.data.data) {
+      return response.data as ApiResponse<BookCopy & { book: Book; current_loan?: unknown }>;
+    }
+
+    const copy = response.data.data;
+    return {
+      ...response.data,
+      data: {
+        ...copy,
+        bookId: copy.bookId ?? copy.book_id ?? '',
+        bookTitle: copy.bookTitle ?? copy.book_title,
+        copyNumber: copy.copyNumber ?? copy.copy_number ?? 0,
+        qrCode: copy.qrCode ?? copy.qr_code ?? '',
+      },
+    };
   },
 
   listCategories: async (): Promise<ApiResponse<Category[]>> => {

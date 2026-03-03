@@ -245,7 +245,10 @@ func (h *AuthHandler) RFIDLookup(c *gin.Context) {
 		return err
 	})
 
-	_ = g.Wait()
+	if err := g.Wait(); err != nil {
+		response.InternalError(c, "Failed to fetch student status")
+		return
+	}
 
 	hasOverdue := studentOverdueCount > 0
 

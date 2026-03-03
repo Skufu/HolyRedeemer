@@ -28,7 +28,7 @@ INSERT INTO library_settings (key, value, description, category) VALUES
 
 -- Users (admin, librarians, students)
 INSERT INTO users (id, username, password_hash, role, email, name) VALUES
-    ('a0000000-0000-0000-0000-000000000001', 'admin', '$2a$10$o6Vuflqw9E5yELbLkgOw8.6B4qKkxLOQJpYwGuosB4aAh7SngQ0zC', 'admin', 'admin@holyredeemer.edu.ph', 'Dr. Maria Santos'),
+    ('a0000000-0000-0000-0000-000000000001', 'admin', '$2a$10$o6Vuflqw9E5yELbLkgOw8.6B4qKkxLOQJpYwGuosB4aAh7SngQ0zC', 'super_admin', 'admin@holyredeemer.edu.ph', 'Dr. Maria Santos'),
     ('a0000000-0000-0000-0000-000000000002', 'librarian', '$2a$10$2OZujduLf1qRTOqcenVQ6ek.VlaRzF/ZyW3kDEI9oCCIa65AxyeY2', 'librarian', 'areyes@holyredeemer.edu.ph', 'Ms. Ana Reyes'),
     ('a0000000-0000-0000-0000-000000000010', 'librarian2', '$2a$10$2OZujduLf1qRTOqcenVQ6ek.VlaRzF/ZyW3kDEI9oCCIa65AxyeY2', 'librarian', 'jcruz@holyredeemer.edu.ph', 'Mr. Jose Cruz'),
     ('a0000000-0000-0000-0000-000000000003', 'student001', '$2a$10$08loBCgmLNf14zUQIen8QeWbswqZNGOc4z/zZF5oCX7ekXQ/eJ4pm', 'student', 'jdelacruz@student.holyredeemer.edu.ph', 'Juan Dela Cruz'),

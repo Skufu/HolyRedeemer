@@ -20,6 +20,7 @@ const AdminReports = lazy(() => import("@/pages/admin/Reports"));
 const Settings = lazy(() => import("@/pages/admin/Settings"));
 const AuditLogs = lazy(() => import("@/pages/admin/AuditLogs"));
 const ExcelMigration = lazy(() => import("@/pages/admin/ExcelMigration"));
+const SchoolYearSetup = lazy(() => import("@/pages/admin/SchoolYearSetup"));
 const LibrarianDashboard = lazy(() => import("@/pages/librarian/Dashboard"));
 const Circulation = lazy(() => import("@/pages/librarian/Circulation"));
 const StudentLookup = lazy(() => import("@/pages/librarian/StudentLookup"));
@@ -77,6 +78,7 @@ const App = () => (
                 <Route path="excel-migration" element={<Suspense fallback={<PageLoader />}><ExcelMigration /></Suspense>} />
                 <Route path="users" element={<Suspense fallback={<PageLoader />}><UsersManagement /></Suspense>} />
                 <Route path="reports" element={<Suspense fallback={<PageLoader />}><AdminReports /></Suspense>} />
+                <Route path="school-year-setup" element={<Suspense fallback={<PageLoader />}><SchoolYearSetup /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
                 <Route path="audit-logs" element={<Suspense fallback={<PageLoader />}><AuditLogs /></Suspense>} />
                 <Route path="user-settings" element={<Suspense fallback={<PageLoader />}><UserSettings /></Suspense>} />

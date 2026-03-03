@@ -162,6 +162,7 @@ func (h *LibrarianHandler) CreateLibrarian(c *gin.Context) {
 		Department: toPgText(req.Department),
 	})
 	if err != nil {
+		response.InternalError(c, "Failed to create librarian")
 		return
 	}
 
@@ -218,6 +219,7 @@ func (h *LibrarianHandler) UpdateLibrarian(c *gin.Context) {
 			Email: toPgText(req.Email),
 		})
 		if err != nil {
+			response.InternalError(c, "Failed to update user profile")
 			return
 		}
 	}

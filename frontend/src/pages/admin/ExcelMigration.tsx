@@ -1,599 +1,752 @@
-import React, { useState, useCallback } from 'react';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React, { useCallback, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Upload,
-  Download,
-  FileSpreadsheet,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  ChevronDown,
-  Loader2,
-  BookOpen,
-  Users,
-  ArrowRight
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
+    FileSpreadsheet,
+    Upload,
+    Download,
+    Loader2,
+    CheckCircle2,
+    XCircle,
+    AlertTriangle,
+    BookOpen,
+    Users,
+    ChevronDown,
+    X,
+    FileUp,
 } from 'lucide-react';
-import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
+import { useImportStudents } from '@/hooks/useSchoolYear';
+import { booksService, CreateBookRequest } from '@/services/books';
+import { useCategories } from '@/hooks/useBooks';
+import { getErrorMessage } from '@/services/api';
 
-// Book template fields
-const bookFields = [
-  { key: 'title', label: 'Title', required: true },
-  { key: 'author', label: 'Author', required: true },
-  { key: 'isbn', label: 'ISBN', required: true },
-  { key: 'category', label: 'Category', required: false },
-  { key: 'publisher', label: 'Publisher', required: false },
-  { key: 'publishYear', label: 'Publish Year', required: false },
-  { key: 'copies', label: 'Total Copies', required: false },
-  { key: 'location', label: 'Shelf Location', required: false },
+// ── CSV helpers ──────────────────────────────────────────────────────────────
+
+function parseCSV(text: string): { headers: string[]; rows: string[][] } {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length === 0) return { headers: [], rows: [] };
+
+    const parseLine = (line: string): string[] => {
+        const result: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (inQuotes) {
+                if (ch === '"') {
+                    if (i + 1 < line.length && line[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = false;
+                    }
+                } else {
+                    current += ch;
+                }
+            } else {
+                if (ch === '"') {
+                    inQuotes = true;
+                } else if (ch === ',') {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += ch;
+                }
+            }
+        }
+        result.push(current.trim());
+        return result;
+    };
+
+    const headers = parseLine(lines[0]);
+    const rows = lines.slice(1).map(parseLine);
+    return { headers, rows };
+}
+
+function generateCSV(headers: string[], sampleRows?: string[][]): string {
+    const lines = [headers.join(',')];
+    if (sampleRows) {
+        sampleRows.forEach((row) => {
+            lines.push(row.map((cell) => (cell.includes(',') ? `"${cell}"` : cell)).join(','));
+        });
+    }
+    return lines.join('\n');
+}
+
+function downloadCSV(content: string, filename: string) {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+// ── Templates ────────────────────────────────────────────────────────────────
+
+const BOOK_HEADERS = ['isbn', 'title', 'author', 'category', 'publisher', 'publication_year', 'shelf_location', 'initial_copies'];
+const BOOK_SAMPLE: string[][] = [
+    ['978-0-06-112008-4', 'To Kill a Mockingbird', 'Harper Lee', 'Fiction', 'J. B. Lippincott & Co.', '1960', 'A-101', '3'],
+    ['978-0-452-28423-4', '1984', 'George Orwell', 'Fiction', 'Secker & Warburg', '1949', 'A-102', '2'],
 ];
 
-// Student template fields
-const studentFields = [
-  { key: 'studentId', label: 'Student ID', required: true },
-  { key: 'firstName', label: 'First Name', required: true },
-  { key: 'lastName', label: 'Last Name', required: true },
-  { key: 'email', label: 'Email', required: false },
-  { key: 'gradeLevel', label: 'Grade Level', required: true },
-  { key: 'section', label: 'Section', required: false },
-  { key: 'contactNumber', label: 'Contact Number', required: false },
-  { key: 'guardianName', label: 'Guardian Name', required: false },
-  { key: 'guardianContact', label: 'Guardian Contact', required: false },
+const STUDENT_HEADERS = ['student_id', 'username', 'name', 'email', 'grade_level', 'section', 'rfid_code', 'contact_info', 'guardian_name', 'guardian_contact'];
+const STUDENT_SAMPLE: string[][] = [
+    ['2025-00001', 'jdcruz', 'Juan Dela Cruz', 'juan@student.hr.edu.ph', '7', 'St. Peter', '', '09171234567', 'Maria Dela Cruz', '09181234567'],
 ];
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+interface ImportError {
+    row: number;
+    message: string;
+    data?: Record<string, string>;
+}
 
 interface ImportResult {
-  total: number;
-  imported: number;
-  skipped: number;
-  errors: { row: number; message: string; data: Record<string, string | number> }[];
+    total: number;
+    imported: number;
+    skipped: number;
+    errors: ImportError[];
 }
 
-interface FileData {
-  headers: string[];
-  rows: Record<string, string | number>[];
-  fileName: string;
+// ── Dropzone component ───────────────────────────────────────────────────────
+
+interface DropzoneProps {
+    file: File | null;
+    onFile: (file: File | null) => void;
+    accept?: string;
 }
 
-const ExcelMigration: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('books');
+const Dropzone: React.FC<DropzoneProps> = ({ file, onFile, accept = '.csv' }) => {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [dragOver, setDragOver] = useState(false);
 
-  // Books state
-  const [bookFile, setBookFile] = useState<FileData | null>(null);
-  const [bookMapping, setBookMapping] = useState<Record<string, string>>({});
-  const [bookImportProgress, setBookImportProgress] = useState(0);
-  const [bookImporting, setBookImporting] = useState(false);
-  const [bookResult, setBookResult] = useState<ImportResult | null>(null);
-
-  // Students state
-  const [studentFile, setStudentFile] = useState<FileData | null>(null);
-  const [studentMapping, setStudentMapping] = useState<Record<string, string>>({});
-  const [studentImportProgress, setStudentImportProgress] = useState(0);
-  const [studentImporting, setStudentImporting] = useState(false);
-  const [studentResult, setStudentResult] = useState<ImportResult | null>(null);
-
-  // Download template
-  const downloadTemplate = (type: 'books' | 'students') => {
-    const fields = type === 'books' ? bookFields : studentFields;
-    const headers = fields.map(f => f.label);
-
-    // Create sample data
-    const sampleData = type === 'books'
-      ? [
-        ['The Great Gatsby', 'F. Scott Fitzgerald', '978-0743273565', 'Fiction', 'Scribner', '1925', '5', 'A-101'],
-        ['To Kill a Mockingbird', 'Harper Lee', '978-0061120084', 'Fiction', 'HarperCollins', '1960', '3', 'A-102'],
-      ]
-      : [
-        ['STU-2024-001', 'Juan', 'Dela Cruz', 'juan@school.edu', 'Grade 7', 'Section A', '09171234567', 'Maria Dela Cruz', '09189876543'],
-        ['STU-2024-002', 'Maria', 'Santos', 'maria@school.edu', 'Grade 8', 'Section B', '09181234567', 'Jose Santos', '09171234567'],
-      ];
-
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, type === 'books' ? 'Books' : 'Students');
-
-    // Set column widths
-    ws['!cols'] = headers.map(() => ({ wch: 20 }));
-
-    XLSX.writeFile(wb, `${type}_import_template.xlsx`);
-    toast.success(`${type === 'books' ? 'Books' : 'Students'} template downloaded`);
-  };
-
-  // Handle file upload
-  const handleFileUpload = useCallback((
-    e: React.ChangeEvent<HTMLInputElement> | React.DragEvent<HTMLDivElement>,
-    type: 'books' | 'students'
-  ) => {
-    e.preventDefault();
-
-    let file: File | undefined;
-
-    if ('dataTransfer' in e) {
-      file = e.dataTransfer.files[0];
-    } else {
-      file = e.target.files?.[0];
-    }
-
-    if (!file) return;
-
-    if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
-      toast.error('Please upload an Excel file (.xlsx, .xls) or CSV file');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = event.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as (string | number | boolean)[][];
-
-        if (jsonData.length < 2) {
-          toast.error('File must contain headers and at least one data row');
-          return;
-        }
-
-        const headers = jsonData[0].map(h => String(h || '').trim());
-        const rows = jsonData.slice(1, 11).map(row => {
-          const obj: Record<string, string | number> = {};
-          headers.forEach((h, i) => {
-            obj[h] = row[i] ?? '';
-          });
-          return obj;
-        });
-
-        const fileData: FileData = {
-          headers,
-          rows,
-          fileName: file.name,
-        };
-
-        // Auto-map fields
-        const fields = type === 'books' ? bookFields : studentFields;
-        const autoMapping: Record<string, string> = {};
-
-        fields.forEach(field => {
-          const matchingHeader = headers.find(h =>
-            h.toLowerCase().includes(field.key.toLowerCase()) ||
-            h.toLowerCase().includes(field.label.toLowerCase()) ||
-            field.label.toLowerCase().includes(h.toLowerCase())
-          );
-          if (matchingHeader) {
-            autoMapping[field.key] = matchingHeader;
-          }
-        });
-
-        if (type === 'books') {
-          setBookFile(fileData);
-          setBookMapping(autoMapping);
-          setBookResult(null);
-        } else {
-          setStudentFile(fileData);
-          setStudentMapping(autoMapping);
-          setStudentResult(null);
-        }
-
-        toast.success(`File loaded: ${jsonData.length - 1} rows found`);
-      } catch (error) {
-        toast.error('Error parsing file. Please check the format.');
-      }
-    };
-
-    reader.readAsBinaryString(file);
-  }, []);
-
-  // Handle drag over
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  // Simulate import
-  const handleImport = async (type: 'books' | 'students') => {
-    const file = type === 'books' ? bookFile : studentFile;
-    const mapping = type === 'books' ? bookMapping : studentMapping;
-    const fields = type === 'books' ? bookFields : studentFields;
-    const setProgress = type === 'books' ? setBookImportProgress : setStudentImportProgress;
-    const setImporting = type === 'books' ? setBookImporting : setStudentImporting;
-    const setResult = type === 'books' ? setBookResult : setStudentResult;
-
-    if (!file) return;
-
-    // Check required fields
-    const missingRequired = fields
-      .filter(f => f.required && !mapping[f.key])
-      .map(f => f.label);
-
-    if (missingRequired.length > 0) {
-      toast.error(`Please map required fields: ${missingRequired.join(', ')}`);
-      return;
-    }
-
-    setImporting(true);
-    setProgress(0);
-
-    const result: ImportResult = {
-      total: file.rows.length,
-      imported: 0,
-      skipped: 0,
-      errors: [],
-    };
-
-    // Simulate importing each row
-    for (let i = 0; i < file.rows.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      const row = file.rows[i];
-      const mappedData: Record<string, string | number> = {};
-
-      fields.forEach(field => {
-        if (mapping[field.key]) {
-          mappedData[field.key] = row[mapping[field.key]];
-        }
-      });
-
-      // Simulate validation
-      const requiredMissing = fields
-        .filter(f => f.required && !mappedData[f.key])
-        .map(f => f.label);
-
-      if (requiredMissing.length > 0) {
-        result.errors.push({
-          row: i + 2,
-          message: `Missing required: ${requiredMissing.join(', ')}`,
-          data: row,
-        });
-        result.skipped++;
-      } else if (Math.random() > 0.9) {
-        // Random error for demo
-        result.errors.push({
-          row: i + 2,
-          message: type === 'books' ? 'Duplicate ISBN found' : 'Duplicate Student ID',
-          data: row,
-        });
-        result.skipped++;
-      } else {
-        result.imported++;
-      }
-
-      setProgress(((i + 1) / file.rows.length) * 100);
-    }
-
-    setResult(result);
-    setImporting(false);
-
-    if (result.imported > 0) {
-      toast.success(`Successfully imported ${result.imported} ${type}`);
-    }
-    if (result.errors.length > 0) {
-      toast.warning(`${result.errors.length} rows had errors`);
-    }
-  };
-
-  // Render import section
-  const renderImportSection = (type: 'books' | 'students') => {
-    const file = type === 'books' ? bookFile : studentFile;
-    const mapping = type === 'books' ? bookMapping : studentMapping;
-    const setMapping = type === 'books' ? setBookMapping : setStudentMapping;
-    const progress = type === 'books' ? bookImportProgress : studentImportProgress;
-    const importing = type === 'books' ? bookImporting : studentImporting;
-    const result = type === 'books' ? bookResult : studentResult;
-    const fields = type === 'books' ? bookFields : studentFields;
+    const handleDrop = useCallback(
+        (e: React.DragEvent) => {
+            e.preventDefault();
+            setDragOver(false);
+            const f = e.dataTransfer.files[0];
+            if (f && (f.name.endsWith('.csv') || f.type === 'text/csv')) {
+                onFile(f);
+            }
+        },
+        [onFile]
+    );
 
     return (
-      <div className="space-y-4 md:space-y-6">
-        {/* Download Template */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base md:text-lg flex items-center gap-2">
-              <Download className="h-4 w-4 md:h-5 md:w-5" />
-              Step 1: Download Template
-            </CardTitle>
-            <CardDescription className="text-xs md:text-sm">
-              Download the Excel template to see the required format
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => downloadTemplate(type)} variant="outline" className="w-full sm:w-auto">
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Download {type === 'books' ? 'Books' : 'Students'} Template
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* File Upload */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base md:text-lg flex items-center gap-2">
-              <Upload className="h-4 w-4 md:h-5 md:w-5" />
-              Step 2: Upload File
-            </CardTitle>
-            <CardDescription className="text-xs md:text-sm">
-              Upload your Excel or CSV file
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`border-2 border-dashed rounded-lg p-6 md:p-8 text-center transition-colors
-                ${file ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'}`}
-              onDrop={(e) => handleFileUpload(e, type)}
-              onDragOver={handleDragOver}
-            >
-              {file ? (
+        <div
+            onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => inputRef.current?.click()}
+            className={`
+        relative cursor-pointer rounded-xl border-2 border-dashed
+        transition-all duration-200
+        ${dragOver
+                    ? 'border-primary bg-primary/5 scale-[1.01]'
+                    : file
+                        ? 'border-success/50 bg-success/5'
+                        : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50'
+                }
+        p-8 text-center
+      `}
+        >
+            <input
+                ref={inputRef}
+                type="file"
+                accept={accept}
+                className="sr-only"
+                onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+            />
+            {file ? (
                 <div className="space-y-2">
-                  <FileSpreadsheet className="h-10 w-10 md:h-12 md:w-12 mx-auto text-primary" />
-                  <p className="font-medium text-sm md:text-base">{file.fileName}</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    {file.headers.length} columns, {file.rows.length} preview rows
-                  </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => type === 'books' ? setBookFile(null) : setStudentFile(null)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Upload className="h-10 w-10 md:h-12 md:w-12 mx-auto text-muted-foreground" />
-                  <p className="text-sm md:text-base text-muted-foreground">
-                    Drag and drop your file here, or click to browse
-                  </p>
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    className="hidden"
-                    id={`${type}-file-upload`}
-                    onChange={(e) => handleFileUpload(e, type)}
-                  />
-                  <label htmlFor={`${type}-file-upload`} className="cursor-pointer">
-                    <Button variant="secondary" type="button" asChild>
-                      <span>Browse Files</span>
-                    </Button>
-                  </label>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Preview & Mapping */}
-        {file && (
-          <>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base md:text-lg">Step 3: Preview Data</CardTitle>
-                <CardDescription className="text-xs md:text-sm">
-                  First 10 rows of your data
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="w-full">
-                  <div className="min-w-[600px]">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-12">#</TableHead>
-                          {file.headers.map((h, i) => (
-                            <TableHead key={i} className="min-w-[120px]">{h}</TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {file.rows.map((row, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="font-medium">{i + 2}</TableCell>
-                            {file.headers.map((h, j) => (
-                              <TableCell key={j} className="max-w-[200px] truncate">
-                                {String(row[h] || '-')}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base md:text-lg">Step 4: Map Fields</CardTitle>
-                <CardDescription className="text-xs md:text-sm">
-                  Match your columns to the system fields
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-                  {fields.map(field => (
-                    <div key={field.key} className="space-y-1.5">
-                      <Label className="text-xs md:text-sm flex items-center gap-1">
-                        {field.label}
-                        {field.required && <span className="text-destructive">*</span>}
-                      </Label>
-                      <div className="flex items-center gap-2">
-                        <Select
-                          value={mapping[field.key] || ''}
-                          onValueChange={(value) => setMapping({ ...mapping, [field.key]: value })}
-                        >
-                          <SelectTrigger className="text-xs md:text-sm">
-                            <SelectValue placeholder="Select column" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">-- Not mapped --</SelectItem>
-                            {file.headers.map(h => (
-                              <SelectItem key={h} value={h}>{h}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {mapping[field.key] && (
-                          <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                        )}
-                      </div>
+                    <div className="flex items-center justify-center gap-2 text-success">
+                        <CheckCircle2 className="h-8 w-8" />
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Import Button & Progress */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base md:text-lg">Step 5: Import</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {importing && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Importing...</span>
-                      <span>{Math.round(progress)}%</span>
-                    </div>
-                    <Progress value={progress} />
-                  </div>
-                )}
-
-                <Button
-                  onClick={() => handleImport(type)}
-                  disabled={importing}
-                  className="w-full sm:w-auto"
-                >
-                  {importing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Importing...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Start Import
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </>
-        )}
-
-        {/* Results */}
-        {result && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base md:text-lg">Import Results</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-                <div className="text-center p-3 md:p-4 bg-muted rounded-lg">
-                  <p className="text-xl md:text-2xl font-bold">{result.total}</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">Total Rows</p>
-                </div>
-                <div className="text-center p-3 md:p-4 bg-green-500/10 rounded-lg">
-                  <p className="text-xl md:text-2xl font-bold text-green-600">{result.imported}</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">Imported</p>
-                </div>
-                <div className="text-center p-3 md:p-4 bg-yellow-500/10 rounded-lg">
-                  <p className="text-xl md:text-2xl font-bold text-yellow-600">{result.skipped}</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">Skipped</p>
-                </div>
-                <div className="text-center p-3 md:p-4 bg-red-500/10 rounded-lg">
-                  <p className="text-xl md:text-2xl font-bold text-red-600">{result.errors.length}</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">Errors</p>
-                </div>
-              </div>
-
-              {result.errors.length > 0 && (
-                <Collapsible>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between">
-                      <span className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                        View Error Details ({result.errors.length})
-                      </span>
-                      <ChevronDown className="h-4 w-4" />
+                    <p className="font-medium text-sm">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                        {(file.size / 1024).toFixed(1)} KB
+                    </p>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-muted-foreground hover:text-destructive"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onFile(null);
+                        }}
+                    >
+                        <X className="h-3 w-3 mr-1" />
+                        Remove
                     </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-3">
-                    <ScrollArea className="h-[200px] md:h-[300px] border rounded-lg">
-                      <div className="p-3 space-y-2">
-                        {result.errors.map((error, i) => (
-                          <div key={i} className="p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
-                            <div className="flex items-start gap-2">
-                              <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm">Row {error.row}</p>
-                                <p className="text-xs md:text-sm text-muted-foreground">{error.message}</p>
-                                <p className="text-xs text-muted-foreground mt-1 truncate">
-                                  Data: {JSON.stringify(error.data)}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
-
-              {result.imported > 0 && (
-                <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  <p className="text-sm text-green-700">
-                    Successfully imported {result.imported} {type}!
-                  </p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+            ) : (
+                <div className="space-y-3">
+                    <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                        <FileUp className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                        <p className="font-medium text-sm">
+                            Drop your CSV file here or <span className="text-primary underline">browse</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Supports .csv files</p>
+                    </div>
+                </div>
+            )}
+        </div>
     );
-  };
+};
 
-  return (
-    <div className="space-y-4 md:space-y-6">
-      <div>
-        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">Excel Migration</h1>
-        <p className="text-sm md:text-base text-muted-foreground">
-          Import books and students from Excel files
-        </p>
-      </div>
+// ── CSV Preview ──────────────────────────────────────────────────────────────
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="h-auto p-1.5 flex gap-1 max-w-md bg-muted/50">
-          <TabsTrigger value="books" className="flex-1 flex-col py-3 px-4 h-auto gap-2">
-            <BookOpen className="h-4 w-4" />
-            <span>Import Books</span>
-          </TabsTrigger>
-          <TabsTrigger value="students" className="flex-1 flex-col py-3 px-4 h-auto gap-2">
-            <Users className="h-4 w-4" />
-            <span>Import Students</span>
-          </TabsTrigger>
-        </TabsList>
+const CSVPreview: React.FC<{ headers: string[]; rows: string[][]; maxRows?: number }> = ({
+    headers,
+    rows,
+    maxRows = 10,
+}) => {
+    const displayRows = rows.slice(0, maxRows);
+    return (
+        <div className="rounded-lg border overflow-hidden">
+            <div className="px-4 py-2 bg-muted/50 border-b flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">
+                    Preview — showing {displayRows.length} of {rows.length} rows
+                </span>
+            </div>
+            <div className="overflow-x-auto">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="bg-muted/30">
+                            <TableHead className="w-12 text-center">#</TableHead>
+                            {headers.map((h) => (
+                                <TableHead key={h} className="text-xs font-semibold whitespace-nowrap">
+                                    {h}
+                                </TableHead>
+                            ))}
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {displayRows.map((row, i) => (
+                            <TableRow key={i}>
+                                <TableCell className="text-center text-xs text-muted-foreground">{i + 1}</TableCell>
+                                {headers.map((_, j) => (
+                                    <TableCell key={j} className="text-xs whitespace-nowrap max-w-[200px] truncate">
+                                        {row[j] || <span className="text-muted-foreground italic">empty</span>}
+                                    </TableCell>
+                                ))}
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+        </div>
+    );
+};
 
-        <TabsContent value="books" className="mt-4 md:mt-6">
-          {renderImportSection('books')}
-        </TabsContent>
+// ── Results Summary ──────────────────────────────────────────────────────────
 
-        <TabsContent value="students" className="mt-4 md:mt-6">
-          {renderImportSection('students')}
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+const ResultsSummary: React.FC<{ result: ImportResult }> = ({ result }) => {
+    const [errorsOpen, setErrorsOpen] = useState(false);
+
+    return (
+        <div className="space-y-4 animate-fade-in-up">
+            <div className="grid gap-3 sm:grid-cols-3">
+                <Card className="bg-muted/40">
+                    <CardContent className="p-4 flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                            <FileSpreadsheet className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">Total Rows</p>
+                            <p className="text-2xl font-bold">{result.total}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-success/5 border-success/20">
+                    <CardContent className="p-4 flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-success/10">
+                            <CheckCircle2 className="h-5 w-5 text-success" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">Imported</p>
+                            <p className="text-2xl font-bold text-success">{result.imported}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className={`${result.skipped > 0 ? 'bg-warning/5 border-warning/20' : 'bg-muted/40'}`}>
+                    <CardContent className="p-4 flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${result.skipped > 0 ? 'bg-warning/10' : 'bg-muted'}`}>
+                            <AlertTriangle className={`h-5 w-5 ${result.skipped > 0 ? 'text-warning-foreground' : 'text-muted-foreground'}`} />
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">Skipped / Errors</p>
+                            <p className={`text-2xl font-bold ${result.skipped > 0 ? 'text-warning-foreground' : ''}`}>
+                                {result.skipped}
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {result.errors.length > 0 && (
+                <Collapsible open={errorsOpen} onOpenChange={setErrorsOpen}>
+                    <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm" className="w-full justify-between text-destructive hover:text-destructive">
+                            <span className="flex items-center gap-2">
+                                <XCircle className="h-4 w-4" />
+                                {result.errors.length} error{result.errors.length !== 1 ? 's' : ''} found
+                            </span>
+                            <ChevronDown className={`h-4 w-4 transition-transform ${errorsOpen ? 'rotate-180' : ''}`} />
+                        </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <div className="rounded-lg border border-destructive/20 mt-2 overflow-hidden">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-destructive/5">
+                                        <TableHead className="w-16 text-xs">Row</TableHead>
+                                        <TableHead className="text-xs">Error Message</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {result.errors.map((err, i) => (
+                                        <TableRow key={i}>
+                                            <TableCell className="font-mono text-xs">{err.row}</TableCell>
+                                            <TableCell className="text-xs text-destructive">{err.message}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CollapsibleContent>
+                </Collapsible>
+            )}
+        </div>
+    );
+};
+
+// ── Main Component ───────────────────────────────────────────────────────────
+
+const ExcelMigration: React.FC = () => {
+    // ─── Books state ───
+    const [bookFile, setBookFile] = useState<File | null>(null);
+    const [bookPreview, setBookPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null);
+    const [bookImporting, setBookImporting] = useState(false);
+    const [bookProgress, setBookProgress] = useState(0);
+    const [bookResult, setBookResult] = useState<ImportResult | null>(null);
+
+    // ─── Students state ───
+    const [studentFile, setStudentFile] = useState<File | null>(null);
+    const [studentPreview, setStudentPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null);
+    const [studentResult, setStudentResult] = useState<ImportResult | null>(null);
+
+    const importStudents = useImportStudents();
+    const categoriesQuery = useCategories();
+
+    // ── File handler: parse for preview ──────────────────────────────────────
+    const handleFile = useCallback(
+        (file: File | null, type: 'book' | 'student') => {
+            if (type === 'book') {
+                setBookFile(file);
+                setBookPreview(null);
+                setBookResult(null);
+            } else {
+                setStudentFile(file);
+                setStudentPreview(null);
+                setStudentResult(null);
+            }
+
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target?.result as string;
+                const parsed = parseCSV(text);
+                if (type === 'book') {
+                    setBookPreview(parsed);
+                } else {
+                    setStudentPreview(parsed);
+                }
+            };
+            reader.readAsText(file);
+        },
+        []
+    );
+
+    // ── Import Books (client-side parsing → sequential API calls) ────────────
+    const handleImportBooks = useCallback(async () => {
+        if (!bookFile || !bookPreview) return;
+
+        setBookImporting(true);
+        setBookProgress(0);
+        setBookResult(null);
+
+        const { headers, rows } = bookPreview;
+        const categories = categoriesQuery.data?.data || [];
+        const categoryMap = new Map(categories.map((c) => [c.name.toLowerCase(), c.id]));
+
+        const result: ImportResult = { total: rows.length, imported: 0, skipped: 0, errors: [] };
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const record: Record<string, string> = {};
+            headers.forEach((h, j) => {
+                record[h.trim().toLowerCase()] = (row[j] || '').trim();
+            });
+
+            // Validate required fields
+            if (!record.title) {
+                result.errors.push({ row: i + 2, message: 'Missing required field: title', data: record });
+                result.skipped++;
+                setBookProgress(Math.round(((i + 1) / rows.length) * 100));
+                continue;
+            }
+            if (!record.author) {
+                result.errors.push({ row: i + 2, message: 'Missing required field: author', data: record });
+                result.skipped++;
+                setBookProgress(Math.round(((i + 1) / rows.length) * 100));
+                continue;
+            }
+
+            // Resolve category
+            let categoryId: string | undefined;
+            if (record.category) {
+                categoryId = categoryMap.get(record.category.toLowerCase());
+                if (!categoryId) {
+                    // Try to create the category
+                    try {
+                        const catResult = await booksService.createCategory({ name: record.category });
+                        categoryId = catResult.data.id;
+                        categoryMap.set(record.category.toLowerCase(), categoryId);
+                    } catch {
+                        // Category creation failed, proceed without category
+                    }
+                }
+            }
+
+            const bookPayload: CreateBookRequest = {
+                isbn: record.isbn || undefined,
+                title: record.title,
+                author: record.author,
+                category_id: categoryId,
+                publisher: record.publisher || undefined,
+                publication_year: record.publication_year ? parseInt(record.publication_year, 10) : undefined,
+                shelf_location: record.shelf_location || undefined,
+                initial_copies: record.initial_copies ? parseInt(record.initial_copies, 10) : 1,
+            };
+
+            try {
+                await booksService.create(bookPayload);
+                result.imported++;
+            } catch (err) {
+                result.errors.push({ row: i + 2, message: getErrorMessage(err), data: record });
+                result.skipped++;
+            }
+
+            setBookProgress(Math.round(((i + 1) / rows.length) * 100));
+        }
+
+        setBookResult(result);
+        setBookImporting(false);
+    }, [bookFile, bookPreview, categoriesQuery.data]);
+
+    // ── Import Students (backend endpoint) ───────────────────────────────────
+    const handleImportStudents = useCallback(async () => {
+        if (!studentFile) return;
+
+        try {
+            const response = await importStudents.mutateAsync(studentFile);
+            setStudentResult({
+                total: response.data.result.total,
+                imported: response.data.result.imported,
+                skipped: response.data.result.skipped,
+                errors: response.data.errors.map((e) => ({
+                    row: e.row,
+                    message: e.message,
+                    data: e.data,
+                })),
+            });
+        } catch (error) {
+            setStudentResult({
+                total: 0,
+                imported: 0,
+                skipped: 1,
+                errors: [{ row: 0, message: getErrorMessage(error) }],
+            });
+        }
+    }, [studentFile, importStudents]);
+
+    // ── Template downloads ───────────────────────────────────────────────────
+    const downloadBookTemplate = () => {
+        const csv = generateCSV(BOOK_HEADERS, BOOK_SAMPLE);
+        downloadCSV(csv, 'book_import_template.csv');
+    };
+
+    const downloadStudentTemplate = () => {
+        const csv = generateCSV(STUDENT_HEADERS, STUDENT_SAMPLE);
+        downloadCSV(csv, 'student_import_template.csv');
+    };
+
+    return (
+        <div className="space-y-6 animate-fade-in-up">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-display font-bold text-primary">Excel Migration</h1>
+                    <p className="text-muted-foreground">Import books and students from CSV spreadsheets</p>
+                </div>
+                <Badge variant="outline" className="self-start sm:self-auto gap-1.5">
+                    <FileSpreadsheet className="h-3.5 w-3.5" />
+                    CSV Import
+                </Badge>
+            </div>
+
+            <Tabs defaultValue="books" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-2 max-w-md">
+                    <TabsTrigger value="books" className="gap-2">
+                        <BookOpen className="h-4 w-4" />
+                        Import Books
+                    </TabsTrigger>
+                    <TabsTrigger value="students" className="gap-2">
+                        <Users className="h-4 w-4" />
+                        Import Students
+                    </TabsTrigger>
+                </TabsList>
+
+                {/* ── Import Books Tab ──────────────────────────────────────────── */}
+                <TabsContent value="books" className="space-y-6">
+                    <Card>
+                        <CardContent className="p-6 space-y-6">
+                            {/* Step 1: Template */}
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div>
+                                    <h3 className="font-semibold text-sm">Step 1: Download Template</h3>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        Get a pre-formatted CSV file with the correct column headers
+                                    </p>
+                                </div>
+                                <Button variant="outline" size="sm" onClick={downloadBookTemplate} className="gap-2 self-start">
+                                    <Download className="h-4 w-4" />
+                                    Download Template
+                                </Button>
+                            </div>
+
+                            <div className="border-t" />
+
+                            {/* Step 2: Upload */}
+                            <div>
+                                <h3 className="font-semibold text-sm mb-3">Step 2: Upload CSV File</h3>
+                                <Dropzone
+                                    file={bookFile}
+                                    onFile={(f) => handleFile(f, 'book')}
+                                />
+                            </div>
+
+                            {/* Step 3: Preview */}
+                            {bookPreview && bookPreview.rows.length > 0 && (
+                                <>
+                                    <div className="border-t" />
+                                    <div>
+                                        <h3 className="font-semibold text-sm mb-3">Step 3: Preview Data</h3>
+                                        <CSVPreview headers={bookPreview.headers} rows={bookPreview.rows} />
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Step 4: Import */}
+                            {bookPreview && bookPreview.rows.length > 0 && !bookResult && (
+                                <>
+                                    <div className="border-t" />
+                                    <div className="space-y-3">
+                                        <h3 className="font-semibold text-sm">Step 4: Import</h3>
+                                        {bookImporting && (
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                    <span>Importing books…</span>
+                                                    <span>{bookProgress}%</span>
+                                                </div>
+                                                <Progress value={bookProgress} className="h-2" />
+                                            </div>
+                                        )}
+                                        <Button
+                                            onClick={handleImportBooks}
+                                            disabled={bookImporting}
+                                            className="gap-2"
+                                        >
+                                            {bookImporting ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Upload className="h-4 w-4" />
+                                            )}
+                                            {bookImporting ? 'Importing…' : `Import ${bookPreview.rows.length} Book${bookPreview.rows.length !== 1 ? 's' : ''}`}
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Results */}
+                            {bookResult && (
+                                <>
+                                    <div className="border-t" />
+                                    <div>
+                                        <h3 className="font-semibold text-sm mb-3">Import Results</h3>
+                                        <ResultsSummary result={bookResult} />
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="mt-4 gap-2"
+                                            onClick={() => {
+                                                setBookFile(null);
+                                                setBookPreview(null);
+                                                setBookResult(null);
+                                                setBookProgress(0);
+                                            }}
+                                        >
+                                            <Upload className="h-4 w-4" />
+                                            Import Another File
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Alert>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>CSV Format Tips</AlertTitle>
+                        <AlertDescription className="text-xs space-y-1">
+                            <p>• Required columns: <strong>title</strong>, <strong>author</strong></p>
+                            <p>• Category names are matched or auto-created if new</p>
+                            <p>• If <code>initial_copies</code> is omitted, 1 copy is created by default</p>
+                        </AlertDescription>
+                    </Alert>
+                </TabsContent>
+
+                {/* ── Import Students Tab ──────────────────────────────────────── */}
+                <TabsContent value="students" className="space-y-6">
+                    <Card>
+                        <CardContent className="p-6 space-y-6">
+                            {/* Step 1: Template */}
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div>
+                                    <h3 className="font-semibold text-sm">Step 1: Download Template</h3>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        Get a pre-formatted CSV file with the correct column headers
+                                    </p>
+                                </div>
+                                <Button variant="outline" size="sm" onClick={downloadStudentTemplate} className="gap-2 self-start">
+                                    <Download className="h-4 w-4" />
+                                    Download Template
+                                </Button>
+                            </div>
+
+                            <div className="border-t" />
+
+                            {/* Step 2: Upload */}
+                            <div>
+                                <h3 className="font-semibold text-sm mb-3">Step 2: Upload CSV File</h3>
+                                <Dropzone
+                                    file={studentFile}
+                                    onFile={(f) => handleFile(f, 'student')}
+                                />
+                            </div>
+
+                            {/* Step 3: Preview */}
+                            {studentPreview && studentPreview.rows.length > 0 && (
+                                <>
+                                    <div className="border-t" />
+                                    <div>
+                                        <h3 className="font-semibold text-sm mb-3">Step 3: Preview Data</h3>
+                                        <CSVPreview headers={studentPreview.headers} rows={studentPreview.rows} />
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Step 4: Import */}
+                            {studentPreview && studentPreview.rows.length > 0 && !studentResult && (
+                                <>
+                                    <div className="border-t" />
+                                    <div className="space-y-3">
+                                        <h3 className="font-semibold text-sm">Step 4: Import</h3>
+                                        <Button
+                                            onClick={handleImportStudents}
+                                            disabled={importStudents.isPending}
+                                            className="gap-2"
+                                        >
+                                            {importStudents.isPending ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Upload className="h-4 w-4" />
+                                            )}
+                                            {importStudents.isPending
+                                                ? 'Importing…'
+                                                : `Import ${studentPreview.rows.length} Student${studentPreview.rows.length !== 1 ? 's' : ''}`}
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Results */}
+                            {studentResult && (
+                                <>
+                                    <div className="border-t" />
+                                    <div>
+                                        <h3 className="font-semibold text-sm mb-3">Import Results</h3>
+                                        <ResultsSummary result={studentResult} />
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="mt-4 gap-2"
+                                            onClick={() => {
+                                                setStudentFile(null);
+                                                setStudentPreview(null);
+                                                setStudentResult(null);
+                                            }}
+                                        >
+                                            <Upload className="h-4 w-4" />
+                                            Import Another File
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Alert>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>CSV Format Tips</AlertTitle>
+                        <AlertDescription className="text-xs space-y-1">
+                            <p>• Required columns: <strong>student_id</strong>, <strong>username</strong>, <strong>name</strong>, <strong>grade_level</strong>, <strong>section</strong></p>
+                            <p>• Default password is <code>student123</code> unless specified</p>
+                            <p>• Duplicate usernames will be skipped with an error</p>
+                        </AlertDescription>
+                    </Alert>
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
 };
 
 export default ExcelMigration;

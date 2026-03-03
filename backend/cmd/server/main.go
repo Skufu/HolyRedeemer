@@ -62,7 +62,7 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(queries, jwtManager)
 	bookHandler := handlers.NewBookHandler(queries, db.Pool, appCache)
-	studentHandler := handlers.NewStudentHandler(queries, db.Pool)
+	studentHandler := handlers.NewStudentHandler(queries, db.Pool, cfg)
 	circulationHandler := handlers.NewCirculationHandler(queries, cfg, db.Pool, appCache)
 	reportHandler := handlers.NewReportHandler(queries, appCache)
 	fineHandler := handlers.NewFineHandler(queries, db.Pool, appCache)
@@ -73,6 +73,8 @@ func main() {
 	requestHandler := handlers.NewRequestHandler(queries, cfg, db.Pool, appCache)
 	adminHandler := handlers.NewAdminHandler(queries, db.Pool)
 	cacheAdminHandler := handlers.NewCacheAdminHandler(appCache)
+	backupHandler := handlers.NewBackupHandler(cfg)
+	schoolYearHandler := handlers.NewSchoolYearHandler(queries, db.Pool)
 
 	// Initialize router
 	router := gin.New()
@@ -234,6 +236,26 @@ func main() {
 		cacheRoutes.Use(middleware.Auth(jwtManager), middleware.RequireRoles("super_admin"))
 		{
 			cacheRoutes.POST("/clear", cacheAdminHandler.Clear)
+		}
+
+		schoolYearRoutes := v1.Group("/school-year")
+		schoolYearRoutes.Use(middleware.Auth(jwtManager), middleware.RequireRoles("super_admin"))
+		{
+			schoolYearRoutes.POST("/export-archive", schoolYearHandler.ExportArchive)
+			schoolYearRoutes.POST("/archive-graduates", schoolYearHandler.ArchiveGraduates)
+			schoolYearRoutes.POST("/import-students", schoolYearHandler.ImportStudents)
+			schoolYearRoutes.GET("/reports", schoolYearHandler.YearEndReports)
+			schoolYearRoutes.POST("/reset-student-data", schoolYearHandler.ResetStudentData)
+			schoolYearRoutes.PUT("/update-policies", schoolYearHandler.UpdatePolicies)
+			schoolYearRoutes.GET("/export-students", schoolYearHandler.ExportStudents)
+		}
+
+		backupRoutes := v1.Group("/backup")
+		backupRoutes.Use(middleware.Auth(jwtManager), middleware.RequireRoles("super_admin"))
+		{
+			backupRoutes.POST("/create", backupHandler.CreateBackup)
+			backupRoutes.GET("/list", backupHandler.ListBackups)
+			backupRoutes.GET("/download/:name", backupHandler.DownloadBackup)
 		}
 
 		// Settings routes

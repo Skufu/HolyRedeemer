@@ -213,7 +213,7 @@ const Sidebar = React.forwardRef<
         initial={prefersReducedMotion ? state : state === "collapsed" ? "collapsed" : "expanded"}
         animate={state}
         variants={sidebarVariants}
-        {...props}
+        {...(props as React.ComponentProps<typeof motion.div>)}
       >
         <div
           data-sidebar="sidebar"

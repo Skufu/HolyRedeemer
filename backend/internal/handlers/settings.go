@@ -88,7 +88,11 @@ func (h *SettingsHandler) UpdateSettings(c *gin.Context) {
 		return
 	}
 
-	userID, _ := uuid.Parse(authUser.ID)
+	userID, err := uuid.Parse(authUser.ID)
+	if err != nil {
+		response.InternalError(c, "Invalid user ID")
+		return
+	}
 
 	for key, value := range input.Settings {
 		err := h.queries.UpdateSetting(c.Request.Context(), sqlcdb.UpdateSettingParams{

@@ -2,24 +2,24 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationsService, ListNotificationsParams } from '@/services/notifications';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/services/api';
-
-// Helper to check if user is authenticated
-const isAuthenticated = () => !!localStorage.getItem('lms_access_token');
+import { useAuth } from '@/contexts/AuthContext';
 
 export const useNotifications = (params?: ListNotificationsParams) => {
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: ['notifications', params],
     queryFn: () => notificationsService.list(params),
-    enabled: isAuthenticated(),
+    enabled: isAuthenticated,
   });
 };
 
 export const useUnreadNotificationsCount = () => {
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: () => notificationsService.getUnreadCount(),
     refetchInterval: 30000,
-    enabled: isAuthenticated(),
+    enabled: isAuthenticated,
   });
 };
 

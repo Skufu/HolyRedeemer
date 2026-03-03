@@ -15,6 +15,7 @@ type Querier interface {
 	AddFavoriteBook(ctx context.Context, arg AddFavoriteBookParams) (FavoriteBook, error)
 	ApproveRequest(ctx context.Context, arg ApproveRequestParams) (BookRequest, error)
 	CountActiveLoans(ctx context.Context) (int64, error)
+	CountActiveLoansByStudentIDs(ctx context.Context, dollar_1 []uuid.UUID) (int64, error)
 	CountActiveTransactionsByStudent(ctx context.Context, studentID pgtype.UUID) (int64, error)
 	CountAdmins(ctx context.Context) (int64, error)
 	CountBooks(ctx context.Context, arg CountBooksParams) (int64, error)
@@ -50,13 +51,34 @@ type Querier interface {
 	CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteAdmin(ctx context.Context, id uuid.UUID) error
+	DeleteAuditLogsByDateRange(ctx context.Context, arg DeleteAuditLogsByDateRangeParams) error
 	DeleteBook(ctx context.Context, id uuid.UUID) error
 	DeleteCategory(ctx context.Context, id uuid.UUID) error
 	DeleteCopy(ctx context.Context, id uuid.UUID) error
+	DeleteFavorites(ctx context.Context) error
+	DeleteFines(ctx context.Context) error
+	DeleteFinesByDateRange(ctx context.Context, arg DeleteFinesByDateRangeParams) error
 	DeleteLibrarian(ctx context.Context, id uuid.UUID) error
+	DeleteNotifications(ctx context.Context) error
+	DeleteNotificationsByDateRange(ctx context.Context, arg DeleteNotificationsByDateRangeParams) error
+	DeletePayments(ctx context.Context) error
+	DeletePaymentsByDateRange(ctx context.Context, arg DeletePaymentsByDateRangeParams) error
 	DeleteRefreshToken(ctx context.Context, tokenHash string) error
+	DeleteRefreshTokensByStudentIDs(ctx context.Context, dollar_1 []uuid.UUID) error
+	DeleteRequests(ctx context.Context) error
+	DeleteRequestsByDateRange(ctx context.Context, arg DeleteRequestsByDateRangeParams) error
+	DeleteStudentAchievements(ctx context.Context) error
+	DeleteTransactions(ctx context.Context) error
+	DeleteTransactionsByDateRange(ctx context.Context, arg DeleteTransactionsByDateRangeParams) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteUserRefreshTokens(ctx context.Context, userID pgtype.UUID) error
+	ExportAuditLogs(ctx context.Context, arg ExportAuditLogsParams) ([]ExportAuditLogsRow, error)
+	ExportFines(ctx context.Context, arg ExportFinesParams) ([]ExportFinesRow, error)
+	ExportNotifications(ctx context.Context, arg ExportNotificationsParams) ([]ExportNotificationsRow, error)
+	ExportPayments(ctx context.Context, arg ExportPaymentsParams) ([]ExportPaymentsRow, error)
+	ExportRequests(ctx context.Context, arg ExportRequestsParams) ([]ExportRequestsRow, error)
+	ExportStudents(ctx context.Context) ([]ExportStudentsRow, error)
+	ExportTransactions(ctx context.Context, arg ExportTransactionsParams) ([]ExportTransactionsRow, error)
 	GetActiveLoanByCopy(ctx context.Context, copyID pgtype.UUID) (Transaction, error)
 	GetActiveLoanByCopyForUpdate(ctx context.Context, copyID pgtype.UUID) (Transaction, error)
 	GetAdminByID(ctx context.Context, id uuid.UUID) (User, error)
@@ -86,6 +108,7 @@ type Querier interface {
 	GetRecentAuditLogs(ctx context.Context, limit pgtype.Int4) ([]GetRecentAuditLogsRow, error)
 	GetRefreshToken(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetRequestByID(ctx context.Context, id uuid.UUID) (GetRequestByIDRow, error)
+	GetResetCounts(ctx context.Context, arg GetResetCountsParams) (GetResetCountsRow, error)
 	GetSetting(ctx context.Context, key pgtype.Text) (GetSettingRow, error)
 	GetStudentAchievements(ctx context.Context, studentID uuid.UUID) ([]GetStudentAchievementsRow, error)
 	GetStudentByID(ctx context.Context, id uuid.UUID) (GetStudentByIDRow, error)
@@ -106,7 +129,9 @@ type Querier interface {
 	GetUnreadCount(ctx context.Context, userID pgtype.UUID) (int64, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
+	GetYearEndSummary(ctx context.Context, arg GetYearEndSummaryParams) (GetYearEndSummaryRow, error)
 	HasAchievement(ctx context.Context, arg HasAchievementParams) (bool, error)
+	HasPendingReservation(ctx context.Context, arg HasPendingReservationParams) (bool, error)
 	IsBookFavorited(ctx context.Context, arg IsBookFavoritedParams) (bool, error)
 	ListAchievements(ctx context.Context) ([]Achievement, error)
 	ListActiveTransactions(ctx context.Context, arg ListActiveTransactionsParams) ([]ListActiveTransactionsRow, error)
@@ -151,10 +176,12 @@ type Querier interface {
 	UpdateLibrarian(ctx context.Context, arg UpdateLibrarianParams) (Librarian, error)
 	UpdateSetting(ctx context.Context, arg UpdateSettingParams) error
 	UpdateStudent(ctx context.Context, arg UpdateStudentParams) (Student, error)
+	UpdateStudentsStatusByIDs(ctx context.Context, arg UpdateStudentsStatusByIDsParams) error
 	UpdateTransactionReturn(ctx context.Context, arg UpdateTransactionReturnParams) (Transaction, error)
 	UpdateTransactionStatus(ctx context.Context, arg UpdateTransactionStatusParams) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
+	UpdateUsersStatusByStudentIDs(ctx context.Context, arg UpdateUsersStatusByStudentIDsParams) error
 }
 
 var _ Querier = (*Queries)(nil)

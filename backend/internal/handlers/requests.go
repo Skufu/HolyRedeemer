@@ -300,7 +300,10 @@ func (h *RequestHandler) RejectRequest(c *gin.Context) {
 	var input struct {
 		Notes string `json:"notes"`
 	}
-	c.ShouldBindJSON(&input)
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
 
 	authUser := middleware.GetAuthUser(c)
 	if authUser == nil {

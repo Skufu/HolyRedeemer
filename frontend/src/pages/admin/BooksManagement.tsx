@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useBooks, useCreateBook, useUpdateBook, useDeleteBook, useCategories } from '@/hooks/useBooks';
 import { Book, CreateBookRequest, Category } from '@/services/books';
 import { Button } from '@/components/ui/button';
@@ -50,12 +50,17 @@ const BooksManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  const { data: booksData, isLoading: booksLoading } = useBooks({
-    search: searchTerm || undefined,
-    category_id: categoryFilter !== 'all' ? categoryFilter : undefined,
-    page: currentPage,
-    per_page: itemsPerPage,
-  });
+  const bookParams = useMemo(
+    () => ({
+      search: searchTerm || undefined,
+      category_id: categoryFilter !== 'all' ? categoryFilter : undefined,
+      page: currentPage,
+      per_page: itemsPerPage,
+    }),
+    [searchTerm, categoryFilter, currentPage, itemsPerPage],
+  );
+
+  const { data: booksData, isLoading: booksLoading } = useBooks(bookParams);
 
   const { data: categoriesData } = useCategories();
   const createBook = useCreateBook();
@@ -67,7 +72,7 @@ const BooksManagement: React.FC = () => {
   const totalBooks = booksData?.meta?.total || 0;
   const totalPages = booksData?.meta?.total_pages || 1;
 
-  const [formData, setFormData] = useState<CreateBookRequest>({
+  const [formData, setFormData] = useState<CreateBookRequest>(() => ({
     title: '',
     author: '',
     isbn: '',
@@ -78,7 +83,7 @@ const BooksManagement: React.FC = () => {
     shelf_location: '',
     replacement_cost: 0,
     initial_copies: 1,
-  });
+  }));
 
   const paginatedBooks = books;
 

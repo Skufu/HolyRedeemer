@@ -7,6 +7,7 @@ export const useBooks = (params?: ListBooksParams) => {
   return useQuery({
     queryKey: ['books', params],
     queryFn: () => booksService.list(params),
+    staleTime: 5 * 60 * 1000,
   });
 };
 
@@ -15,6 +16,7 @@ export const useBook = (id: string) => {
     queryKey: ['book', id],
     queryFn: () => booksService.get(id),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   });
 };
 
@@ -23,6 +25,7 @@ export const useBookCopies = (bookId: string) => {
     queryKey: ['book-copies', bookId],
     queryFn: () => booksService.listCopies(bookId),
     enabled: !!bookId,
+    staleTime: 5 * 60 * 1000,
   });
 };
 

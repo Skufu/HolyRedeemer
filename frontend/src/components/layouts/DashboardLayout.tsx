@@ -13,15 +13,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import {
   BookOpen, Bell, ChevronDown, LogOut, User, Menu, Home, Book, QrCode, Upload,
   Users, BarChart3, Settings, ClipboardList, ScanLine, Search, CalendarDays,
-  BookMarked, UserCircle, BellRing, Library, Clock, CalendarClock, CreditCard
+  BookMarked, UserCircle, BellRing, Clock, CalendarClock, CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
-import { pageVariants } from '@/lib/animations';
 
 const adminNavItems = [
   { to: '/admin/dashboard', icon: Home, label: 'Dashboard' },
@@ -64,7 +62,11 @@ const DashboardLayout: React.FC = () => {
   const unreadCount = unreadCountData?.data?.count || 0;
 
   const navItems = user?.role === 'student' ? studentNavItems :
-    user?.role === 'librarian' ? librarianNavItems : adminNavItems;
+    user?.role === 'librarian'
+      ? librarianNavItems
+      : user?.role === 'super_admin'
+        ? [...adminNavItems, { to: '/admin/school-year-setup', icon: CalendarClock, label: 'School Year Setup' }]
+        : adminNavItems;
 
   const handleLogout = () => {
     logout();
@@ -94,7 +96,7 @@ const DashboardLayout: React.FC = () => {
 
       {/* Navigation */}
       <nav className={cn("flex-1 space-y-1 overflow-y-auto", isMobile ? "p-2" : "p-3")}>
-        {navItems.map((item, index) => (
+        {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

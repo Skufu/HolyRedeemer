@@ -173,7 +173,26 @@ export const studentsService = {
 
   getLoans: async (id: string): Promise<ApiResponse<StudentLoan[]>> => {
     const response = await api.get<ApiResponse<StudentLoan[]>>(`/students/${id}/loans`);
-    return response.data;
+    if (!response.data.data) {
+      return response.data;
+    }
+
+    return {
+      ...response.data,
+      data: response.data.data.map((loan) => ({
+        ...loan,
+        bookTitle: loan.bookTitle ?? (loan as StudentLoan & { book_title?: string }).book_title ?? '',
+        bookAuthor: loan.bookAuthor ?? (loan as StudentLoan & { book_author?: string }).book_author ?? '',
+        bookId: loan.bookId ?? (loan as StudentLoan & { book_id?: string }).book_id ?? '',
+        bookCopyId: loan.bookCopyId ?? (loan as StudentLoan & { book_copy_id?: string }).book_copy_id ?? '',
+        copyNumber: loan.copyNumber ?? (loan as StudentLoan & { copy_number?: number }).copy_number ?? 0,
+        qrCode: loan.qrCode ?? (loan as StudentLoan & { qr_code?: string }).qr_code ?? '',
+        checkoutDate: loan.checkoutDate ?? (loan as StudentLoan & { checkout_date?: string }).checkout_date ?? '',
+        dueDate: loan.dueDate ?? (loan as StudentLoan & { due_date?: string }).due_date ?? '',
+        returnDate: loan.returnDate ?? (loan as StudentLoan & { return_date?: string }).return_date,
+        renewCount: loan.renewCount ?? (loan as StudentLoan & { renew_count?: number }).renew_count ?? 0,
+      })),
+    };
   },
 
   getHistory: async (id: string, params?: { page?: number; per_page?: number }): Promise<ApiResponse<StudentLoan[]>> => {

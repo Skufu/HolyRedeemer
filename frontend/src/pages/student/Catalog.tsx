@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -75,7 +75,10 @@ const StudentCatalog = () => {
   const addFavorite = useAddFavorite();
   const removeFavorite = useRemoveFavorite();
 
-  const favoriteBookIds = new Set(favoritesData?.data?.map((f) => f.bookId) || []);
+  const favoriteBookIds = useMemo(
+    () => new Set(favoritesData?.data?.map((f) => f.bookId) || []),
+    [favoritesData?.data],
+  );
 
   const { data: booksData, isLoading: booksLoading } = useBooks({
     search: searchQuery || undefined,
@@ -91,20 +94,26 @@ const StudentCatalog = () => {
   const meta = booksData?.meta;
   const categories = categoriesData?.data || [];
 
-  const filteredBooks = books.filter((book) => {
-    if (availabilityFilter === 'checked_out' && (book.availableCopies || 0) > 0) return false;
-    if (availabilityFilter === 'out_of_stock' && (book.availableCopies || 0) > 0) return false;
-    return true;
-  });
+  const filteredBooks = useMemo(
+    () => books.filter((book) => {
+      if (availabilityFilter === 'checked_out' && (book.availableCopies || 0) > 0) return false;
+      if (availabilityFilter === 'out_of_stock' && (book.availableCopies || 0) > 0) return false;
+      return true;
+    }),
+    [books, availabilityFilter],
+  );
 
-  const sortedBooks = [...filteredBooks].sort((a, b) => {
-    switch (sortOption) {
-      case 'title': return a.title.localeCompare(b.title);
-      case 'author': return a.author.localeCompare(b.author);
-      case 'newest': return (b.publicationYear || 0) - (a.publicationYear || 0);
-      default: return 0;
-    }
-  });
+  const sortedBooks = useMemo(
+    () => [...filteredBooks].sort((a, b) => {
+      switch (sortOption) {
+        case 'title': return a.title.localeCompare(b.title);
+        case 'author': return a.author.localeCompare(b.author);
+        case 'newest': return (b.publicationYear || 0) - (a.publicationYear || 0);
+        default: return 0;
+      }
+    }),
+    [filteredBooks, sortOption],
+  );
 
   const handleClearFilters = () => {
     setSearchQuery('');

@@ -32,6 +32,7 @@ func NewBookHandler(queries *sqlcdb.Queries, db *pgxpool.Pool, cache *cache.Cach
 func (h *BookHandler) invalidateBookCaches() {
 	h.cache.DeletePrefix(cache.BooksListPrefix)
 	h.cache.DeletePrefix(cache.BookDetailPrefix)
+	h.cache.Delete(cache.CategoriesKey)
 }
 
 // BookResponse represents a book in API responses (matches frontend types.ts)
@@ -417,10 +418,17 @@ func (h *BookHandler) CreateCopy(c *gin.Context) {
 	}
 
 	var req CreateCopyRequest
-	_ = c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
 
 	// Get next copy number
-	nextNum, _ := h.queries.GetNextCopyNumber(c.Request.Context(), toPgUUID(bookID))
+	nextNum, err := h.queries.GetNextCopyNumber(c.Request.Context(), toPgUUID(bookID))
+	if err != nil {
+		response.InternalError(c, "Failed to get next copy number")
+		return
+	}
 	qrCode := fmt.Sprintf("HR-%s-C%d", bookID.String()[:8], nextNum)
 
 	condition := sqlcdb.NullCopyCondition{CopyCondition: sqlcdb.CopyConditionGood, Valid: true}
@@ -608,7 +616,7 @@ func (h *BookHandler) ListCategories(c *gin.Context) {
 		}
 	}
 
-	h.cache.Set(cache.CategoriesKey, catResponses, 0)
+	h.cache.Set(cache.CategoriesKey, catResponses, 10*time.Minute)
 	response.Success(c, catResponses, "")
 }
 
