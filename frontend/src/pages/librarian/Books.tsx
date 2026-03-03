@@ -37,17 +37,24 @@ const BooksPage: React.FC = () => {
   });
 
   const { data: categoriesData } = useCategories();
-  const { data: copiesData, isLoading: copiesLoading } = useBookCopies(selectedBook?.id || '');
+  const {
+  data: copiesData,
+  isLoading: copiesLoading,
+  isError: copiesIsError,
+  error: copiesError,
+} = useBookCopies(selectedBook?.id || '');
 
   const books = booksData?.data || [];
   const categories = categoriesData?.data || [];
   const bookCopies = copiesData?.data || [];
 
+  const norm = (s?: string) => (s || '').toLowerCase();
   const getStatusColor = (status: BookCopy['status']) => {
-    switch (status) {
+    switch (norm(status)) {
       case 'available': return 'bg-success/10 text-success border-success/30';
       case 'borrowed': return 'bg-info/10 text-info border-info/30';
       case 'reserved': return 'bg-warning/10 text-warning-foreground border-warning/30';
+      case 'overdue': return 'bg-destructive/10 text-destructive border-destructive/30';
       default: return 'bg-muted text-muted-foreground';
     }
   };
@@ -243,10 +250,16 @@ const BooksPage: React.FC = () => {
                     <div className="flex items-center gap-2 text-sm">
                       <span className="flex items-center gap-1 text-success">
                         <CheckCircle className="h-3 w-3" />
-                        {bookCopies.filter((c: BookCopy) => c.status === 'available').length} available
+                        {bookCopies.filter((c: BookCopy) => norm(c.status) === 'available').length} available
                       </span>
                     </div>
                   </div>
+
+                  {copiesIsError ? (
+  <p className="text-sm text-destructive">
+    Failed to load copies: {String(copiesError)}
+  </p>
+) : null}
 
                   {copiesLoading ? (
                     <div className="flex justify-center py-4">
@@ -271,6 +284,17 @@ const BooksPage: React.FC = () => {
                           <p className="text-xs mt-1 opacity-70">
                             {copy.qrCode} - Condition: {copy.condition}
                           </p>
+
+                          {norm(copy.status) === 'borrowed' && (copy.borrowerName || copy.borrowerStudentNumber) ? (
+                          <div className="mt-2 text-xs opacity-90">
+                            <p>
+                              <b>Borrower:</b> {copy.borrowerName || 'Unknown'}
+                              {copy.borrowerStudentNumber ? ` (${copy.borrowerStudentNumber})` : ''}
+                            </p>
+                            {copy.checkoutDate && <p><b>Checked out:</b> {copy.checkoutDate}</p>}
+                            {copy.dueDate && <p><b>Due:</b> {copy.dueDate}</p>}
+                          </div>
+                        ) : null}
                         </div>
                       ))}
                       {bookCopies.length === 0 && !copiesLoading && (

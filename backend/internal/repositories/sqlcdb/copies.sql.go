@@ -275,13 +275,91 @@ func (q *Queries) GetNextCopyNumber(ctx context.Context, bookID pgtype.UUID) (in
 	return column_1, err
 }
 
+const listBookCopiesWithBorrower = `-- name: ListBookCopiesWithBorrower :many
+SELECT
+  bc.id AS copy_id,
+  bc.book_id,
+  bc.copy_number,
+  bc.qr_code,
+  bc.status,
+  bc.condition,
+
+  t.id AS transaction_id,
+  t.student_id AS borrower_id,
+  t.checkout_date,
+  t.due_date,
+
+  s.student_id AS borrower_student_number,
+  u.name AS borrower_name
+
+FROM book_copies bc
+LEFT JOIN transactions t
+  ON t.copy_id = bc.id AND t.status IN ('borrowed', 'overdue')
+LEFT JOIN students s
+  ON s.id = t.student_id
+LEFT JOIN users u
+  ON u.id = s.user_id
+
+WHERE bc.book_id = $1
+ORDER BY bc.copy_number ASC
+`
+
+type ListBookCopiesWithBorrowerRow struct {
+	CopyID                uuid.UUID         `json:"copy_id"`
+	BookID                pgtype.UUID       `json:"book_id"`
+	CopyNumber            int32             `json:"copy_number"`
+	QrCode                string            `json:"qr_code"`
+	Status                NullCopyStatus    `json:"status"`
+	Condition             NullCopyCondition `json:"condition"`
+	TransactionID         pgtype.UUID       `json:"transaction_id"`
+	BorrowerID            pgtype.UUID       `json:"borrower_id"`
+	CheckoutDate          pgtype.Timestamp  `json:"checkout_date"`
+	DueDate               pgtype.Date       `json:"due_date"`
+	BorrowerStudentNumber pgtype.Text       `json:"borrower_student_number"`
+	BorrowerName          pgtype.Text       `json:"borrower_name"`
+}
+
+func (q *Queries) ListBookCopiesWithBorrower(ctx context.Context, bookID pgtype.UUID) ([]ListBookCopiesWithBorrowerRow, error) {
+	rows, err := q.db.Query(ctx, listBookCopiesWithBorrower, bookID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBookCopiesWithBorrowerRow{}
+	for rows.Next() {
+		var i ListBookCopiesWithBorrowerRow
+		if err := rows.Scan(
+			&i.CopyID,
+			&i.BookID,
+			&i.CopyNumber,
+			&i.QrCode,
+			&i.Status,
+			&i.Condition,
+			&i.TransactionID,
+			&i.BorrowerID,
+			&i.CheckoutDate,
+			&i.DueDate,
+			&i.BorrowerStudentNumber,
+			&i.BorrowerName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCopiesByBook = `-- name: ListCopiesByBook :many
 SELECT bc.id, bc.book_id, bc.copy_number, bc.qr_code, bc.barcode, bc.status, bc.condition, bc.acquisition_date, bc.notes, bc.created_at, bc.updated_at, 
        CASE WHEN t.id IS NOT NULL THEN true ELSE false END as is_borrowed,
        t.student_id as borrower_id,
        t.due_date as due_date
 FROM book_copies bc
-LEFT JOIN transactions t ON bc.id = t.copy_id AND t.status IN ('borrowed', 'overdue')
+LEFT JOIN transactions t
+  ON t.copy_id = bc.id AND t.status IN ('borrowed', 'overdue')
 WHERE bc.book_id = $1
 ORDER BY bc.copy_number
 `

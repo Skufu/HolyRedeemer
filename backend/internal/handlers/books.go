@@ -317,6 +317,9 @@ type CopyResponse struct {
 	IsBorrowed   bool   `json:"isBorrowed"`
 	BorrowerID   string `json:"borrowerId,omitempty"`
 	DueDate      string `json:"dueDate,omitempty"`
+	BorrowerName          string `json:"borrowerName,omitempty"`
+	BorrowerStudentNumber string `json:"borrowerStudentNumber,omitempty"`
+	CheckoutDate          string `json:"checkoutDate,omitempty"`
 }
 
 // ListCopies returns all copies of a book
@@ -327,33 +330,57 @@ func (h *BookHandler) ListCopies(c *gin.Context) {
 		return
 	}
 
-	copies, err := h.queries.ListCopiesByBook(c.Request.Context(), toPgUUID(bookID))
+	// Uses sqlcdb.ListBookCopiesWithBorrowerRow
+	rows, err := h.queries.ListBookCopiesWithBorrower(c.Request.Context(), toPgUUID(bookID))
 	if err != nil {
+		log.Printf("ListBookCopiesWithBorrower failed: %v", err)
 		response.InternalError(c, "Failed to fetch copies")
 		return
 	}
 
-	copyResponses := make([]CopyResponse, len(copies))
-	for i, copy := range copies {
-		copyResponses[i] = CopyResponse{
-			ID:         copy.ID.String(),
-			BookID:     fromPgUUID(copy.BookID).String(),
-			CopyNumber: copy.CopyNumber,
-			QRCode:     copy.QrCode,
-			Status:     getCopyStatus(copy.Status),
-			Condition:  getCopyCondition(copy.Condition),
-			Notes:      fromPgText(copy.Notes),
-			IsBorrowed: copy.IsBorrowed,
+	copyResponses := make([]CopyResponse, len(rows))
+	for i, row := range rows {
+		r := CopyResponse{
+			ID:         row.CopyID.String(),
+			CopyNumber: row.CopyNumber,
+			QRCode:     row.QrCode,
+			Status:     getCopyStatus(row.Status),
+			Condition:  getCopyCondition(row.Condition),
+			// Borrowed if there is an active borrower row
+			IsBorrowed: row.BorrowerID.Valid,
 		}
-		if copy.BorrowerID.Valid {
-			copyResponses[i].BorrowerID = uuid.UUID(copy.BorrowerID.Bytes).String()
+
+		// book_id is pgtype.UUID
+		if row.BookID.Valid {
+			r.BookID = uuid.UUID(row.BookID.Bytes).String()
 		}
-		if copy.DueDate.Valid {
-			copyResponses[i].DueDate = copy.DueDate.Time.Format("2006-01-02")
+
+		// borrower_id is pgtype.UUID
+		if row.BorrowerID.Valid {
+			r.BorrowerID = uuid.UUID(row.BorrowerID.Bytes).String()
 		}
-		if copy.AcquisitionDate.Valid {
-			copyResponses[i].AcquiredDate = copy.AcquisitionDate.Time.Format("2006-01-02")
+
+		// borrower_name is plain string (NO .Valid / .String)
+		if row.BorrowerName.Valid {
+		r.BorrowerName = row.BorrowerName.String
 		}
+
+		// borrower_student_number is pgtype.Text
+		if row.BorrowerStudentNumber.Valid {
+			r.BorrowerStudentNumber = row.BorrowerStudentNumber.String
+		}
+
+		// checkout_date is pgtype.Timestamp
+		if row.CheckoutDate.Valid {
+			r.CheckoutDate = row.CheckoutDate.Time.Format("2006-01-02")
+		}
+
+		// due_date is pgtype.Date
+		if row.DueDate.Valid {
+			r.DueDate = row.DueDate.Time.Format("2006-01-02")
+		}
+
+		copyResponses[i] = r
 	}
 
 	response.Success(c, copyResponses, "")
@@ -400,9 +427,9 @@ func (h *BookHandler) CreateCopy(c *gin.Context) {
 	}
 
 	response.Created(c, gin.H{
-		"id":      copy.ID.String(),
-		"qr_code": copy.QrCode,
-	}, "Copy created successfully")
+	"id":      copy.ID.String(),
+	"qr_code": copy.QrCode,
+}, "Copy created successfully")
 }
 
 // RegenerateQRCodeRequest represents the regenerate QR code request
@@ -465,7 +492,7 @@ func (h *BookHandler) BulkRegenerateQRCodes(c *gin.Context) {
 		return
 	}
 
-	copies, err := h.queries.ListCopiesByBook(c.Request.Context(), toPgUUID(bookID))
+	copies, err := h.queries.ListBookCopiesWithBorrower(c.Request.Context(), toPgUUID(bookID))
 	if err != nil {
 		response.InternalError(c, "Failed to fetch copies")
 		return
@@ -474,7 +501,7 @@ func (h *BookHandler) BulkRegenerateQRCodes(c *gin.Context) {
 	for _, copy := range copies {
 		newQRCode := fmt.Sprintf("HR-%s-C%d", bookID.String()[:8], copy.CopyNumber)
 		_, err = h.queries.UpdateCopyQRCode(c.Request.Context(), sqlcdb.UpdateCopyQRCodeParams{
-			ID:     copy.ID,
+			ID:     copy.CopyID,
 			QrCode: newQRCode,
 		})
 		if err != nil {

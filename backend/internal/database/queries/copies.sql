@@ -4,6 +4,35 @@ FROM book_copies bc
 JOIN books b ON bc.book_id = b.id
 WHERE bc.id = $1;
 
+-- name: ListBookCopiesWithBorrower :many
+SELECT
+  bc.id AS copy_id,
+  bc.book_id,
+  bc.copy_number,
+  bc.qr_code,
+  bc.status,
+  bc.condition,
+
+  t.id AS transaction_id,
+  t.student_id AS borrower_id,
+  t.checkout_date,
+  t.due_date,
+
+  s.student_id AS borrower_student_number,
+  u.name AS borrower_name
+
+FROM book_copies bc
+LEFT JOIN transactions t
+  ON t.copy_id = bc.id AND t.status IN ('borrowed', 'overdue')
+LEFT JOIN students s
+  ON s.id = t.student_id
+LEFT JOIN users u
+  ON u.id = s.user_id
+
+WHERE bc.book_id = $1
+ORDER BY bc.copy_number ASC;
+
+
 -- name: GetCopyByQRCode :one
 SELECT bc.*, b.title as book_title, b.author as book_author, b.isbn as book_isbn, b.id as book_id
 FROM book_copies bc
@@ -32,7 +61,8 @@ SELECT bc.*,
        t.student_id as borrower_id,
        t.due_date as due_date
 FROM book_copies bc
-LEFT JOIN transactions t ON bc.id = t.copy_id AND t.status IN ('borrowed', 'overdue')
+LEFT JOIN transactions t
+  ON t.copy_id = bc.id AND t.status IN ('borrowed', 'overdue')
 WHERE bc.book_id = $1
 ORDER BY bc.copy_number;
 
