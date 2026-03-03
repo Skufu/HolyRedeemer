@@ -146,6 +146,11 @@ func (h *AdminHandler) CreateAdmin(c *gin.Context) {
 		return
 	}
 
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionCreate, "user", admin.ID, map[string]interface{}{
+		"username": admin.Username,
+		"role":     admin.Role,
+	})
+
 	response.Created(c, AdminResponse{
 		ID:        admin.ID.String(),
 		Username:  admin.Username,
@@ -188,6 +193,11 @@ func (h *AdminHandler) UpdateAdmin(c *gin.Context) {
 		return
 	}
 
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionUpdate, "user", id, map[string]interface{}{
+		"name":   req.Name,
+		"status": req.Status,
+	})
+
 	response.Success(c, nil, "Admin updated successfully")
 }
 
@@ -210,6 +220,8 @@ func (h *AdminHandler) DeleteAdmin(c *gin.Context) {
 		response.InternalError(c, "Failed to delete admin")
 		return
 	}
+
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionDelete, "user", id, nil)
 
 	response.Success(c, nil, "Admin deleted successfully")
 }

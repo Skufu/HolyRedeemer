@@ -98,14 +98,14 @@ const BookDetailsModal = ({ bookId, open, onOpenChange }: { bookId: string | nul
                 <p className="text-sm text-muted-foreground leading-relaxed">{book.description}</p>
               </div>
             )}
-            
+
             <div className="pt-4 border-t">
-                 <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Library Availability: </span>
-                    <Badge variant={(book.availableCopies || 0) > 0 ? "secondary" : "destructive"}>
-                        {(book.availableCopies || 0) > 0 ? `${book.availableCopies} Available` : "Out of Stock"}
-                    </Badge>
-                 </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Library Availability: </span>
+                <Badge variant={(book.availableCopies || 0) > 0 ? "secondary" : "destructive"}>
+                  {(book.availableCopies || 0) > 0 ? `${book.availableCopies} Available` : "Out of Stock"}
+                </Badge>
+              </div>
             </div>
           </div>
         ) : (
@@ -122,11 +122,11 @@ const getStatusBadge = (status: string) => {
       return <Badge variant="secondary" className="bg-yellow-500/15 text-yellow-700 hover:bg-yellow-500/25 border-yellow-500/20">Pending</Badge>;
     case 'approved':
       return <Badge className="bg-green-600 hover:bg-green-700">Ready for Pickup</Badge>;
+    case 'fulfilled':
+      return <Badge variant="outline" className="border-blue-600 text-blue-600">Checked Out</Badge>;
     case 'rejected':
     case 'cancelled':
       return <Badge variant="destructive">Cancelled</Badge>;
-    case 'fulfilled':
-      return <Badge variant="outline" className="border-green-600 text-green-600">Fulfilled</Badge>;
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
@@ -138,7 +138,7 @@ const StudentReservations = () => {
   const { data: reservationsData, isLoading: reservationsLoading } = useStudentRequests(studentId, { request_type: 'reservation' });
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const prefersReducedMotion = useReducedMotion();
-  
+
   const myReservations = reservationsData?.data || [];
   const isLoading = profileLoading || reservationsLoading;
 
@@ -172,7 +172,7 @@ const StudentReservations = () => {
           </p>
         </div>
       ) : (
-        <motion.div 
+        <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
           initial={prefersReducedMotion ? "visible" : "hidden"}
           animate="visible"
@@ -180,8 +180,8 @@ const StudentReservations = () => {
         >
           {myReservations.map((reservation) => (
             <motion.div key={reservation.id} variants={staggerItemVariants}>
-              <Card 
-                className="cursor-pointer hover:shadow-md transition-shadow h-full" 
+              <Card
+                className="cursor-pointer hover:shadow-md transition-shadow h-full"
                 onClick={() => setSelectedBookId(reservation.bookId)}
               >
                 <CardContent className="p-4 flex gap-4 h-full">
@@ -193,7 +193,7 @@ const StudentReservations = () => {
                       <h3 className="font-medium text-base line-clamp-2">{reservation.bookTitle}</h3>
                     </div>
                     <p className="text-xs text-muted-foreground mb-2">{reservation.bookAuthor}</p>
-                    
+
                     <div className="mt-auto space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">Requested:</span>
@@ -212,10 +212,10 @@ const StudentReservations = () => {
         </motion.div>
       )}
 
-      <BookDetailsModal 
-        bookId={selectedBookId} 
-        open={!!selectedBookId} 
-        onOpenChange={(open) => !open && setSelectedBookId(null)} 
+      <BookDetailsModal
+        bookId={selectedBookId}
+        open={!!selectedBookId}
+        onOpenChange={(open) => !open && setSelectedBookId(null)}
       />
     </div>
   );

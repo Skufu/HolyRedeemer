@@ -171,6 +171,12 @@ func (h *LibrarianHandler) CreateLibrarian(c *gin.Context) {
 		return
 	}
 
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionCreate, "user", user.ID, map[string]interface{}{
+		"username":    user.Username,
+		"employee_id": librarian.EmployeeID,
+		"role":        user.Role,
+	})
+
 	response.Created(c, LibrarianResponse{
 		ID:         librarian.ID.String(),
 		UserID:     fromPgUUID(librarian.UserID).String(),
@@ -229,6 +235,11 @@ func (h *LibrarianHandler) UpdateLibrarian(c *gin.Context) {
 		return
 	}
 
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionUpdate, "user", fromPgUUID(librarian.UserID), map[string]interface{}{
+		"name":       req.Name,
+		"department": req.Department,
+	})
+
 	response.Success(c, nil, "Librarian updated successfully")
 }
 
@@ -250,6 +261,8 @@ func (h *LibrarianHandler) DeleteLibrarian(c *gin.Context) {
 		response.InternalError(c, "Failed to delete librarian")
 		return
 	}
+
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionDelete, "user", fromPgUUID(librarian.UserID), nil)
 
 	response.Success(c, nil, "Librarian deleted successfully")
 }

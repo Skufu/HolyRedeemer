@@ -31,9 +31,41 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Client-side validation
+    const trimmedUsername = username.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedUsername && !trimmedPassword) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter your username and password.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!trimmedUsername) {
+      toast({
+        title: 'Validation Error',
+        description: 'Username is required.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!trimmedPassword) {
+      toast({
+        title: 'Validation Error',
+        description: 'Password is required.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
-    const result = await login(username, password);
+    const result = await login(trimmedUsername, trimmedPassword);
 
     if (result.success) {
       toast({
@@ -44,7 +76,7 @@ const Login: React.FC = () => {
     } else {
       toast({
         title: 'Login Failed',
-        description: result.error || 'Invalid credentials',
+        description: result.error || 'Invalid username or password. Please try again.',
         variant: 'destructive',
       });
     }

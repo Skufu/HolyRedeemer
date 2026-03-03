@@ -279,6 +279,11 @@ func (h *BookHandler) CreateBook(c *gin.Context) {
 	}
 
 	h.invalidateBookCaches()
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionCreate, "book", book.ID, map[string]interface{}{
+		"title":          book.Title,
+		"isbn":           fromPgText(book.Isbn),
+		"copies_created": copiesCreated,
+	})
 
 	response.Created(c, gin.H{
 		"id":             book.ID.String(),
@@ -325,6 +330,10 @@ func (h *BookHandler) UpdateBook(c *gin.Context) {
 	}
 
 	h.invalidateBookCaches()
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionUpdate, "book", bookID, map[string]interface{}{
+		"title": req.Title,
+		"isbn":  req.ISBN,
+	})
 
 	response.Success(c, nil, "Book updated successfully")
 }
@@ -343,6 +352,7 @@ func (h *BookHandler) DeleteBook(c *gin.Context) {
 	}
 
 	h.invalidateBookCaches()
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionDelete, "book", bookID, nil)
 
 	response.Success(c, nil, "Book archived successfully")
 }
@@ -450,6 +460,11 @@ func (h *BookHandler) CreateCopy(c *gin.Context) {
 	}
 
 	h.invalidateBookCaches()
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionCreate, "book_copy", copy.ID, map[string]interface{}{
+		"book_id":     bookID,
+		"copy_number": copy.CopyNumber,
+		"qr_code":     copy.QrCode,
+	})
 
 	response.Created(c, gin.H{
 		"id":      copy.ID.String(),
@@ -491,6 +506,11 @@ func (h *BookHandler) RegenerateQRCode(c *gin.Context) {
 		response.InternalError(c, "Failed to update QR code")
 		return
 	}
+
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionUpdate, "book_copy", existingCopy.ID, map[string]interface{}{
+		"old_qr_code": qrCode,
+		"new_qr_code": newQRCode,
+	})
 
 	response.Success(c, gin.H{
 		"id":          existingCopy.ID.String(),
@@ -549,6 +569,11 @@ func (h *BookHandler) BulkRegenerateQRCodes(c *gin.Context) {
 		response.InternalError(c, "Failed to commit QR code updates")
 		return
 	}
+
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionUpdate, "book", bookID, map[string]interface{}{
+		"action": "bulk_regenerate_qr",
+		"count":  len(copies),
+	})
 
 	response.Success(c, gin.H{
 		"message": fmt.Sprintf("Successfully regenerated %d QR codes", len(copies)),
@@ -645,6 +670,10 @@ func (h *BookHandler) CreateCategory(c *gin.Context) {
 	}
 
 	h.cache.Delete(cache.CategoriesKey)
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionCreate, "category", cat.ID, map[string]interface{}{
+		"name": cat.Name,
+	})
+
 	response.Created(c, gin.H{"id": cat.ID.String()}, "Category created successfully")
 }
 

@@ -106,6 +106,10 @@ func (h *SettingsHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionUpdate, "settings", uuid.Nil, map[string]interface{}{
+		"updated_keys": input.Settings,
+	})
+
 	response.Success(c, nil, "Settings updated successfully")
 }
 

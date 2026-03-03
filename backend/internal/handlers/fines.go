@@ -261,6 +261,12 @@ func (h *FineHandler) PayFine(c *gin.Context) {
 	}
 
 	h.invalidateDashboardCache()
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionPaymentReceived, "fine", fineID, map[string]interface{}{
+		"amount":         paymentAmount,
+		"payment_method": method,
+		"new_status":     "paid",
+		"total_paid":     totalPaid,
+	})
 
 	response.Success(c, gin.H{
 		"payment_id": payment.ID.String(),
@@ -300,6 +306,9 @@ func (h *FineHandler) WaiveFine(c *gin.Context) {
 	}
 
 	h.invalidateDashboardCache()
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionUpdate, "fine", fineID, map[string]interface{}{
+		"new_status": "waived",
+	})
 
 	response.Success(c, nil, "Fine waived successfully")
 }

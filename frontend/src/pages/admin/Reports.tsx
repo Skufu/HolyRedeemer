@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,7 @@ import { useFines } from '@/hooks/useFines';
 import { useOverdueLoans, useCurrentLoans } from '@/hooks/useCirculation';
 import { useTopBorrowed } from '@/hooks/useDashboard';
 import { format } from 'date-fns';
+import { exportToPDF, exportToExcel, filterByDateRange, type ExportColumn } from '@/utils/reportExport';
 
 const safeFormatDate = (dateStr: string | undefined | null, dateFormat: string = 'MMM d, yyyy') => {
   if (!dateStr) return '—';
@@ -83,16 +84,128 @@ const Reports: React.FC = () => {
   const { data: topBorrowedData, isLoading: topLoading } = useTopBorrowed(10);
 
   const books = booksData?.data || [];
-  const currentLoans = currentLoansData?.data || [];
-  const overdueLoans = overdueData?.data || [];
-  const fines = finesData?.data || [];
+  const allCurrentLoans = currentLoansData?.data || [];
+  const allOverdueLoans = overdueData?.data || [];
+  const allFines = finesData?.data || [];
   const topBorrowed = topBorrowedData?.data || [];
 
-  const handleExport = (format: 'pdf' | 'excel') => {
-    toast({
-      title: 'Export Started',
-      description: `Your ${selectedReport} report is being generated as ${format.toUpperCase()}.`,
-    });
+  // ── Date-filtered data ──
+  const currentLoans = useMemo(
+    () => filterByDateRange(allCurrentLoans, 'checkoutDate', startDate, endDate),
+    [allCurrentLoans, startDate, endDate],
+  );
+  const overdueLoans = useMemo(
+    () => filterByDateRange(allOverdueLoans, 'dueDate', startDate, endDate),
+    [allOverdueLoans, startDate, endDate],
+  );
+  const fines = useMemo(
+    () => filterByDateRange(allFines, 'created_at', startDate, endDate),
+    [allFines, startDate, endDate],
+  );
+
+  // ── Column definitions per report type ──
+  const reportColumns: Record<ReportType, ExportColumn[]> = {
+    inventory: [
+      { header: 'Title', key: 'title', width: 28 },
+      { header: 'Author', key: 'author', width: 22 },
+      { header: 'Category', key: 'category', width: 14 },
+      { header: 'ISBN', key: 'isbn', width: 16 },
+      { header: 'Total', key: 'totalCopies', width: 8 },
+      { header: 'Available', key: 'availableCopies', width: 10 },
+      { header: 'Location', key: 'shelfLocation', width: 14 },
+    ],
+    transactions: [
+      { header: 'Transaction ID', key: '_shortId', width: 16 },
+      { header: 'Student', key: 'studentName', width: 22 },
+      { header: 'Book', key: 'bookTitle', width: 28 },
+      { header: 'Checkout', key: '_checkoutFmt', width: 14 },
+      { header: 'Due Date', key: '_dueFmt', width: 14 },
+      { header: 'Status', key: 'status', width: 10 },
+    ],
+    overdue: [
+      { header: 'Student', key: 'studentName', width: 22 },
+      { header: 'Book', key: 'bookTitle', width: 28 },
+      { header: 'Due Date', key: '_dueFmt', width: 14 },
+      { header: 'Days Overdue', key: 'daysOverdue', width: 14 },
+      { header: 'Fine Amount', key: '_fineFmt', width: 14 },
+    ],
+    fines: [
+      { header: 'Student', key: 'student_name', width: 22 },
+      { header: 'Book', key: 'book_title', width: 28 },
+      { header: 'Reason', key: 'fine_type', width: 12 },
+      { header: 'Amount', key: '_amountFmt', width: 12 },
+      { header: 'Status', key: 'status', width: 10 },
+      { header: 'Date', key: '_dateFmt', width: 14 },
+    ],
+    usage: [
+      { header: 'Rank', key: '_rank', width: 8 },
+      { header: 'Book Title', key: 'name', width: 36 },
+      { header: 'Times Borrowed', key: 'value', width: 16 },
+    ],
+  };
+
+  const getExportRows = () => {
+    const sfmt = (d: string | undefined | null) => {
+      if (!d) return '—';
+      const dt = new Date(d);
+      return isNaN(dt.getTime()) ? '—' : format(dt, 'MMM d, yyyy');
+    };
+
+    switch (selectedReport) {
+      case 'inventory':
+        return books;
+      case 'transactions':
+        return currentLoans.map((l) => ({
+          ...l,
+          _shortId: l.id.slice(0, 4) + '...' + l.id.slice(-4),
+          _checkoutFmt: sfmt(l.checkoutDate),
+          _dueFmt: sfmt(l.dueDate),
+        }));
+      case 'overdue':
+        return overdueLoans.map((l) => ({
+          ...l,
+          _dueFmt: sfmt(l.dueDate),
+          _fineFmt: `₱${l.fineAmount.toFixed(2)}`,
+        }));
+      case 'fines':
+        return fines.map((f) => ({
+          ...f,
+          _amountFmt: `₱${f.amount.toFixed(2)}`,
+          _dateFmt: sfmt(f.created_at),
+        }));
+      case 'usage':
+        return topBorrowed.map((b, i) => ({ ...b, _rank: `#${i + 1}` }));
+      default:
+        return [];
+    }
+  };
+
+  const handleExport = (fmt: 'pdf' | 'excel') => {
+    try {
+      const reportTitle = reportTypes.find((r) => r.id === selectedReport)?.title || 'Report';
+      const columns = reportColumns[selectedReport];
+      const rows = getExportRows();
+      const dateRange = (startDate || endDate)
+        ? { from: startDate || undefined, to: endDate || undefined }
+        : undefined;
+
+      if (fmt === 'pdf') {
+        exportToPDF({ title: reportTitle, columns, rows, dateRange });
+      } else {
+        exportToExcel({ title: reportTitle, columns, rows, dateRange });
+      }
+
+      toast({
+        title: 'Export Complete',
+        description: `${reportTitle} exported as ${fmt.toUpperCase()} successfully.`,
+      });
+    } catch {
+      toast({
+        title: 'Export Failed',
+        description: 'Something went wrong while generating the file.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const renderReportContent = () => {

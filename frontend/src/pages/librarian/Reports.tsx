@@ -9,7 +9,9 @@ import {
   BookOpen,
   AlertTriangle,
   TrendingUp,
-  Loader2
+  Loader2,
+  FileText,
+  FileSpreadsheet
 } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,6 +24,7 @@ const safeFormatDate = (dateStr: string | undefined | null, dateFormat: string =
 import { useToast } from '@/hooks/use-toast';
 import { useDashboardStats, useTopBorrowed, useRecentActivity } from '@/hooks/useDashboard';
 import { useOverdueLoans } from '@/hooks/useCirculation';
+import { exportToPDF, exportToExcel, type ExportColumn } from '@/utils/reportExport';
 
 type ReportType = 'daily' | 'weekly' | 'overdue' | 'popular';
 
@@ -46,11 +49,100 @@ const LibrarianReports: React.FC = () => {
   const popularBooks = topBorrowedData?.data || [];
   const recentActivity = activityData?.data || [];
 
-  const handleExport = () => {
-    toast({
-      title: 'Report Exported',
-      description: 'The report has been downloaded as CSV.',
-    });
+  const handleExport = (fmt: 'pdf' | 'excel') => {
+    try {
+      let title = '';
+      let columns: ExportColumn[] = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let rows: Record<string, any>[] = [];
+
+      const sfmt = (d: string | undefined | null) => {
+        if (!d) return '—';
+        const dt = new Date(d);
+        return isNaN(dt.getTime()) ? '—' : format(dt, 'MMM d, yyyy');
+      };
+
+      switch (reportType) {
+        case 'daily':
+          title = 'Daily Summary';
+          columns = [
+            { header: 'Metric', key: 'metric', width: 24 },
+            { header: 'Value', key: 'value', width: 16 },
+          ];
+          rows = [
+            { metric: 'Checkouts Today', value: stats?.checkoutsToday ?? 0 },
+            { metric: 'Returns Today', value: stats?.returnsToday ?? 0 },
+            { metric: 'Overdue Books', value: stats?.overdueBooks ?? 0 },
+          ];
+          if (recentActivity.length > 0) {
+            rows.push({ metric: '', value: '' });
+            rows.push({ metric: 'Recent Transactions', value: '' });
+            recentActivity.slice(0, 5).forEach((a) => {
+              rows.push({ metric: a.description, value: a.type });
+            });
+          }
+          break;
+
+        case 'weekly':
+          title = 'Weekly Activity Report';
+          columns = [
+            { header: 'Description', key: 'description', width: 36 },
+            { header: 'Time', key: 'time', width: 20 },
+          ];
+          rows = [
+            { description: `Active Loans: ${stats?.currentLoans ?? 0}`, time: '' },
+            { description: `Total Students: ${stats?.activeStudents ?? 0}`, time: '' },
+            { description: '', time: '' },
+          ];
+          recentActivity.slice(0, 10).forEach((a) => {
+            rows.push({ description: a.description, time: a.time });
+          });
+          break;
+
+        case 'overdue':
+          title = 'Overdue Books Report';
+          columns = [
+            { header: 'Book', key: 'bookTitle', width: 28 },
+            { header: 'Student', key: 'studentName', width: 22 },
+            { header: 'Due Date', key: '_dueFmt', width: 14 },
+            { header: 'Days Overdue', key: 'daysOverdue', width: 14 },
+            { header: 'Fine', key: '_fineFmt', width: 12 },
+          ];
+          rows = overdueList.map((l) => ({
+            ...l,
+            _dueFmt: sfmt(l.dueDate),
+            _fineFmt: `₱${l.fineAmount.toFixed(2)}`,
+          }));
+          break;
+
+        case 'popular':
+          title = 'Most Popular Books';
+          columns = [
+            { header: 'Rank', key: '_rank', width: 8 },
+            { header: 'Book Title', key: 'name', width: 36 },
+            { header: 'Times Borrowed', key: 'value', width: 16 },
+          ];
+          rows = popularBooks.map((b, i) => ({ ...b, _rank: `#${i + 1}` }));
+          break;
+      }
+
+      if (fmt === 'pdf') {
+        exportToPDF({ title, columns, rows });
+      } else {
+        exportToExcel({ title, columns, rows });
+      }
+
+      toast({
+        title: 'Export Complete',
+        description: `${title} exported as ${fmt.toUpperCase()} successfully.`,
+      });
+    } catch {
+      toast({
+        title: 'Export Failed',
+        description: 'Something went wrong while generating the file.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -73,9 +165,13 @@ const LibrarianReports: React.FC = () => {
               <SelectItem value="popular">Popular Books</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={handleExport} className="gap-2">
-            <Download className="h-4 w-4" />
-            Export
+          <Button variant="outline" onClick={() => handleExport('pdf')} className="gap-2">
+            <FileText className="h-4 w-4" />
+            PDF
+          </Button>
+          <Button variant="outline" onClick={() => handleExport('excel')} className="gap-2">
+            <FileSpreadsheet className="h-4 w-4" />
+            Excel
           </Button>
         </div>
       </div>

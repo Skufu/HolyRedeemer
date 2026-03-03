@@ -27,12 +27,19 @@ import { useLibrarians, useCreateLibrarian, useUpdateLibrarian, useDeleteLibrari
 import { CreateStudentRequest, Student } from '@/services/students';
 import { Librarian, Admin, CreateLibrarianRequest, CreateAdminRequest } from '@/services/users';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import StudentTable from './components/StudentTable';
 import LibrarianTable from './components/LibrarianTable';
 import AdminTable from './components/AdminTable';
 
+// Validation helper
+interface FieldError {
+  [key: string]: string;
+}
+
 const UsersManagement: React.FC = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const isSuperAdmin = user?.role === 'super_admin';
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -105,6 +112,12 @@ const UsersManagement: React.FC = () => {
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
   const [deleteLibrarianId, setDeleteLibrarianId] = useState<string | null>(null);
 
+  // Error states
+  const [studentErrors, setStudentErrors] = useState<FieldError>({});
+  const [librarianErrors, setLibrarianErrors] = useState<FieldError>({});
+  const [adminErrors, setAdminErrors] = useState<FieldError>({});
+
+  // --- Student handlers ---
   const handleOpenAdd = () => {
     setFormData({
       username: '',
@@ -118,6 +131,7 @@ const UsersManagement: React.FC = () => {
       guardian_contact: '',
     });
     setEditingStudent(null);
+    setStudentErrors({});
     setIsModalOpen(true);
   };
 
@@ -134,19 +148,75 @@ const UsersManagement: React.FC = () => {
       guardian_contact: student.guardian_contact || '',
     });
     setEditingStudent(student);
+    setStudentErrors({});
     setIsModalOpen(true);
   };
 
-  const handleSave = async () => {
-    if (editingStudent) {
-      await updateStudent.mutateAsync({
-        id: editingStudent.id,
-        data: formData as Partial<Student>,
-      });
-    } else {
-      await createStudent.mutateAsync(formData);
+  const validateStudentForm = (): boolean => {
+    const errors: FieldError = {};
+
+    if (!editingStudent) {
+      if (!formData.username.trim()) {
+        errors.username = 'Username is required';
+      } else if (formData.username.trim().length < 3) {
+        errors.username = 'Username must be at least 3 characters';
+      } else if (/\s/.test(formData.username.trim())) {
+        errors.username = 'Username cannot contain spaces';
+      }
+
+      if (!formData.password) {
+        errors.password = 'Password is required';
+      } else if (formData.password.length < 6) {
+        errors.password = 'Password must be at least 6 characters';
+      }
     }
-    setIsModalOpen(false);
+
+    if (!formData.student_id.trim()) {
+      errors.student_id = 'Student ID is required';
+    }
+
+    if (!formData.name.trim()) {
+      errors.name = 'Full name is required';
+    }
+
+    if (!formData.section.trim()) {
+      errors.section = 'Section is required';
+    }
+
+    const grade = formData.grade_level;
+    if (!grade || grade < 1 || grade > 12) {
+      errors.grade_level = 'Grade level must be between 1 and 12';
+    }
+
+    setStudentErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      toast({
+        title: 'Validation Error',
+        description: `Please fix ${Object.keys(errors).length} field(s) before submitting.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validateStudentForm()) return;
+
+    try {
+      if (editingStudent) {
+        await updateStudent.mutateAsync({
+          id: editingStudent.id,
+          data: formData as Partial<Student>,
+        });
+      } else {
+        await createStudent.mutateAsync(formData);
+      }
+      setIsModalOpen(false);
+    } catch {
+      // Error toast is handled by the mutation's onError
+    }
   };
 
   const handleDeactivate = async (student: Student) => {
@@ -156,6 +226,7 @@ const UsersManagement: React.FC = () => {
     });
   };
 
+  // --- Librarian handlers ---
   const handleOpenAddLibrarian = () => {
     setLibrarianFormData({
       username: '',
@@ -168,6 +239,7 @@ const UsersManagement: React.FC = () => {
       status: 'active',
     });
     setEditingLibrarian(null);
+    setLibrarianErrors({});
     setIsLibrarianModalOpen(true);
   };
 
@@ -183,19 +255,66 @@ const UsersManagement: React.FC = () => {
       status: librarian.status || 'active',
     });
     setEditingLibrarian(librarian);
+    setLibrarianErrors({});
     setIsLibrarianModalOpen(true);
   };
 
-  const handleSaveLibrarian = async () => {
-    if (editingLibrarian) {
-      await updateLibrarian.mutateAsync({
-        id: editingLibrarian.id,
-        data: librarianFormData as Partial<Librarian>,
-      });
-    } else {
-      await createLibrarian.mutateAsync(librarianFormData);
+  const validateLibrarianForm = (): boolean => {
+    const errors: FieldError = {};
+
+    if (!librarianFormData.name.trim()) {
+      errors.name = 'Full name is required';
     }
-    setIsLibrarianModalOpen(false);
+
+    if (!editingLibrarian) {
+      if (!librarianFormData.username.trim()) {
+        errors.username = 'Username is required';
+      } else if (librarianFormData.username.trim().length < 3) {
+        errors.username = 'Username must be at least 3 characters';
+      } else if (/\s/.test(librarianFormData.username.trim())) {
+        errors.username = 'Username cannot contain spaces';
+      }
+
+      if (!librarianFormData.password) {
+        errors.password = 'Password is required';
+      } else if (librarianFormData.password.length < 6) {
+        errors.password = 'Password must be at least 6 characters';
+      }
+    }
+
+    if (!librarianFormData.employee_id.trim()) {
+      errors.employee_id = 'Employee ID is required';
+    }
+
+    setLibrarianErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      toast({
+        title: 'Validation Error',
+        description: `Please fix ${Object.keys(errors).length} field(s) before submitting.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const handleSaveLibrarian = async () => {
+    if (!validateLibrarianForm()) return;
+
+    try {
+      if (editingLibrarian) {
+        await updateLibrarian.mutateAsync({
+          id: editingLibrarian.id,
+          data: librarianFormData as Partial<Librarian>,
+        });
+      } else {
+        await createLibrarian.mutateAsync(librarianFormData);
+      }
+      setIsLibrarianModalOpen(false);
+    } catch {
+      // Error toast is handled by the mutation's onError
+    }
   };
 
   const handleDeleteLibrarian = async () => {
@@ -205,6 +324,7 @@ const UsersManagement: React.FC = () => {
     }
   };
 
+  // --- Admin handlers ---
   const handleOpenAddAdmin = () => {
     setAdminFormData({
       username: '',
@@ -215,6 +335,7 @@ const UsersManagement: React.FC = () => {
       status: 'active',
     });
     setEditingAdmin(null);
+    setAdminErrors({});
     setIsAdminModalOpen(true);
   };
 
@@ -228,19 +349,68 @@ const UsersManagement: React.FC = () => {
       status: admin.status || 'active',
     });
     setEditingAdmin(admin);
+    setAdminErrors({});
     setIsAdminModalOpen(true);
   };
 
-  const handleSaveAdmin = async () => {
-    if (editingAdmin) {
-      await updateAdmin.mutateAsync({
-        id: editingAdmin.id,
-        data: adminFormData as Partial<Admin>,
-      });
-    } else {
-      await createAdmin.mutateAsync(adminFormData);
+  const validateAdminForm = (): boolean => {
+    const errors: FieldError = {};
+
+    if (!adminFormData.name.trim()) {
+      errors.name = 'Full name is required';
     }
-    setIsAdminModalOpen(false);
+
+    if (!editingAdmin) {
+      if (!adminFormData.username.trim()) {
+        errors.username = 'Username is required';
+      } else if (adminFormData.username.trim().length < 3) {
+        errors.username = 'Username must be at least 3 characters';
+      } else if (/\s/.test(adminFormData.username.trim())) {
+        errors.username = 'Username cannot contain spaces';
+      }
+
+      if (!adminFormData.password) {
+        errors.password = 'Password is required';
+      } else if (adminFormData.password.length < 6) {
+        errors.password = 'Password must be at least 6 characters';
+      }
+    }
+
+    setAdminErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      toast({
+        title: 'Validation Error',
+        description: `Please fix ${Object.keys(errors).length} field(s) before submitting.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const handleSaveAdmin = async () => {
+    if (!validateAdminForm()) return;
+
+    try {
+      if (editingAdmin) {
+        await updateAdmin.mutateAsync({
+          id: editingAdmin.id,
+          data: adminFormData as Partial<Admin>,
+        });
+      } else {
+        await createAdmin.mutateAsync(adminFormData);
+      }
+      setIsAdminModalOpen(false);
+    } catch {
+      // Error toast is handled by the mutation's onError
+    }
+  };
+
+  // Helper for inline error display
+  const ErrorText: React.FC<{ error?: string }> = ({ error }) => {
+    if (!error) return null;
+    return <p className="text-xs text-destructive mt-1">{error}</p>;
   };
 
   return (
@@ -312,7 +482,8 @@ const UsersManagement: React.FC = () => {
         )}
       </Tabs>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      {/* Student Dialog */}
+      <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if (!open) setStudentErrors({}); }}>
         <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>{editingStudent ? 'Edit Student' : 'Add Student'}</DialogTitle>
@@ -327,17 +498,27 @@ const UsersManagement: React.FC = () => {
                 <Input
                   id="username"
                   value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, username: e.target.value });
+                    if (studentErrors.username) setStudentErrors({ ...studentErrors, username: '' });
+                  }}
                   disabled={!!editingStudent}
+                  className={studentErrors.username ? 'border-destructive' : ''}
                 />
+                <ErrorText error={studentErrors.username} />
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="student_id">Student ID *</Label>
                 <Input
                   id="student_id"
                   value={formData.student_id}
-                  onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, student_id: e.target.value });
+                    if (studentErrors.student_id) setStudentErrors({ ...studentErrors, student_id: '' });
+                  }}
+                  className={studentErrors.student_id ? 'border-destructive' : ''}
                 />
+                <ErrorText error={studentErrors.student_id} />
               </div>
             </div>
 
@@ -348,8 +529,14 @@ const UsersManagement: React.FC = () => {
                   id="password"
                   type="password"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, password: e.target.value });
+                    if (studentErrors.password) setStudentErrors({ ...studentErrors, password: '' });
+                  }}
+                  placeholder="Minimum 6 characters"
+                  className={studentErrors.password ? 'border-destructive' : ''}
                 />
+                <ErrorText error={studentErrors.password} />
               </div>
             )}
 
@@ -358,8 +545,13 @@ const UsersManagement: React.FC = () => {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  if (studentErrors.name) setStudentErrors({ ...studentErrors, name: '' });
+                }}
+                className={studentErrors.name ? 'border-destructive' : ''}
               />
+              <ErrorText error={studentErrors.name} />
             </div>
 
             <div className="grid gap-1.5">
@@ -378,17 +570,29 @@ const UsersManagement: React.FC = () => {
                 <Input
                   id="grade_level"
                   type="number"
+                  min={1}
+                  max={12}
                   value={formData.grade_level}
-                  onChange={(e) => setFormData({ ...formData, grade_level: parseInt(e.target.value) || 7 })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, grade_level: parseInt(e.target.value) || 7 });
+                    if (studentErrors.grade_level) setStudentErrors({ ...studentErrors, grade_level: '' });
+                  }}
+                  className={studentErrors.grade_level ? 'border-destructive' : ''}
                 />
+                <ErrorText error={studentErrors.grade_level} />
               </div>
               <div className="grid gap-1.5">
-                <Label htmlFor="section">Section</Label>
+                <Label htmlFor="section">Section *</Label>
                 <Input
                   id="section"
                   value={formData.section}
-                  onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, section: e.target.value });
+                    if (studentErrors.section) setStudentErrors({ ...studentErrors, section: '' });
+                  }}
+                  className={studentErrors.section ? 'border-destructive' : ''}
                 />
+                <ErrorText error={studentErrors.section} />
               </div>
             </div>
 
@@ -423,7 +627,8 @@ const UsersManagement: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isLibrarianModalOpen} onOpenChange={setIsLibrarianModalOpen}>
+      {/* Librarian Dialog */}
+      <Dialog open={isLibrarianModalOpen} onOpenChange={(open) => { setIsLibrarianModalOpen(open); if (!open) setLibrarianErrors({}); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingLibrarian ? 'Edit Librarian' : 'Add Librarian'}</DialogTitle>
@@ -437,16 +642,27 @@ const UsersManagement: React.FC = () => {
               <Input
                 id="librarian-name"
                 value={librarianFormData.name}
-                onChange={(e) => setLibrarianFormData({ ...librarianFormData, name: e.target.value })}
+                onChange={(e) => {
+                  setLibrarianFormData({ ...librarianFormData, name: e.target.value });
+                  if (librarianErrors.name) setLibrarianErrors({ ...librarianErrors, name: '' });
+                }}
+                className={librarianErrors.name ? 'border-destructive' : ''}
               />
+              <ErrorText error={librarianErrors.name} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="username">Username *</Label>
               <Input
                 id="username"
                 value={librarianFormData.username}
-                onChange={(e) => setLibrarianFormData({ ...librarianFormData, username: e.target.value })}
+                onChange={(e) => {
+                  setLibrarianFormData({ ...librarianFormData, username: e.target.value });
+                  if (librarianErrors.username) setLibrarianErrors({ ...librarianErrors, username: '' });
+                }}
+                disabled={!!editingLibrarian}
+                className={librarianErrors.username ? 'border-destructive' : ''}
               />
+              <ErrorText error={librarianErrors.username} />
             </div>
             {!editingLibrarian && (
               <div className="grid gap-2">
@@ -455,8 +671,14 @@ const UsersManagement: React.FC = () => {
                   id="password"
                   type="password"
                   value={librarianFormData.password}
-                  onChange={(e) => setLibrarianFormData({ ...librarianFormData, password: e.target.value })}
+                  onChange={(e) => {
+                    setLibrarianFormData({ ...librarianFormData, password: e.target.value });
+                    if (librarianErrors.password) setLibrarianErrors({ ...librarianErrors, password: '' });
+                  }}
+                  placeholder="Minimum 6 characters"
+                  className={librarianErrors.password ? 'border-destructive' : ''}
                 />
+                <ErrorText error={librarianErrors.password} />
               </div>
             )}
             <div className="grid gap-2">
@@ -464,8 +686,13 @@ const UsersManagement: React.FC = () => {
               <Input
                 id="employee_id"
                 value={librarianFormData.employee_id}
-                onChange={(e) => setLibrarianFormData({ ...librarianFormData, employee_id: e.target.value })}
+                onChange={(e) => {
+                  setLibrarianFormData({ ...librarianFormData, employee_id: e.target.value });
+                  if (librarianErrors.employee_id) setLibrarianErrors({ ...librarianErrors, employee_id: '' });
+                }}
+                className={librarianErrors.employee_id ? 'border-destructive' : ''}
               />
+              <ErrorText error={librarianErrors.employee_id} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
@@ -507,7 +734,8 @@ const UsersManagement: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isAdminModalOpen} onOpenChange={setIsAdminModalOpen}>
+      {/* Admin Dialog */}
+      <Dialog open={isAdminModalOpen} onOpenChange={(open) => { setIsAdminModalOpen(open); if (!open) setAdminErrors({}); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingAdmin ? 'Edit Admin' : 'Add Admin'}</DialogTitle>
@@ -521,16 +749,27 @@ const UsersManagement: React.FC = () => {
               <Input
                 id="admin-name"
                 value={adminFormData.name}
-                onChange={(e) => setAdminFormData({ ...adminFormData, name: e.target.value })}
+                onChange={(e) => {
+                  setAdminFormData({ ...adminFormData, name: e.target.value });
+                  if (adminErrors.name) setAdminErrors({ ...adminErrors, name: '' });
+                }}
+                className={adminErrors.name ? 'border-destructive' : ''}
               />
+              <ErrorText error={adminErrors.name} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="admin-username">Username *</Label>
               <Input
                 id="admin-username"
                 value={adminFormData.username}
-                onChange={(e) => setAdminFormData({ ...adminFormData, username: e.target.value })}
+                onChange={(e) => {
+                  setAdminFormData({ ...adminFormData, username: e.target.value });
+                  if (adminErrors.username) setAdminErrors({ ...adminErrors, username: '' });
+                }}
+                disabled={!!editingAdmin}
+                className={adminErrors.username ? 'border-destructive' : ''}
               />
+              <ErrorText error={adminErrors.username} />
             </div>
             {!editingAdmin && (
               <div className="grid gap-2">
@@ -539,8 +778,14 @@ const UsersManagement: React.FC = () => {
                   id="admin-password"
                   type="password"
                   value={adminFormData.password}
-                  onChange={(e) => setAdminFormData({ ...adminFormData, password: e.target.value })}
+                  onChange={(e) => {
+                    setAdminFormData({ ...adminFormData, password: e.target.value });
+                    if (adminErrors.password) setAdminErrors({ ...adminErrors, password: '' });
+                  }}
+                  placeholder="Minimum 6 characters"
+                  className={adminErrors.password ? 'border-destructive' : ''}
                 />
+                <ErrorText error={adminErrors.password} />
               </div>
             )}
             <div className="grid gap-2">

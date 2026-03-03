@@ -1,8 +1,8 @@
 package handlers
 
 import (
+	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -217,8 +217,6 @@ func (h *RequestHandler) ApproveRequest(c *gin.Context) {
 			return
 		}
 
-		dueDate := time.Now().AddDate(0, 0, h.config.DefaultLoanDays)
-
 		tx, err := h.db.Begin(c.Request.Context())
 		if err != nil {
 			response.InternalError(c, "Failed to begin transaction")
@@ -239,28 +237,27 @@ func (h *RequestHandler) ApproveRequest(c *gin.Context) {
 			return
 		}
 
-		_, err = queries.CreateTransaction(c.Request.Context(), sqlcdb.CreateTransactionParams{
-			StudentID:      toPgUUID(studentID),
-			CopyID:         toPgUUID(copy.ID),
-			LibrarianID:    toPgUUID(librarian.ID),
-			CheckoutDate:   toPgTimestamp(time.Now()),
-			DueDate:        toPgDate(dueDate),
-			Status:         sqlcdb.NullTransactionStatus{TransactionStatus: sqlcdb.TransactionStatusBorrowed, Valid: true},
-			CheckoutMethod: sqlcdb.NullCheckoutMethod{CheckoutMethod: sqlcdb.CheckoutMethodCounter, Valid: true},
-			Notes:          toPgText("Approved reservation"),
+		// Mark the copy as reserved (NOT borrowed) — actual checkout happens at circulation desk
+		err = queries.UpdateCopyStatus(c.Request.Context(), sqlcdb.UpdateCopyStatusParams{
+			ID:     copy.ID,
+			Status: sqlcdb.NullCopyStatus{CopyStatus: sqlcdb.CopyStatusReserved, Valid: true},
 		})
 		if err != nil {
-			response.InternalError(c, "Failed to create transaction")
+			response.InternalError(c, "Failed to reserve copy")
 			return
 		}
 
-		err = queries.UpdateCopyStatus(c.Request.Context(), sqlcdb.UpdateCopyStatusParams{
-			ID:     copy.ID,
-			Status: sqlcdb.NullCopyStatus{CopyStatus: sqlcdb.CopyStatusBorrowed, Valid: true},
-		})
-		if err != nil {
-			response.InternalError(c, "Failed to update copy status")
-			return
+		// Notify the student that the book is ready for pickup
+		student, studentErr := queries.GetStudentByID(c.Request.Context(), studentID)
+		if studentErr == nil {
+			_, _ = queries.CreateNotification(c.Request.Context(), sqlcdb.CreateNotificationParams{
+				UserID:        student.UserID,
+				Type:          sqlcdb.NotificationTypeRequestUpdate,
+				Title:         "Reservation Approved",
+				Message:       fmt.Sprintf("Your reservation for '%s' has been approved! Please visit the library to pick it up.", request.BookTitle),
+				ReferenceType: toPgText("request"),
+				ReferenceID:   toPgUUID(id),
+			})
 		}
 
 		if err := tx.Commit(c.Request.Context()); err != nil {
@@ -270,7 +267,7 @@ func (h *RequestHandler) ApproveRequest(c *gin.Context) {
 
 		h.invalidateRequestCaches()
 
-		response.Success(c, nil, "Reservation approved and checked out")
+		response.Success(c, nil, "Reservation approved — book reserved for pickup")
 		return
 	}
 
@@ -284,6 +281,9 @@ func (h *RequestHandler) ApproveRequest(c *gin.Context) {
 	}
 
 	h.invalidateRequestCaches()
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionUpdate, "request", id, map[string]interface{}{
+		"new_status": "approved",
+	})
 
 	response.Success(c, nil, "Request approved")
 }
@@ -334,6 +334,9 @@ func (h *RequestHandler) RejectRequest(c *gin.Context) {
 	}
 
 	h.invalidateRequestCaches()
+	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionUpdate, "request", id, map[string]interface{}{
+		"new_status": "rejected",
+	})
 
 	response.Success(c, nil, "Request rejected")
 }

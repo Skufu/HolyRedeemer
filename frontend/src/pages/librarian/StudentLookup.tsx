@@ -87,16 +87,14 @@ const StudentLookup: React.FC = () => {
 
   const { data: studentsData, isLoading: studentsLoading } = useStudents({
     search: search.length >= 2 ? search : undefined,
-    per_page: 8,
+    per_page: search.length >= 2 ? 8 : 50,
   });
 
   const { data: loansData, isLoading: loansLoading } = useStudentLoans(selectedStudent?.id || '');
   const { data: historyData, isLoading: historyLoading } = useStudentHistory(selectedStudent?.id || '', { per_page: 10 });
   const { data: finesData, isLoading: finesLoading } = useStudentFines(selectedStudent?.id || '');
 
-  const normalizedStudents: StudentDisplay[] = search.length >= 2
-    ? (studentsData?.data ?? []).map((student) => normalizeStudent(student))
-    : [];
+  const normalizedStudents: StudentDisplay[] = (studentsData?.data ?? []).map((student) => normalizeStudent(student));
   const studentLoans = loansData?.data || [];
   const studentHistory = historyData?.data || [];
   const studentFines = finesData?.data || [];
@@ -154,7 +152,7 @@ const StudentLookup: React.FC = () => {
             </Button>
           </div>
 
-          {studentsLoading && search.length >= 2 && (
+          {studentsLoading && (
             <div className="mt-4 flex justify-center py-4">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
@@ -167,7 +165,7 @@ const StudentLookup: React.FC = () => {
               animate="visible"
               variants={staggerContainerVariants}
             >
-              {normalizedStudents.slice(0, 8).map((student) => (
+              {normalizedStudents.map((student) => (
                 <motion.button
                   key={student.id}
                   onClick={() => { setSelectedStudent(student); setSearch(''); }}
@@ -478,13 +476,13 @@ const StudentLookup: React.FC = () => {
         </div>
       )}
 
-      {!selectedStudent && normalizedStudents.length === 0 && (
+      {!selectedStudent && normalizedStudents.length === 0 && !studentsLoading && (
         <Card>
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">
               <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">Search for a Student</p>
-              <p>Enter a name, student ID, or scan their library card</p>
+              <p className="text-lg font-medium">{search ? 'No results found' : 'No students found'}</p>
+              <p>{search ? 'Try a different search term' : 'There are no students registered in the system'}</p>
             </div>
           </CardContent>
         </Card>

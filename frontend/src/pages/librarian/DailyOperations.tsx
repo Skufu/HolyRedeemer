@@ -70,8 +70,8 @@ const DailyOperations: React.FC = () => {
     approveRequest.mutate(requestId, {
       onSuccess: () => {
         toast({
-          title: "Request Approved",
-          description: "Student can now check out the book.",
+          title: "Reservation Approved",
+          description: "Book reserved for student pickup. Complete the checkout at the Circulation desk.",
           action: (
             <ToastAction
               altText="Go to Checkout"

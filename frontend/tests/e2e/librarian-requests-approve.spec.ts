@@ -32,7 +32,7 @@ test.describe('Librarian request approvals', () => {
       await expect(approveButton).toBeVisible();
       await approveButton.click();
 
-      await expect(page.getByText('Request Approved', { exact: true }).first()).toBeVisible();
+      await expect(page.getByText('Reservation Approved', { exact: true }).first()).toBeVisible();
     });
 
     await gapCheck('toast action navigates to checkout', async () => {

@@ -73,3 +73,12 @@ SELECT EXISTS(
     AND request_type = 'reservation'
     AND status = 'pending'
 );
+
+-- name: FulfillReservation :exec
+UPDATE book_requests
+SET status = 'fulfilled',
+    processed_at = CURRENT_TIMESTAMP
+WHERE student_id = $1
+  AND book_id = $2
+  AND request_type = 'reservation'
+  AND status = 'approved';

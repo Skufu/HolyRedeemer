@@ -222,8 +222,8 @@ const Circulation: React.FC = () => {
             return;
           }
 
-          // For checkout mode, check if available
-          if (mode === 'checkout' && normalizedCopy.status !== 'available') {
+          // For checkout mode, check if available or reserved
+          if (mode === 'checkout' && normalizedCopy.status !== 'available' && normalizedCopy.status !== 'reserved') {
             toast({
               title: 'Book Not Available',
               description: `This copy is currently ${normalizedCopy.status}.`,

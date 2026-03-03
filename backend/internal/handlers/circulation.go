@@ -152,7 +152,7 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 		return
 	}
 
-	if !copy.Status.Valid || copy.Status.CopyStatus != sqlcdb.CopyStatusAvailable {
+	if !copy.Status.Valid || (copy.Status.CopyStatus != sqlcdb.CopyStatusAvailable && copy.Status.CopyStatus != sqlcdb.CopyStatusReserved) {
 		response.BadRequest(c, "Book copy is not available")
 		return
 	}
@@ -199,6 +199,12 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 	}
 
 	h.invalidateCirculationCaches()
+
+	// If there was a matching approved reservation, mark it as fulfilled
+	_ = h.queries.FulfillReservation(c.Request.Context(), sqlcdb.FulfillReservationParams{
+		StudentID: toPgUUID(studentID),
+		BookID:    copy.BookID,
+	})
 
 	resp := CheckoutResponse{
 		TransactionID: txn.ID.String(),

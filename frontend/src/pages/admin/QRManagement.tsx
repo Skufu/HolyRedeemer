@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +34,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useToast } from '@/hooks/use-toast';
 import { useBooks, useBookCopies, useRegenerateQRCode } from '@/hooks/useBooks';
+import { booksService } from '@/services/books';
 import { BookCopy } from '@/services/books';
 import './QRManagement.print.css';
 
@@ -57,8 +59,21 @@ const QRManagement: React.FC = () => {
   const { data: booksData, isLoading: booksLoading } = useBooks();
   const books = useMemo(() => booksData?.data || [], [booksData]);
 
-  const selectedBookId = bookFilter !== 'all' ? bookFilter : (books[0]?.id || '');
+  const selectedBookId = bookFilter !== 'all' ? bookFilter : '';
   const { data: copiesData, isLoading: copiesLoading } = useBookCopies(selectedBookId);
+
+  // Fetch copies for ALL books when "All Books" is selected
+  const allBooksQueries = useQueries({
+    queries: bookFilter === 'all'
+      ? books.map((book) => ({
+        queryKey: ['book-copies', book.id],
+        queryFn: () => booksService.listCopies(book.id),
+        staleTime: 5 * 60 * 1000,
+      }))
+      : [],
+  });
+
+  const allBooksLoading = bookFilter === 'all' && allBooksQueries.some((q) => q.isLoading);
 
   const allCopies = useMemo(() => {
     if (bookFilter !== 'all' && copiesData?.data) {
@@ -67,8 +82,22 @@ const QRManagement: React.FC = () => {
         bookTitle: books.find(b => b.id === copy.bookId)?.title || copy.bookTitle,
       }));
     }
+    if (bookFilter === 'all') {
+      const merged: BookCopy[] = [];
+      for (const q of allBooksQueries) {
+        if (q.data?.data) {
+          for (const copy of q.data.data) {
+            merged.push({
+              ...copy,
+              bookTitle: books.find(b => b.id === copy.bookId)?.title || copy.bookTitle,
+            });
+          }
+        }
+      }
+      return merged;
+    }
     return [];
-  }, [copiesData, books, bookFilter]);
+  }, [copiesData, books, bookFilter, allBooksQueries]);
 
   const getBook = (bookId: string) => books.find((b) => b.id === bookId);
 
@@ -298,14 +327,14 @@ const QRManagement: React.FC = () => {
       </div>
 
       {/* Grid */}
-      {booksLoading || copiesLoading ? (
+      {booksLoading || copiesLoading || allBooksLoading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : bookFilter === 'all' ? (
+      ) : filteredCopies.length === 0 ? (
         <div className="text-center py-12">
           <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/50" />
-          <p className="text-muted-foreground mt-4">Select a book to view its copies</p>
+          <p className="text-muted-foreground mt-4">No book copies found</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
@@ -364,12 +393,7 @@ const QRManagement: React.FC = () => {
         </div>
       )}
 
-      {bookFilter !== 'all' && !copiesLoading && filteredCopies.length === 0 && (
-        <div className="text-center py-12">
-          <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/50" />
-          <p className="text-muted-foreground mt-4">No book copies found</p>
-        </div>
-      )}
+
 
       {/* Edit Copy Status Dialog */}
       <AlertDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

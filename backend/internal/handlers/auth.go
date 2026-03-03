@@ -62,18 +62,24 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// Get user by username
 	user, err := h.queries.GetUserByUsername(c.Request.Context(), req.Username)
 	if err != nil {
+		log.Printf("[LOGIN] User lookup failed for username=%q: %v", req.Username, err)
 		response.Unauthorized(c, "Invalid credentials")
 		return
 	}
+
+	log.Printf("[LOGIN] User found: id=%s username=%q role=%s status_valid=%v status=%v",
+		user.ID, user.Username, user.Role, user.Status.Valid, user.Status.UserStatus)
 
 	// Check password
 	if !utils.CheckPassword(req.Password, user.PasswordHash) {
+		log.Printf("[LOGIN] Password mismatch for username=%q", req.Username)
 		response.Unauthorized(c, "Invalid credentials")
 		return
 	}
 
-	// Check user status
-	if !isUserActive(user.Status) {
+	// Check user status - treat NULL status as active (DB default is 'active')
+	if user.Status.Valid && user.Status.UserStatus != sqlcdb.UserStatusActive {
+		log.Printf("[LOGIN] Account not active for username=%q status=%v", req.Username, user.Status.UserStatus)
 		response.Forbidden(c, "Account is not active")
 		return
 	}

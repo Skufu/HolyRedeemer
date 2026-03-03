@@ -525,13 +525,17 @@ const ExcelMigration: React.FC = () => {
 
             <Tabs defaultValue="books" className="space-y-6">
                 <TabsList className="grid w-full grid-cols-2 max-w-md">
-                    <TabsTrigger value="books" className="gap-2">
-                        <BookOpen className="h-4 w-4" />
-                        Import Books
+                    <TabsTrigger value="books">
+                        <div className="flex items-center gap-2">
+                            <BookOpen className="h-4 w-4" />
+                            Import Books
+                        </div>
                     </TabsTrigger>
-                    <TabsTrigger value="students" className="gap-2">
-                        <Users className="h-4 w-4" />
-                        Import Students
+                    <TabsTrigger value="students">
+                        <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Import Students
+                        </div>
                     </TabsTrigger>
                 </TabsList>
 
