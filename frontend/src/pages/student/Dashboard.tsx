@@ -218,7 +218,7 @@ const StudentDashboard = () => {
                         {/* Status Tags */}
                         <div className="flex flex-wrap items-center gap-3 mt-6">
                           <div className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 ${isOverdue ? 'bg-destructive/15 text-destructive border border-destructive/20' :
-                            isDueSoon ? 'bg-warning/15 text-warning-foreground border border-warning/30 font-bold' :
+                            isDueSoon ? 'bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 font-bold' :
                               'bg-success/15 text-success border border-success/20'
                             }`}>
                             <Clock className="w-4 h-4" />

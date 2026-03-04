@@ -177,7 +177,7 @@ const MyBooks = () => {
       return {
         label: daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} days`,
         shortLabel: daysUntilDue === 0 ? 'Due today' : `${daysUntilDue} days`,
-        color: 'text-amber-700 bg-amber-100 border-amber-200 dark:text-amber-400 dark:bg-amber-900/30',
+        color: 'text-red-700 bg-red-100 border-red-200 dark:text-red-400 dark:bg-red-900/30',
         icon: Clock,
         urgent: true,
       };

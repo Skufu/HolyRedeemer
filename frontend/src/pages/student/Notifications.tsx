@@ -40,7 +40,7 @@ const StudentNotifications = () => {
       case 'overdue':
         return <AlertTriangle className="h-6 w-6 text-red-500" />;
       case 'due_reminder':
-        return <Clock className="h-6 w-6 text-amber-500" />;
+        return <Clock className="h-6 w-6 text-red-500" />;
       case 'fine':
         return <CreditCard className="h-6 w-6 text-red-500" />;
       case 'request_update':
@@ -58,7 +58,7 @@ const StudentNotifications = () => {
       case 'overdue':
         return <Badge className="bg-red-500 hover:bg-red-600 text-white">Your book is late!</Badge>;
       case 'due_reminder':
-        return <Badge className="bg-amber-500 hover:bg-amber-600 text-white">Due soon</Badge>;
+        return <Badge className="bg-red-600 hover:bg-red-700 text-white">Due soon</Badge>;
       case 'fine':
         return <Badge className="bg-red-500 hover:bg-red-600 text-white">You have a fine</Badge>;
       case 'request_update':
@@ -139,13 +139,13 @@ const StudentNotifications = () => {
         transition={transitions.normal}
       >
         <Card className={`transition-all overflow-hidden ${isNew
-            ? 'border-2 border-amber-400 bg-amber-50 shadow-md'
-            : 'border border-gray-200'
+          ? 'border-2 border-red-400 bg-red-50 shadow-md'
+          : 'border border-gray-200'
           }`}>
           <CardContent className="p-4">
             <div className="flex gap-4">
               <div className="flex-shrink-0">
-                <div className={`p-3 rounded-full ${isNew ? 'bg-amber-100' : 'bg-gray-100'
+                <div className={`p-3 rounded-full ${isNew ? 'bg-red-100' : 'bg-gray-100'
                   }`}>
                   {getNotificationIcon(notification.type)}
                 </div>
@@ -156,7 +156,7 @@ const StudentNotifications = () => {
                     <div className="flex items-center gap-2 flex-wrap mb-2">
                       {getNotificationBadge(notification.type)}
                       {isNew && (
-                        <span className="px-2 py-0.5 bg-amber-400 text-amber-900 text-xs font-bold rounded-full">
+                        <span className="px-2 py-0.5 bg-red-400 text-red-900 text-xs font-bold rounded-full">
                           NEW!
                         </span>
                       )}
@@ -179,7 +179,7 @@ const StudentNotifications = () => {
                         size="sm"
                         onClick={() => markAsRead(notification.id)}
                         disabled={markAsReadMutation.isPending}
-                        className="border-amber-400 text-amber-700 hover:bg-amber-100 min-h-[44px] sm:min-h-0"
+                        className="border-red-400 text-red-700 hover:bg-red-100 min-h-[44px] sm:min-h-0"
                       >
                         <ThumbsUp className="h-4 w-4 mr-1" />
                         Got it!
@@ -250,13 +250,13 @@ const StudentNotifications = () => {
 
       {/* Stats Cards - Kid friendly */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <Card className={`${unreadCount > 0 ? 'bg-amber-50 border-amber-300' : ''}`}>
+        <Card className={`${unreadCount > 0 ? 'bg-red-50 border-red-300' : ''}`}>
           <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
-            <div className={`p-2 sm:p-3 rounded-full ${unreadCount > 0 ? 'bg-amber-200' : 'bg-gray-100'}`}>
-              <Bell className={`h-5 w-5 sm:h-6 sm:w-6 ${unreadCount > 0 ? 'text-amber-700' : 'text-gray-500'}`} />
+            <div className={`p-2 sm:p-3 rounded-full ${unreadCount > 0 ? 'bg-red-200' : 'bg-gray-100'}`}>
+              <Bell className={`h-5 w-5 sm:h-6 sm:w-6 ${unreadCount > 0 ? 'text-red-700' : 'text-gray-500'}`} />
             </div>
             <div>
-              <p className={`text-2xl sm:text-3xl font-bold ${unreadCount > 0 ? 'text-amber-700' : 'text-gray-700'}`}>
+              <p className={`text-2xl sm:text-3xl font-bold ${unreadCount > 0 ? 'text-red-700' : 'text-gray-700'}`}>
                 {unreadCount}
               </p>
               <p className="text-xs text-gray-600 font-medium">{getStatsLabel('unread')}</p>
@@ -280,8 +280,8 @@ const StudentNotifications = () => {
 
         <Card>
           <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
-            <div className="p-2 sm:p-3 rounded-full bg-amber-100">
-              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
+            <div className="p-2 sm:p-3 rounded-full bg-red-100">
+              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
             </div>
             <div>
               <p className="text-2xl sm:text-3xl font-bold text-gray-900">
@@ -312,7 +312,7 @@ const StudentNotifications = () => {
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           {unreadCount > 0 ? (
             <>
-              <Sparkles className="h-5 w-5 text-amber-500" />
+              <Sparkles className="h-5 w-5 text-red-500" />
               You have {unreadCount} new message{unreadCount !== 1 ? 's' : ''}!
             </>
           ) : (
