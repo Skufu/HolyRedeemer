@@ -297,15 +297,29 @@ const SchoolYearSetup: React.FC = () => {
             </div>
             <Progress value={progressValue} />
             <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6 text-xs">
-              {steps.map((step) => (
-                <div
-                  key={step.id}
-                  className={`p-2 rounded-lg border text-center ${step.id === currentStep ? 'border-primary bg-primary/5' : 'border-muted'}`}
-                >
-                  <div className="font-medium">{step.title}</div>
-                  <div className="text-muted-foreground">{step.description}</div>
-                </div>
-              ))}
+              {steps.map((step) => {
+                const isCompleted = completedSteps[step.id];
+                const isCurrent = step.id === currentStep;
+
+                return (
+                  <div
+                    key={step.id}
+                    onClick={() => setCurrentStep(step.id)}
+                    className={`p-2 rounded-lg border text-center cursor-pointer transition-colors ${isCurrent
+                        ? 'border-primary bg-primary/5'
+                        : isCompleted
+                          ? 'border-success/50 bg-success/5 hover:bg-success/10'
+                          : 'border-muted hover:border-primary/50 hover:bg-muted/50'
+                      }`}
+                  >
+                    <div className="font-medium flex items-center justify-center gap-1">
+                      {step.title}
+                      {isCompleted && !isCurrent && <span className="text-success ml-1">✓</span>}
+                    </div>
+                    <div className="text-muted-foreground mt-1">{step.description}</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -454,14 +468,35 @@ const SchoolYearSetup: React.FC = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="importFile">CSV File</Label>
-                  <Input
-                    id="importFile"
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-                  />
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                  <div className="space-y-2 flex-1">
+                    <Label htmlFor="importFile">CSV File</Label>
+                    <Input
+                      id="importFile"
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const headers = ['username', 'password', 'student_id', 'name', 'email', 'grade_level', 'section', 'rfid_code', 'contact_info', 'guardian_name', 'guardian_contact'];
+                      const sampleRow = ['jdelacruz', 'password123', '2025-0001', 'Juan Dela Cruz', 'juan@example.com', '7', 'St. Augustine', 'RFID-1234', '09123456789', 'Maria Dela Cruz', '09187654321'];
+                      const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + sampleRow.join(",");
+                      const encodedUri = encodeURI(csvContent);
+                      const link = document.createElement("a");
+                      link.setAttribute("href", encodedUri);
+                      link.setAttribute("download", "student_import_template.csv");
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    className="gap-2 w-full sm:w-auto mt-2 sm:mt-0"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download Template
+                  </Button>
                 </div>
                 {importFile && (
                   <p className="text-xs text-muted-foreground">Selected file: {importFile.name}</p>
