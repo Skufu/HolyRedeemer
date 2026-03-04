@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, Printer, QrCode, Check, BookOpen, Loader2, Download, MoreHorizontal, RefreshCw, Edit } from 'lucide-react';
+import { Search, Printer, QrCode, Check, BookOpen, Loader2, Download, MoreHorizontal, RefreshCw, Edit, ChevronLeft, ChevronRight } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useToast } from '@/hooks/use-toast';
@@ -38,10 +38,13 @@ import { booksService } from '@/services/books';
 import { BookCopy } from '@/services/books';
 import './QRManagement.print.css';
 
+const ITEMS_PER_PAGE = 24;
+
 const QRManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [bookFilter, setBookFilter] = useState<string>('all');
   const [selectedCopies, setSelectedCopies] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [editingCopy, setEditingCopy] = useState<BookCopy | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -56,7 +59,7 @@ const QRManagement: React.FC = () => {
 
   const { mutate: regenerateMutate, isPending: isRegenerating } = useRegenerateQRCode();
 
-  const { data: booksData, isLoading: booksLoading } = useBooks();
+  const { data: booksData, isLoading: booksLoading } = useBooks({ per_page: 1000 });
   const books = useMemo(() => booksData?.data || [], [booksData]);
 
   const selectedBookId = bookFilter !== 'all' ? bookFilter : '';
@@ -109,6 +112,18 @@ const QRManagement: React.FC = () => {
     return matchesSearch;
   });
 
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredCopies.length / ITEMS_PER_PAGE));
+  const paginatedCopies = filteredCopies.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, bookFilter]);
+
   const uniqueBooks = books;
 
   const toggleSelect = (copyId: string) => {
@@ -124,10 +139,10 @@ const QRManagement: React.FC = () => {
   };
 
   const selectAll = () => {
-    if (selectedCopies.size === filteredCopies.length) {
+    if (selectedCopies.size === paginatedCopies.length) {
       setSelectedCopies(new Set());
     } else {
-      setSelectedCopies(new Set(filteredCopies.map((c) => c.id)));
+      setSelectedCopies(new Set(paginatedCopies.map((c) => c.id)));
     }
   };
 
@@ -322,7 +337,7 @@ const QRManagement: React.FC = () => {
           </SelectContent>
         </Select>
         <Button variant="outline" onClick={selectAll}>
-          {selectedCopies.size === filteredCopies.length ? 'Deselect All' : 'Select All'}
+          {selectedCopies.size === paginatedCopies.length && selectedCopies.size > 0 ? 'Deselect All' : 'Select All'}
         </Button>
       </div>
 
@@ -338,7 +353,7 @@ const QRManagement: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-          {filteredCopies.map((copy, index) => {
+          {paginatedCopies.map((copy, index) => {
             const book = getBook(copy.bookId);
             const isSelected = selectedCopies.has(copy.id);
 
@@ -390,6 +405,64 @@ const QRManagement: React.FC = () => {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {filteredCopies.length > ITEMS_PER_PAGE && (
+        <div className="flex items-center justify-between border-t pt-4">
+          <p className="text-sm text-muted-foreground">
+            Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredCopies.length)} of {filteredCopies.length} copies
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((page) => {
+                if (totalPages <= 7) return true;
+                if (page === 1 || page === totalPages) return true;
+                if (Math.abs(page - currentPage) <= 1) return true;
+                return false;
+              })
+              .reduce<(number | string)[]>((acc, page, idx, arr) => {
+                if (idx > 0 && page - (arr[idx - 1] as number) > 1) {
+                  acc.push('...');
+                }
+                acc.push(page);
+                return acc;
+              }, [])
+              .map((page, idx) =>
+                typeof page === 'string' ? (
+                  <span key={`ellipsis-${idx}`} className="px-1 text-muted-foreground">…</span>
+                ) : (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    size="icon"
+                    className="h-8 w-8 text-xs"
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </Button>
+                )
+              )}
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
 
