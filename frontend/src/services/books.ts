@@ -1,5 +1,7 @@
 import { api, ApiResponse } from './api';
 
+import { Book, BookCopy, Category } from '@/services/books';
+
 export interface Category {
   id: string;
   name: string;
@@ -25,6 +27,23 @@ export interface Book {
   availableCopies: number;
   status: string;
 }
+export type BookCopy = {
+  id: string;
+  bookId: string;
+  copyNumber: number;
+  qrCode: string;
+  status: string;
+  condition: string;
+  borrowerName?: string;
+  borrowerStudentNumber?: string;
+  checkoutDate?: string;
+  dueDate?: string;
+  borrowerId?: string;
+
+  borrowerName?: string;              // ✅ NEW
+  borrowerStudentNumber?: string;     // ✅ NEW
+  checkoutDate?: string;              // ✅ optional but useful
+};
 
 export interface BookCopy {
   id: string;

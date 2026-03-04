@@ -139,6 +139,7 @@ type Querier interface {
 	// Admin queries - Admins are users with role 'admin' or 'super_admin'
 	ListAdmins(ctx context.Context, arg ListAdminsParams) ([]User, error)
 	ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([]ListAuditLogsRow, error)
+	ListBookCopiesWithBorrower(ctx context.Context, bookID pgtype.UUID) ([]ListBookCopiesWithBorrowerRow, error)
 	ListBooks(ctx context.Context, arg ListBooksParams) ([]ListBooksRow, error)
 	ListBooksAvailableOnly(ctx context.Context, arg ListBooksAvailableOnlyParams) ([]ListBooksAvailableOnlyRow, error)
 	// Category queries

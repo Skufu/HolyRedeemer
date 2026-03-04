@@ -979,15 +979,3 @@ func formatInt4Value(value pgtype.Int4) string {
 	}
 	return ""
 }
-
-func formatStudentStatus(status sqlcdb.NullStudentStatus) string {
-	return formatStudentStatusValue(status)
-}
-
-func formatTransactionStatus(status sqlcdb.NullTransactionStatus) string {
-	return formatTransactionStatusValue(status)
-}
-
-func formatInt4(value pgtype.Int4) string {
-	return formatInt4Value(value)
-}

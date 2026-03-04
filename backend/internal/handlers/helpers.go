@@ -112,21 +112,6 @@ func fromPgDate(d pgtype.Date) time.Time {
 	return time.Time{}
 }
 
-// Timestamptz helpers
-func fromPgTimestamptz(t pgtype.Timestamptz) time.Time {
-	if t.Valid {
-		return t.Time
-	}
-	return time.Time{}
-}
-
-func fromPgTimestamptzOptional(t pgtype.Timestamptz) (time.Time, bool) {
-	if t.Valid {
-		return t.Time, true
-	}
-	return time.Time{}, false
-}
-
 // Format helpers for pgtype date/time
 func formatPgTimestamp(t pgtype.Timestamp, layout string) string {
 	if t.Valid {
@@ -157,21 +142,6 @@ func getStudentStatusFromNull(status sqlcdb.NullStudentStatus) string {
 		return string(status.StudentStatus)
 	}
 	return "active"
-}
-
-func containsSubstring(str, substr string) bool {
-	if str == "" || substr == "" {
-		return false
-	}
-	if len(str) < len(substr) {
-		return false
-	}
-	for i := 0; i <= len(str)-len(substr); i++ {
-		if str[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 // Nullable status helpers

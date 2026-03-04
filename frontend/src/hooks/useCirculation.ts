@@ -27,6 +27,7 @@ export const useCheckout = () => {
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['loans'] });
       queryClient.invalidateQueries({ queryKey: ['books'] });
+      queryClient.invalidateQueries({ queryKey: ['book-copies'] });
       queryClient.invalidateQueries({ queryKey: ['student-loans'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({
@@ -53,6 +54,7 @@ export const useReturn = () => {
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['loans'] });
       queryClient.invalidateQueries({ queryKey: ['books'] });
+      queryClient.invalidateQueries({ queryKey: ['book-copies'] });
       queryClient.invalidateQueries({ queryKey: ['student-loans'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 
