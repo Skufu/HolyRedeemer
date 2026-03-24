@@ -13,15 +13,15 @@ import { Loader2 } from "lucide-react";
 // Lazy load page components for code-splitting
 const Login = lazy(() => import("@/pages/Login"));
 const AdminDashboard = lazy(() => import("@/pages/admin/Dashboard"));
-const BooksManagement = lazy(() => import("@/pages/admin/BooksManagement"));
 const UsersManagement = lazy(() => import("@/pages/admin/UsersManagement"));
-const QRManagement = lazy(() => import("@/pages/admin/QRManagement"));
 const AdminReports = lazy(() => import("@/pages/admin/Reports"));
 const Settings = lazy(() => import("@/pages/admin/Settings"));
 const AuditLogs = lazy(() => import("@/pages/admin/AuditLogs"));
-const ExcelMigration = lazy(() => import("@/pages/admin/ExcelMigration"));
 const SchoolYearSetup = lazy(() => import("@/pages/admin/SchoolYearSetup"));
 const LibrarianDashboard = lazy(() => import("@/pages/librarian/Dashboard"));
+const LibrarianBooksManagement = lazy(() => import("@/pages/librarian/BooksManagement"));
+const LibrarianQRManagement = lazy(() => import("@/pages/librarian/QRManagement"));
+const LibrarianExcelMigration = lazy(() => import("@/pages/librarian/ExcelMigration"));
 const Circulation = lazy(() => import("@/pages/librarian/Circulation"));
 const StudentLookup = lazy(() => import("@/pages/librarian/StudentLookup"));
 const LibrarianBooks = lazy(() => import("@/pages/librarian/Books"));
@@ -73,16 +73,18 @@ const App = () => (
                 </ProtectedRoute>
               }>
                 <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><AdminDashboard /></Suspense>} />
-                <Route path="books" element={<Suspense fallback={<PageLoader />}><BooksManagement /></Suspense>} />
-                <Route path="qr-management" element={<Suspense fallback={<PageLoader />}><QRManagement /></Suspense>} />
-                <Route path="excel-migration" element={<Suspense fallback={<PageLoader />}><ExcelMigration /></Suspense>} />
                 <Route path="users" element={<Suspense fallback={<PageLoader />}><UsersManagement /></Suspense>} />
-                <Route path="reports" element={<Suspense fallback={<PageLoader />}><AdminReports /></Suspense>} />
                 <Route path="school-year-setup" element={<Suspense fallback={<PageLoader />}><SchoolYearSetup /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
                 <Route path="audit-logs" element={<Suspense fallback={<PageLoader />}><AuditLogs /></Suspense>} />
                 <Route path="user-settings" element={<Suspense fallback={<PageLoader />}><UserSettings /></Suspense>} />
               </Route>
+
+              {/* Redirect stubs from old admin routes to new librarian routes */}
+              <Route path="/admin/books" element={<Navigate to="/librarian/books-management" replace />} />
+              <Route path="/admin/qr-management" element={<Navigate to="/librarian/qr-management" replace />} />
+              <Route path="/admin/excel-migration" element={<Navigate to="/librarian/excel-migration" replace />} />
+              <Route path="/admin/reports" element={<Navigate to="/librarian/reports" replace />} />
 
               {/* Librarian Routes */}
               <Route path="/librarian" element={
@@ -94,6 +96,9 @@ const App = () => (
                 <Route path="circulation" element={<Suspense fallback={<PageLoader />}><Circulation /></Suspense>} />
                 <Route path="student-lookup" element={<Suspense fallback={<PageLoader />}><StudentLookup /></Suspense>} />
                 <Route path="books" element={<Suspense fallback={<PageLoader />}><LibrarianBooks /></Suspense>} />
+                <Route path="books-management" element={<Suspense fallback={<PageLoader />}><LibrarianBooksManagement /></Suspense>} />
+                <Route path="qr-management" element={<Suspense fallback={<PageLoader />}><LibrarianQRManagement /></Suspense>} />
+                <Route path="excel-migration" element={<Suspense fallback={<PageLoader />}><LibrarianExcelMigration /></Suspense>} />
                 <Route path="daily-operations" element={<Suspense fallback={<PageLoader />}><DailyOperations /></Suspense>} />
                 <Route path="reports" element={<Suspense fallback={<PageLoader />}><LibrarianReports /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<PageLoader />}><UserSettings /></Suspense>} />
