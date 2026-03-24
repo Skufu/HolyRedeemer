@@ -1,50 +1,75 @@
 # Database Schema Documentation
 
-This document provides a comprehensive overview of the Holy Redeemer School Library Management System database schema.
+> **Schema Version:** 2.0 (Cleaned)  
+> **Last Updated:** 2025-03-25  
+> **Normalization:** 3NF (Third Normal Form)
+
+## Changelog
+
+### Version 2.0 (2025-03-25) - Normalization Cleanup
+
+**Changes Made:**
+- **REMOVED** `librarians.name` and `librarians.email` - Now derived from `users` table (3NF compliance)
+- **REMOVED** `payments.student_id` - Derivable via `payment → fine → student` relationship
+- **REMOVED** `payments.created_at` - Redundant with `payment_date`
+- **ADDED** `authors` table - Normalized author management
+- **ADDED** `book_authors` junction table - Support for multiple authors per book (4NF)
+- **FIXED** Relationship `book_copies → fines` - Removed direct link (fines relate via transactions)
+- **FIXED** Cardinality `transactions → fines` - Changed to 1:0..1 (one transaction = max one fine)
+
+**Normalization Improvements:**
+- Eliminated transitive dependencies (name/email only in `users`)
+- Eliminated redundant foreign keys (payment.student_id)
+- Added junction table for multi-valued attribute (authors)
+- Achieved 3NF with intentional denormalization only for performance
+
+---
 
 ## Overview
 
 - **Database**: PostgreSQL
 - **ORM/Query Builder**: sqlc with pgx/v5 driver
 - **Migrations**: Located in `backend/internal/database/migrations/`
+- **Design Pattern**: Class Table Inheritance (CTI) for user types
 
 ---
 
 ## Entity Relationship Diagrams
 
-### Complete Schema Overview
+### Complete Schema Overview (Cleaned - 3NF)
 
 ```mermaid
 erDiagram
     users ||--o{ refresh_tokens : "has"
-    users ||--o| students : "is a"
-    users ||--o| librarians : "is a"
+    users ||--o| students : "extends to"
+    users ||--o| librarians : "extends to"
     users ||--o{ notifications : "receives"
     users ||--o{ audit_logs : "performs"
-    users ||--o{ library_settings : "updates"
     
     students ||--o{ transactions : "borrows"
     students ||--o{ fines : "owes"
-    students ||--o{ payments : "pays"
     students ||--o{ book_requests : "requests"
     students ||--o{ favorite_books : "favorites"
     students ||--o{ student_achievements : "earns"
     
     librarians ||--o{ transactions : "processes checkout"
     librarians ||--o{ transactions : "processes return"
-    librarians ||--o{ payments : "processes"
+    librarians ||--o{ payments : "records"
     librarians ||--o{ book_requests : "handles"
+    librarians ||--o{ library_settings : "modifies"
     
     categories ||--o{ books : "categorizes"
     
     books ||--o{ book_copies : "has copies"
+    books ||--o{ book_authors : "authored by"
     books ||--o{ book_requests : "requested"
     books ||--o{ favorite_books : "favorited"
     
-    book_copies ||--o{ transactions : "borrowed in"
-    book_copies ||--o{ fines : "generates"
+    authors ||--o{ book_authors : "writes"
     
-    transactions ||--o{ fines : "incurs"
+    book_copies ||--o{ transactions : "borrowed in"
+    
+    transactions ||--o| fines : "generates (0 or 1)"
     fines ||--o{ payments : "settled by"
     
     achievements ||--o{ student_achievements : "awarded to"
@@ -94,8 +119,6 @@ erDiagram
         uuid id PK
         uuid user_id FK,UK
         varchar employee_id UK
-        varchar name
-        varchar email
         varchar phone
         varchar department
         timestamp created_at
@@ -106,6 +129,8 @@ erDiagram
     users ||--o| students : "extends"
     users ||--o| librarians : "extends"
 ```
+
+**Normalization Note:** `librarians` no longer has `name` or `email` — these are derived from `users` via the `user_id` relationship (3NF compliance).
 
 ### Book Catalog
 
@@ -123,11 +148,10 @@ erDiagram
         uuid id PK
         varchar isbn
         varchar title
-        varchar author
+        text description
         uuid category_id FK
         varchar publisher
         integer publication_year
-        text description
         varchar cover_url
         varchar shelf_location
         decimal replacement_cost
@@ -135,6 +159,20 @@ erDiagram
         boolean is_data_complete
         timestamp created_at
         timestamp updated_at
+    }
+    
+    authors {
+        uuid id PK
+        varchar name
+        text biography
+        timestamp created_at
+    }
+    
+    book_authors {
+        uuid id PK
+        uuid book_id FK
+        uuid author_id FK
+        integer author_order
     }
     
     book_copies {
@@ -153,7 +191,11 @@ erDiagram
     
     categories ||--o{ books : "contains"
     books ||--o{ book_copies : "has"
+    books ||--o{ book_authors : "authored by"
+    authors ||--o{ book_authors : "writes"
 ```
+
+**New in v2.0:** `authors` table and `book_authors` junction table for normalized author management and multi-author support (4NF).
 
 ### Circulation System
 
@@ -192,14 +234,12 @@ erDiagram
     payments {
         uuid id PK
         uuid fine_id FK
-        uuid student_id FK
         decimal amount
         payment_method payment_method
         varchar reference_number
         text notes
         uuid processed_by FK
         timestamp payment_date
-        timestamp created_at
     }
     
     book_requests {
@@ -217,16 +257,21 @@ erDiagram
     
     students ||--o{ transactions : "borrows"
     students ||--o{ fines : "owes"
-    students ||--o{ payments : "pays"
     students ||--o{ book_requests : "requests"
     book_copies ||--o{ transactions : "borrowed"
-    transactions ||--o{ fines : "incurs"
+    transactions ||--o| fines : "generates (0 or 1)"
     fines ||--o{ payments : "settled"
-    librarians ||--o{ transactions : "processes"
-    librarians ||--o{ payments : "accepts"
+    librarians ||--o{ transactions : "processes checkout"
+    librarians ||--o{ transactions : "processes return"
+    librarians ||--o{ payments : "records"
     librarians ||--o{ book_requests : "handles"
     books ||--o{ book_requests : "requested"
 ```
+
+**Cleaned in v2.0:**
+- `payments` no longer has `student_id` — derived via `fine → student`
+- `payments` no longer has `created_at` — use `payment_date`
+- `transactions → fines` is now 1:0..1 (one transaction generates at most one fine)
 
 ### Student Features
 
@@ -304,7 +349,7 @@ erDiagram
     
     users ||--o{ notifications : "receives"
     users ||--o{ audit_logs : "generates"
-    users ||--o{ library_settings : "modifies"
+    librarians ||--o{ library_settings : "modifies"
 ```
 
 ---
@@ -513,17 +558,22 @@ Extended profile for student users.
 
 Extended profile for librarian/staff users.
 
+**Cleaned v2.0:** Removed `name` and `email` — now derived from `users` table via `user_id` FK.
+
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique identifier |
 | `user_id` | UUID | UNIQUE, FK → users(id) ON DELETE CASCADE | Associated user account |
 | `employee_id` | VARCHAR(20) | UNIQUE, NOT NULL | Employee ID (e.g., "EMP-001") |
-| `name` | VARCHAR(100) | NOT NULL | Full name |
-| `email` | VARCHAR(100) | NULLABLE | Work email |
 | `phone` | VARCHAR(20) | NULLABLE | Contact phone |
 | `department` | VARCHAR(50) | DEFAULT 'Library' | Department name |
 | `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | `updated_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Last update time |
+
+**Normalization Rationale (3NF):**
+- `name` and `email` are transitively dependent on `user_id` (they exist in `users` table)
+- Storing them here would duplicate data and risk update anomalies
+- Access via: `librarians → users` JOIN to get name and email
 
 ---
 
@@ -554,11 +604,10 @@ Book catalog master table.
 | `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique identifier |
 | `isbn` | VARCHAR(17) | NULLABLE | ISBN number |
 | `title` | VARCHAR(255) | NOT NULL | Book title |
-| `author` | VARCHAR(255) | NOT NULL | Author name |
+| `description` | TEXT | NULLABLE | Book description/synopsis |
 | `category_id` | UUID | FK → categories(id) | Book category |
 | `publisher` | VARCHAR(100) | NULLABLE | Publisher name |
 | `publication_year` | INTEGER | NULLABLE | Year of publication |
-| `description` | TEXT | NULLABLE | Book description |
 | `cover_url` | VARCHAR(500) | NULLABLE | URL to cover image |
 | `shelf_location` | VARCHAR(50) | NULLABLE | Physical shelf location (e.g., "A-001") |
 | `replacement_cost` | DECIMAL(10,2) | DEFAULT 0 | Cost to replace the book |
@@ -567,15 +616,58 @@ Book catalog master table.
 | `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | `updated_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Last update time |
 
+**Note:** Author information moved to `authors` table with `book_authors` junction table for multi-author support (4NF).
+
 **Indexes:**
 - `idx_books_isbn` - Index on isbn
 - `idx_books_title` - Index on title
 - `idx_books_category` - Index on category_id
 - `idx_books_title_trgm` - GIN trigram index for fuzzy title search
-- `idx_books_author_trgm` - GIN trigram index for fuzzy author search
-- `idx_books_isbn_trgm` - GIN trigram index for ISBN search
 - `idx_books_status_created` - Composite index for filtered queries
 - `idx_books_category_status_created` - Composite index for category queries
+
+---
+
+### authors
+
+**NEW in v2.0:** Author master table for normalized author management.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique identifier |
+| `name` | VARCHAR(255) | NOT NULL | Author name |
+| `biography` | TEXT | NULLABLE | Author biography |
+| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Record creation time |
+
+**Indexes:**
+- `idx_authors_name` - Index on name
+- `idx_authors_name_trgm` - GIN trigram index for fuzzy search
+
+**Rationale (4NF):**
+- Books can have multiple authors (multi-valued attribute)
+- Authors can write multiple books (many-to-many)
+- Junction table `book_authors` resolves this relationship
+
+---
+
+### book_authors
+
+**NEW in v2.0:** Junction table for many-to-many relationship between books and authors.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique identifier |
+| `book_id` | UUID | FK → books(id) ON DELETE CASCADE | Book |
+| `author_id` | UUID | FK → authors(id) ON DELETE CASCADE | Author |
+| `author_order` | INTEGER | NOT NULL, DEFAULT 1 | Display order (1=primary, 2=secondary, etc.) |
+| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Record creation time |
+
+**Constraints:**
+- UNIQUE(book_id, author_id) - Prevents duplicate author entries for same book
+
+**Indexes:**
+- `idx_book_authors_book` - Index on book_id
+- `idx_book_authors_author` - Index on author_id
 
 ---
 
@@ -647,7 +739,7 @@ Fines and fees for students.
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique identifier |
-| `transaction_id` | UUID | FK → transactions(id) | Related transaction |
+| `transaction_id` | UUID | FK → transactions(id) NULLABLE | Related transaction (NULL for manual fines) |
 | `student_id` | UUID | FK → students(id) | Student who owes the fine |
 | `amount` | DECIMAL(10,2) | NOT NULL | Fine amount in PHP |
 | `fine_type` | fine_type | NOT NULL | Type of fine |
@@ -662,24 +754,32 @@ Fines and fees for students.
 - `idx_fines_student_status_created` - Composite index for queries
 - `idx_fines_pending_student_created` - Partial index for pending fines
 
+**Note:** `transaction_id` is nullable to support manual fines not tied to loans (e.g., lost ID card fees).
+
 ---
 
 ### payments
 
 Payment records for fines.
 
+**Cleaned v2.0:** Removed `student_id` and `created_at` — student is derived via `fine` relationship.
+
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique identifier |
 | `fine_id` | UUID | FK → fines(id) | Associated fine |
-| `student_id` | UUID | FK → students(id) | Student who paid |
 | `amount` | DECIMAL(10,2) | NOT NULL | Payment amount in PHP |
 | `payment_method` | payment_method | NOT NULL | Method of payment |
 | `reference_number` | VARCHAR(100) | NULLABLE | Payment reference (e.g., GCash ref) |
 | `notes` | TEXT | NULLABLE | Additional notes |
 | `processed_by` | UUID | FK → librarians(id) | Librarian who processed payment |
 | `payment_date` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Date/time of payment |
-| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Record creation time |
+
+**Normalization Rationale (3NF):**
+- `student_id` was transitively dependent: `payment → fine → student`
+- Removing it eliminates redundant data and potential inconsistency
+- To find paying student: `payments → fines → students`
+- `created_at` removed — `payment_date` serves same purpose
 
 ---
 
@@ -864,7 +964,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-**Applied to tables:** users, students, librarians, books, book_copies, transactions, fines
+**Applied to tables:** users, students, librarians, books, book_copies, transactions, fines, payments
 
 ---
 
@@ -879,9 +979,10 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 ```
 
 Used for GIN indexes on:
-- books.title, books.author, books.isbn
+- books.title, books.isbn
 - users.name
 - students.student_id
+- authors.name (NEW in v2.0)
 
 ---
 
@@ -893,6 +994,7 @@ Used for GIN indexes on:
 | `002_seed_data.sql` | Initial data for categories, settings, sample users, books, etc. |
 | `003_favorites_and_achievements.sql` | Adds favorites and gamification features |
 | `004_performance_indexes.sql` | Additional performance indexes for common queries |
+| `005_schema_normalization.sql` | **NEW in v2.0:** Normalization cleanup (see Changelog) |
 
 ---
 
@@ -904,13 +1006,16 @@ Query definitions are located in `backend/internal/database/queries/`:
 |------|---------|
 | `admins.sql` | Admin user queries |
 | `audit.sql` | Audit log queries |
+| `authors.sql` | **NEW:** Author queries |
 | `books.sql` | Book catalog queries |
+| `book_authors.sql` | **NEW:** Book-author relationship queries |
 | `copies.sql` | Book copy queries |
 | `copies_update.sql` | Book copy update operations |
 | `favorites.sql` | Favorite books queries |
 | `fines.sql` | Fine management queries |
 | `librarians.sql` | Librarian queries |
 | `notifications.sql` | Notification queries |
+| `payments.sql` | Payment queries (updated for v2.0 schema) |
 | `reports.sql` | Reporting queries |
 | `requests.sql` | Book request queries |
 | `school_year.sql` | School year management |
@@ -943,3 +1048,43 @@ Query definitions are located in `backend/internal/database/queries/`:
 5. **Copy Uniqueness:**
    - Each copy within a book has a unique copy_number
    - QR codes are globally unique across all copies
+
+6. **Normalization Compliance:**
+   - **3NF Achieved:** All tables in Third Normal Form
+   - No transitive dependencies (name/email only in `users`)
+   - No redundant foreign keys (payment.student_id removed)
+   - Multi-valued attributes handled via junction tables (book_authors)
+
+---
+
+## Appendix: Normalization Analysis
+
+### 3NF Compliance by Table
+
+| Table | 1NF | 2NF | 3NF | Notes |
+|-------|-----|-----|-----|-------|
+| users | ✅ | ✅ | ✅ | All attributes depend on user_id |
+| students | ✅ | ✅ | ✅ | No transitive dependencies |
+| librarians | ✅ | ✅ | ✅ | Removed name/email duplication |
+| books | ✅ | ✅ | ✅ | Authors normalized to junction table |
+| book_copies | ✅ | ✅ | ✅ | Each attribute describes one copy |
+| transactions | ✅ | ✅ | ⚠️ | Status derivable but stored for performance |
+| fines | ✅ | ✅ | ✅ | student_id needed for manual fines |
+| payments | ✅ | ✅ | ✅ | Removed student_id transitive dependency |
+| authors | ✅ | ✅ | ✅ | **NEW** - 4NF for multi-author support |
+| book_authors | ✅ | ✅ | ✅ | **NEW** - Junction table (4NF) |
+
+### Design Patterns Used
+
+1. **Class Table Inheritance (CTI):** `users` as supertype, `students`/`librarians` as subtypes
+2. **Junction Tables:** `book_authors`, `favorite_books`, `student_achievements` for many-to-many
+3. **Master-Detail:** `books` (master) → `book_copies` (detail) for inventory tracking
+4. **Status State Machines:** Track lifecycle of transactions, fines, requests
+
+### Intentional Denormalizations
+
+| Field | Table | Reason |
+|-------|-------|--------|
+| `status` | transactions | Query performance - indexed filtering |
+| `is_data_complete` | books | Application convenience - avoids runtime calculation |
+| `student_id` | fines | Business flexibility - supports manual fines not tied to loans |
