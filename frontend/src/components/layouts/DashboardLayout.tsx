@@ -23,22 +23,24 @@ import { cn } from '@/lib/utils';
 
 const adminNavItems = [
   { to: '/admin/dashboard', icon: Home, label: 'Dashboard' },
-  { to: '/admin/books', icon: Book, label: 'Books Management' },
-  { to: '/admin/qr-management', icon: QrCode, label: 'QR/Copy Management' },
-  { to: '/admin/excel-migration', icon: Upload, label: 'Excel Migration' },
-  { to: '/admin/users', icon: Users, label: 'User Management' },
-  { to: '/admin/reports', icon: BarChart3, label: 'Reports & Analytics' },
-  { to: '/admin/settings', icon: Settings, label: 'Settings' },
+  { to: '/admin/users', icon: Users, label: 'Users Management' },
   { to: '/admin/audit-logs', icon: ClipboardList, label: 'Audit Logs' },
+  { to: '/admin/school-year-setup', icon: CalendarDays, label: 'School Year Setup' },
+  { to: '/admin/settings', icon: Settings, label: 'Settings' },
+  { to: '/admin/user-settings', icon: UserCircle, label: 'User Settings' },
 ];
 
 const librarianNavItems = [
   { to: '/librarian/dashboard', icon: Home, label: 'Dashboard' },
-  { to: '/librarian/circulation', icon: ScanLine, label: 'Circulation Station' },
+  { to: '/librarian/circulation', icon: ScanLine, label: 'Circulation' },
+  { to: '/librarian/books', icon: BookOpen, label: 'Books Catalog' },
+  { to: '/librarian/books-management', icon: Book, label: 'Book Management' },
+  { to: '/librarian/qr-management', icon: QrCode, label: 'QR Management' },
+  { to: '/librarian/excel-migration', icon: Upload, label: 'Excel Migration' },
   { to: '/librarian/student-lookup', icon: Search, label: 'Student Lookup' },
-  { to: '/librarian/books', icon: Book, label: 'Book Management' },
   { to: '/librarian/daily-operations', icon: CalendarDays, label: 'Daily Operations' },
   { to: '/librarian/reports', icon: BarChart3, label: 'Reports' },
+  { to: '/librarian/settings', icon: Settings, label: 'Settings' },
 ];
 
 const studentNavItems = [
