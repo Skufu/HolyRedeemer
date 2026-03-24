@@ -1,0 +1,128 @@
+{
+  "milestone": "backend-permissions",
+  "round": 1,
+  "status": "success",
+  "assertionsSummary": {
+    "total": 14,
+    "passed": 14,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-BACKEND-001",
+    "VAL-BACKEND-002",
+    "VAL-BACKEND-003",
+    "VAL-BACKEND-004",
+    "VAL-BACKEND-005",
+    "VAL-BACKEND-006",
+    "VAL-BACKEND-007",
+    "VAL-BACKEND-008",
+    "VAL-BACKEND-009",
+    "VAL-BACKEND-010",
+    "VAL-BACKEND-011",
+    "VAL-BACKEND-012",
+    "VAL-BACKEND-013",
+    "VAL-BACKEND-014"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Created user-testing.md with testing knowledge including test credentials, PowerShell quirks, and API request formats",
+      "source": "setup"
+    },
+    {
+      "target": "validation-state.json",
+      "description": "Updated validation-state.json with passed status for all 14 backend permission assertions",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null,
+  "testDetails": {
+    "VAL-BACKEND-001": {
+      "description": "Admin Access Denied on POST /books",
+      "expected": "403",
+      "actual": "403",
+      "evidence": "curl.exe -s -w HTTP_CODE -X POST /api/v1/books with admin token returned 403 FORBIDDEN"
+    },
+    "VAL-BACKEND-002": {
+      "description": "Admin Access Denied on PUT /books/:id",
+      "expected": "403",
+      "actual": "403",
+      "evidence": "curl.exe -s -w HTTP_CODE -X PUT /api/v1/books/:id with admin token returned 403 FORBIDDEN"
+    },
+    "VAL-BACKEND-003": {
+      "description": "Admin Access Denied on DELETE /books/:id",
+      "expected": "403",
+      "actual": "403",
+      "evidence": "curl.exe -s -w HTTP_CODE -X DELETE /api/v1/books/:id with admin token returned 403 FORBIDDEN"
+    },
+    "VAL-BACKEND-004": {
+      "description": "Admin Access Denied on POST /books/:id/copies",
+      "expected": "403",
+      "actual": "403",
+      "evidence": "curl.exe -s -w HTTP_CODE -X POST /api/v1/books/:id/copies with admin token returned 403 FORBIDDEN"
+    },
+    "VAL-BACKEND-005": {
+      "description": "Admin Access Denied on /reports/* Endpoints",
+      "expected": "403",
+      "actual": "403",
+      "evidence": "curl.exe -s -w HTTP_CODE -X GET /reports/dashboard, /reports/charts/categories, /reports/activity all returned 403 FORBIDDEN"
+    },
+    "VAL-BACKEND-006": {
+      "description": "Admin Access Denied on POST /fines/:id/pay",
+      "expected": "403",
+      "actual": "403",
+      "evidence": "curl.exe -s -w HTTP_CODE -X POST /api/v1/fines/:id/pay with admin token returned 403 FORBIDDEN"
+    },
+    "VAL-BACKEND-007": {
+      "description": "Admin Access Denied on POST /fines/:id/waive",
+      "expected": "403",
+      "actual": "403",
+      "evidence": "curl.exe -s -w HTTP_CODE -X POST /api/v1/fines/:id/waive with admin token returned 403 FORBIDDEN"
+    },
+    "VAL-BACKEND-008": {
+      "description": "Librarian Access Granted on POST /books",
+      "expected": "200/201",
+      "actual": "201",
+      "evidence": "curl.exe -s -w HTTP_CODE -X POST /api/v1/books with librarian token returned 201 Created"
+    },
+    "VAL-BACKEND-009": {
+      "description": "Librarian Access Granted on PUT /books/:id",
+      "expected": "200",
+      "actual": "200",
+      "evidence": "curl.exe -s -w HTTP_CODE -X PUT /api/v1/books/:id with librarian token returned 200 OK"
+    },
+    "VAL-BACKEND-010": {
+      "description": "Librarian Access Granted on POST /books/:id/copies",
+      "expected": "200/201",
+      "actual": "201",
+      "evidence": "curl.exe -s -w HTTP_CODE -X POST /api/v1/books/:id/copies with librarian token returned 201 Created"
+    },
+    "VAL-BACKEND-011": {
+      "description": "Librarian Access Granted on /reports/* Endpoints",
+      "expected": "200",
+      "actual": "200",
+      "evidence": "curl.exe -s -w HTTP_CODE -X GET /reports/dashboard, /reports/charts/categories, /reports/activity all returned 200 OK with valid JSON data"
+    },
+    "VAL-BACKEND-012": {
+      "description": "Librarian Access Granted on POST /fines/:id/pay",
+      "expected": "200",
+      "actual": "200",
+      "evidence": "curl.exe -s -w HTTP_CODE -X POST /api/v1/fines/:id/pay with librarian token returned 200 OK"
+    },
+    "VAL-BACKEND-013": {
+      "description": "Librarian Access Denied on POST /fines/:id/waive",
+      "expected": "403",
+      "actual": "403",
+      "evidence": "curl.exe -s -w HTTP_CODE -X POST /api/v1/fines/:id/waive with librarian token returned 403 FORBIDDEN"
+    },
+    "VAL-BACKEND-014": {
+      "description": "Super Admin Access Granted on All Endpoints",
+      "expected": "200/201",
+      "actual": "200/201",
+      "evidence": "All tested endpoints returned success: POST /books (201), PUT /books/:id (200), DELETE /books/:id (200), GET /reports/dashboard (200), POST /fines/:id/pay (200), POST /fines/:id/waive (200)"
+    }
+  }
+}
