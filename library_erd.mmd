@@ -1,0 +1,302 @@
+```mermaid
+erDiagram
+    %% =====================================================
+    %% SCHOOL LIBRARY DATABASE - CORE ERD
+    %% =====================================================
+
+    %% ═══════════════════════════════════════════════════════
+    %% SUBGRAPH: AUTHENTICATION & USER MANAGEMENT
+    %% ═══════════════════════════════════════════════════════
+    subgraph AUTHENTICATION["🔐 Authentication & Users"]
+        users {
+            bigint user_id PK "Auto-increment"
+            varchar email UK "Unique, required"
+            varchar password_hash "Hashed password"
+            enum role "student|staff|admin"
+            varchar name "Full name"
+            timestamp created_at
+            timestamp updated_at
+            boolean is_active "Account status"
+        }
+
+        refresh_tokens {
+            bigint token_id PK
+            bigint user_id FK "References users"
+            varchar token "JWT refresh token"
+            timestamp expires_at
+            timestamp created_at
+            boolean is_revoked
+        }
+    end
+
+    %% ═══════════════════════════════════════════════════════
+    %% SUBGRAPH: USER PROFILES
+    %% ═══════════════════════════════════════════════════════
+    subgraph PROFILES["👤 User Profiles"]
+        student_profiles {
+            bigint student_id PK
+            bigint user_id FK "1:1 with users"
+            varchar student_number UK "Unique ID"
+            varchar grade_level "e.g., 9, 10, 11, 12"
+            varchar homeroom
+            date enrollment_date
+            varchar phone "Contact number"
+            text address
+            timestamp created_at
+            timestamp updated_at
+        }
+
+        staff_profiles {
+            bigint staff_id PK
+            bigint user_id FK "1:1 with users"
+            varchar employee_number UK "Unique ID"
+            enum staff_type "librarian|assistant|admin"
+            varchar department
+            date hire_date
+            varchar phone "Contact number"
+            text address
+            boolean can_approve_requests
+            timestamp created_at
+            timestamp updated_at
+        }
+    end
+
+    %% ═══════════════════════════════════════════════════════
+    %% SUBGRAPH: LIBRARY CATALOG
+    %% ═══════════════════════════════════════════════════════
+    subgraph CATALOG["📚 Library Catalog"]
+        categories {
+            bigint category_id PK
+            varchar name "Category name"
+            varchar code UK "Short code"
+            text description
+            bigint parent_category_id FK "Self-reference for hierarchy"
+            timestamp created_at
+        }
+
+        books {
+            bigint book_id PK
+            varchar isbn UK "ISBN-10 or ISBN-13"
+            varchar title "Book title"
+            text synopsis "Summary/description"
+            bigint category_id FK "References categories"
+            varchar publisher
+            year publication_year
+            varchar edition
+            varchar language "Default: en"
+            int total_copies "Total in library"
+            int available_copies "Currently available"
+            varchar cover_image_url
+            enum status "available|low_stock|unavailable"
+            timestamp created_at
+            timestamp updated_at
+        }
+
+        book_copies {
+            bigint copy_id PK
+            bigint book_id FK "References books"
+            varchar barcode UK "Unique copy identifier"
+            varchar shelf_location "Physical location"
+            enum condition "new|good|fair|poor|damaged"
+            decimal acquisition_cost
+            date acquisition_date
+            enum status "available|checked_out|reserved|lost|damaged"
+            timestamp created_at
+            timestamp updated_at
+        }
+
+        book_authors {
+            bigint book_author_id PK
+            bigint book_id FK "References books"
+            bigint author_id FK "References authors"
+            int author_order "1=primary, 2=secondary..."
+        }
+
+        authors {
+            bigint author_id PK
+            varchar name "Author name"
+            varchar biography
+            varchar website
+            timestamp created_at
+        }
+    end
+
+    %% ═══════════════════════════════════════════════════════
+    %% SUBGRAPH: CIRCULATION & TRANSACTIONS
+    %% ═══════════════════════════════════════════════════════
+    subgraph CIRCULATION["📋 Circulation & Transactions"]
+        transactions {
+            bigint transaction_id PK
+            bigint student_id FK "References student_profiles"
+            bigint copy_id FK "References book_copies"
+            bigint staff_id FK "Staff who processed"
+            date checkout_date
+            date due_date "Calculated from loan policy"
+            date return_date "NULL until returned"
+            enum status "active|returned|overdue|lost"
+            int renewal_count "Number of renewals"
+            text notes
+            timestamp created_at
+            timestamp updated_at
+        }
+
+        book_requests {
+            bigint request_id PK
+            bigint student_id FK "Requesting student"
+            bigint book_id FK "Requested book"
+            date request_date
+            date needed_by "When they need it"
+            enum status "pending|approved|denied|fulfilled|cancelled"
+            bigint approved_by FK "Staff who approved"
+            text student_notes
+            text staff_response
+            timestamp created_at
+            timestamp updated_at
+        }
+
+        fines {
+            bigint fine_id PK
+            bigint transaction_id FK "Related transaction"
+            bigint student_id FK "Student owing fine"
+            decimal amount "Fine amount"
+            enum reason "overdue|damaged|lost"
+            text description "Details"
+            enum status "pending|paid|waived"
+            timestamp created_at
+            timestamp updated_at
+        }
+
+        payments {
+            bigint payment_id PK
+            bigint fine_id FK "References fines"
+            decimal amount_paid
+            enum payment_method "cash|card|online"
+            varchar transaction_reference "Payment gateway ref"
+            timestamp paid_at "When payment processed"
+            bigint processed_by FK "Staff who processed"
+        }
+    end
+
+    %% ═══════════════════════════════════════════════════════
+    %% SUBGRAPH: STUDENT ENGAGEMENT
+    %% ═══════════════════════════════════════════════════════
+    subgraph ENGAGEMENT["⭐ Student Engagement"]
+        favorite_books {
+            bigint favorite_id PK
+            bigint student_id FK "References student_profiles"
+            bigint book_id FK "References books"
+            timestamp added_at
+        }
+
+        achievements {
+            bigint achievement_id PK
+            varchar name "Achievement name"
+            text description "How to earn"
+            varchar badge_icon_url
+            int points "Reward points"
+            enum category "reading|attendance|milestone"
+            timestamp created_at
+        }
+
+        student_achievements {
+            bigint student_achievement_id PK
+            bigint student_id FK "References student_profiles"
+            bigint achievement_id FK "References achievements"
+            timestamp earned_at
+            text note "Context/comment"
+        }
+    end
+
+    %% ═══════════════════════════════════════════════════════
+    %% SUBGRAPH: SUPPORT & AUDITING
+    %% ═══════════════════════════════════════════════════════
+    subgraph SUPPORT["🔧 Support & Audit"]
+        notifications {
+            bigint notification_id PK
+            bigint user_id FK "Recipient"
+            enum type "due_soon|overdue|fine|request_update|general"
+            varchar title
+            text message
+            boolean is_read
+            timestamp sent_at
+            timestamp read_at
+            bigint related_entity_id "Contextual reference"
+            varchar related_entity_type "book|transaction|fine|etc"
+        }
+
+        audit_logs {
+            bigint log_id PK
+            bigint user_id FK "Who performed action"
+            varchar table_name "Affected table"
+            varchar action "INSERT|UPDATE|DELETE"
+            bigint record_id "Affected record"
+            json old_values "Previous state"
+            json new_values "New state"
+            varchar ip_address
+            timestamp created_at
+        }
+
+        library_settings {
+            bigint setting_id PK
+            varchar key UK "Setting name"
+            text value "Setting value"
+            varchar data_type "string|number|boolean|json"
+            text description "Purpose of setting"
+            varchar category "general|loan|fine|notification"
+            timestamp updated_at
+            bigint updated_by FK "Staff who changed"
+        }
+    end
+
+    %% ═══════════════════════════════════════════════════════
+    %% RELATIONSHIPS WITH CARDINALITY
+    %% ═══════════════════════════════════════════════════════
+
+    %% Authentication Relationships
+    users ||--o{ refresh_tokens : "generates"
+    users ||--o| student_profiles : "is a (if role=student)"
+    users ||--o| staff_profiles : "is a (if role=staff)"
+
+    %% Profile Relationships
+    student_profiles ||--o{ transactions : "borrows"
+    student_profiles ||--o{ fines : "owes"
+    student_profiles ||--o{ book_requests : "makes"
+    student_profiles ||--o{ favorite_books : "saves"
+    student_profiles ||--o{ student_achievements : "earns"
+    student_profiles ||--o{ notifications : "receives"
+
+    staff_profiles ||--o{ transactions : "processes"
+    staff_profiles ||--o{ book_requests : "approves"
+    staff_profiles ||--o{ payments : "records"
+    staff_profiles ||--o{ library_settings : "updates"
+
+    %% Catalog Relationships
+    categories ||--o{ books : "contains"
+    categories ||--o{ categories : "parent of"
+
+    books ||--o{ book_copies : "has copies"
+    books ||--o{ book_authors : "authored by"
+    books ||--o{ favorite_books : "is favorited"
+    books ||--o{ book_requests : "requested"
+
+    authors ||--o{ book_authors : "writes"
+
+    %% Circulation Relationships
+    book_copies ||--o{ transactions : "checked out in"
+
+    transactions ||--o| fines : "generates"
+    transactions ||--o{ notifications : "triggers"
+
+    fines ||--o{ payments : "paid by"
+
+    %% Engagement Relationships
+    achievements ||--o{ student_achievements : "awarded as"
+
+    %% Support Relationships
+    users ||--o{ audit_logs : "performs"
+    users ||--o{ notifications : "receives"
+
+    %% Settings
+    staff_profiles ||--o{ library_settings : "modifies"
+```
+</content>
