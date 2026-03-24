@@ -2,13 +2,14 @@
 
 A robust Go-based REST API for school library management, featuring JWT authentication, role-based access control, comprehensive circulation management, and in-memory caching.
 
-## 📚 Documentation
+## Documentation
 
 - [API Reference](../docs/api/API.md)
 - [Architecture Overview](../docs/architecture/ARCHITECTURE.md)
+- [Database Schema](../DATABASE_SCHEMA.md)
 - [Contributing Guide](../docs/guides/CONTRIBUTING.md)
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Using Setup Script (Recommended)
 
@@ -40,15 +41,15 @@ make seed
 make dev
 ```
 
-## 📋 Requirements
+## Requirements
 
-- **Go** 1.24+
-- **PostgreSQL** 15+ (or Neon serverless)
-- **sqlc** (installed via `make install-tools`)
-- **goose** (installed via `make install-tools`)
-- **air** (installed via `make install-tools`)
+- Go 1.24+
+- PostgreSQL 15+ (or Neon serverless)
+- sqlc (installed via `make install-tools`)
+- goose (installed via `make install-tools`)
+- air (installed via `make install-tools`)
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 backend/
@@ -69,7 +70,7 @@ backend/
 └── sqlc.yaml             # sqlc configuration
 ```
 
-## 🔐 Authentication
+## Authentication
 
 ### Demo Credentials
 
@@ -81,16 +82,16 @@ backend/
 
 ### JWT Tokens
 
-- **Access Token**: 15 minutes (configurable)
-- **Refresh Token**: 7 days (configurable)
-- **Secrets**: Must be at least 32 characters
+- Access Token: 15 minutes (configurable)
+- Refresh Token: 7 days (configurable)
+- Secrets: Must be at least 32 characters
 
 Generate secrets:
 ```bash
 openssl rand -base64 32
 ```
 
-## 🛠️ Development
+## Development
 
 ### Make Commands
 
@@ -114,21 +115,21 @@ make install-tools  # Install development tools
 
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `PORT` | Server port | No | `8080` |
-| `DATABASE_URL` | PostgreSQL connection string | Yes | - |
-| `JWT_ACCESS_SECRET` | Access token secret (≥32 chars) | Yes | - |
-| `JWT_REFRESH_SECRET` | Refresh token secret (≥32 chars) | Yes | - |
-| `JWT_ACCESS_EXPIRY` | Access token lifetime | No | `15m` |
-| `JWT_REFRESH_EXPIRY` | Refresh token lifetime | No | `168h` |
-| `CORS_ORIGINS` | Allowed origins (comma-separated) | No | `*` |
-| `DEFAULT_LOAN_DAYS` | Default loan period | No | `14` |
-| `DEFAULT_MAX_BOOKS` | Max books per student | No | `5` |
-| `DEFAULT_FINE_PER_DAY` | Daily fine rate | No | `5.0` |
-| `DEFAULT_GRACE_PERIOD` | Grace period before fines | No | `3` |
-| `DEFAULT_MAX_FINE_CAP` | Maximum fine per book | No | `200.0` |
-| `DEFAULT_BLOCK_THRESHOLD` | Fine amount that blocks borrowing | No | `100.0` |
+| PORT | Server port | No | 8080 |
+| DATABASE_URL | PostgreSQL connection string | Yes | - |
+| JWT_ACCESS_SECRET | Access token secret (>=32 chars) | Yes | - |
+| JWT_REFRESH_SECRET | Refresh token secret (>=32 chars) | Yes | - |
+| JWT_ACCESS_EXPIRY | Access token lifetime | No | 15m |
+| JWT_REFRESH_EXPIRY | Refresh token lifetime | No | 168h |
+| CORS_ORIGINS | Allowed origins (comma-separated) | No | * |
+| DEFAULT_LOAN_DAYS | Default loan period | No | 14 |
+| DEFAULT_MAX_BOOKS | Max books per student | No | 5 |
+| DEFAULT_FINE_PER_DAY | Daily fine rate | No | 5.0 |
+| DEFAULT_GRACE_PERIOD | Grace period before fines | No | 3 |
+| DEFAULT_MAX_FINE_CAP | Maximum fine per book | No | 200.0 |
+| DEFAULT_BLOCK_THRESHOLD | Fine amount that blocks borrowing | No | 100.0 |
 
-## 💾 Database
+## Database
 
 ### Migrations
 
@@ -156,7 +157,7 @@ make sqlc
 
 Generated files go to `internal/repositories/sqlcdb/`.
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run all tests
@@ -176,7 +177,7 @@ go test -v ./internal/handlers/... -run TestCheckout
 
 Current coverage: ~87% for handlers
 
-## 🚀 Deployment
+## Deployment
 
 ### Render
 
@@ -196,32 +197,32 @@ docker run -d --name library-db \
   -p 5433:5432 postgres:15
 ```
 
-## 📊 API Endpoints
+## API Endpoints
 
 | Endpoint | Method | Description | Auth |
 |----------|--------|-------------|------|
-| `/health` | GET | Health check | Public |
-| `/healthz` | GET | Lightweight health check | Public |
-| `/api/v1/auth/login` | POST | Login | Public |
-| `/api/v1/auth/refresh` | POST | Refresh token | Public |
-| `/api/v1/auth/logout` | POST | Logout | Required |
-| `/api/v1/auth/rfid/lookup` | POST | RFID lookup | Required |
-| `/api/v1/books` | GET | List books | Required |
-| `/api/v1/books` | POST | Create book | Staff |
-| `/api/v1/books/:id` | GET | Get book | Required |
-| `/api/v1/books/:id` | PUT | Update book | Staff |
-| `/api/v1/books/:id` | DELETE | Delete book | Admin |
-| `/api/v1/circulation/checkout` | POST | Checkout book | Staff |
-| `/api/v1/circulation/return` | POST | Return book | Staff |
-| `/api/v1/circulation/renew` | POST | Renew loan | Required |
-| `/api/v1/students` | GET | List students | Staff |
-| `/api/v1/students/:id` | GET | Get student | Required |
-| `/api/v1/reports/dashboard` | GET | Dashboard stats | Required |
-| `/api/v1/cache/clear` | POST | Clear cache | Super Admin |
+| /health | GET | Health check | Public |
+| /healthz | GET | Lightweight health check | Public |
+| /api/v1/auth/login | POST | Login | Public |
+| /api/v1/auth/refresh | POST | Refresh token | Public |
+| /api/v1/auth/logout | POST | Logout | Required |
+| /api/v1/auth/rfid/lookup | POST | RFID lookup | Required |
+| /api/v1/books | GET | List books | Required |
+| /api/v1/books | POST | Create book | Staff |
+| /api/v1/books/:id | GET | Get book | Required |
+| /api/v1/books/:id | PUT | Update book | Staff |
+| /api/v1/books/:id | DELETE | Delete book | Admin |
+| /api/v1/circulation/checkout | POST | Checkout book | Staff |
+| /api/v1/circulation/return | POST | Return book | Staff |
+| /api/v1/circulation/renew | POST | Renew loan | Required |
+| /api/v1/students | GET | List students | Staff |
+| /api/v1/students/:id | GET | Get student | Required |
+| /api/v1/reports/dashboard | GET | Dashboard stats | Required |
+| /api/v1/cache/clear | POST | Clear cache | Super Admin |
 
 See [API Reference](../docs/api/API.md) for complete documentation.
 
-## 🔧 Caching
+## Caching
 
 The API uses an in-memory cache for performance optimization:
 
@@ -232,10 +233,10 @@ The API uses an in-memory cache for performance optimization:
 
 Cache can be cleared via: `POST /api/v1/cache/clear` (super_admin only)
 
-## 📄 License
+## License
 
 MIT License
 
-## 🤝 Contributing
+## Contributing
 
 Please see [Contributing Guide](../docs/guides/CONTRIBUTING.md) for development setup and guidelines.

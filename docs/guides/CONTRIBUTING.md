@@ -1,15 +1,15 @@
 # Contributing to Holy Redeemer Library System
 
-Thank you for your interest in contributing! This guide will help you get started.
+Thank you for your interest in contributing. This guide will help you get started.
 
 ## Development Setup
 
 ### Prerequisites
 
-- **Go** 1.24+
-- **Node.js** 18+ and **npm**
-- **PostgreSQL** 15+ (or Docker)
-- **Make** (optional but recommended)
+- Go 1.24+
+- Node.js 18+ and npm
+- PostgreSQL 15+ (or Docker)
+- Make (optional but recommended)
 
 ### Quick Start (Recommended)
 
@@ -411,8 +411,8 @@ npm run lint
 
 - [API Documentation](../api/API.md)
 - [Architecture Overview](../architecture/ARCHITECTURE.md)
-- [Project Specification](../project/SPECIFICATION.md)
+- [Database Schema](../../DATABASE_SCHEMA.md)
 
 ---
 
-Thank you for contributing to Holy Redeemer Library Management System!
+Thank you for contributing to Holy Redeemer Library Management System.

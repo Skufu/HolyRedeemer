@@ -2,27 +2,25 @@
 
 A complete library management system for Holy Redeemer School of Cabuyao, featuring RFID-based circulation, QR code tracking, fine management, and comprehensive reporting.
 
-**Status:** ~90% Complete | [Paper Implementation Check](docs/PAPER_IMPLEMENTATION_CHECK.md)
+---
+
+## Key Features
+
+- Role-Based Access Control - Admin, Librarian, and Student portals with appropriate permissions
+- Book Management - Full CRUD operations with multiple copy tracking
+- Catalog Search - Full-text search by title, author, ISBN, and category
+- QR Code System - Automatic QR generation for every book copy (format: `HR-{id[:8]}-C{n}`)
+- Circulation - RFID/QR-based checkout, return, and renewal
+- Fine Management - Automatic fine calculation, partial payments, and tracking
+- Analytics and Reports - Interactive charts, usage statistics, and exportable reports
+- Security - JWT authentication, audit logging, password hashing
+- Responsive Design - Mobile-friendly interface for students
+- Student Achievements - Gamification system with badges and reading goals
+- Favorites - Students can bookmark books for later
 
 ---
 
-## ✨ Key Features
-
-- **🎯 Role-Based Access Control** - Admin, Librarian, and Student portals with appropriate permissions
-- **📚 Book Management** - Full CRUD operations with multiple copy tracking
-- **🔍 Catalog Search** - Full-text search by title, author, ISBN, and category
-- **📦 QR Code System** - Automatic QR generation for every book copy (format: `HR-{id[:8]}-C{n}`)
-- **🔄 Circulation** - RFID/QR-based checkout, return, and renewal
-- **💰 Fine Management** - Automatic fine calculation, partial payments, and tracking
-- **📊 Analytics & Reports** - Interactive charts, usage statistics, and exportable reports
-- **🔐 Security** - JWT authentication, audit logging, password hashing
-- **📱 Responsive Design** - Mobile-friendly interface for students
-- **🏆 Student Achievements** - Gamification system with badges and reading goals
-- **⭐ Favorites** - Students can bookmark books for later
-
----
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Option 1: One-Command Setup (Recommended)
 
@@ -40,12 +38,12 @@ Run everything with a single command:
 ```
 
 This script:
-- ✅ Sets up environment variables
-- ✅ Starts PostgreSQL database via Docker
-- ✅ Installs Go tools (air, goose, sqlc)
-- ✅ Runs database migrations and seeds
-- ✅ Installs frontend dependencies
-- ✅ Starts both backend and frontend servers
+- Sets up environment variables
+- Starts PostgreSQL database via Docker
+- Installs Go tools (air, goose, sqlc)
+- Runs database migrations and seeds
+- Installs frontend dependencies
+- Starts both backend and frontend servers
 
 ### Option 2: Manual Setup
 
@@ -91,7 +89,7 @@ Frontend runs on: **http://localhost:4127**
 
 ---
 
-## 🔑 Demo Credentials
+## Demo Credentials
 
 | Role | Username | Password | Access |
 |------|----------|----------|--------|
@@ -101,7 +99,7 @@ Frontend runs on: **http://localhost:4127**
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 HolyRedeemer/
@@ -137,37 +135,35 @@ HolyRedeemer/
 ├── docs/                 # Project documentation
 │   ├── api/              # API reference
 │   ├── architecture/     # System architecture
-│   ├── guides/           # Development guides
-│   └── project/          # Project specifications
+│   └── guides/           # Development guides
 │
 ├── .github/workflows/    # CI/CD pipelines
 ├── setup_and_run.sh      # Quick setup script
 ├── docker-compose.yml    # Database container
-└── README.md            # This file
+├── DATABASE_SCHEMA.md    # Database schema documentation
+└── README.md             # This file
 ```
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 | Document | Description |
 |----------|-------------|
 | [API Reference](docs/api/API.md) | Complete REST API documentation |
 | [Architecture](docs/architecture/ARCHITECTURE.md) | System design, code patterns, database schema |
 | [Contributing](docs/guides/CONTRIBUTING.md) | Development setup and guidelines |
-| [Specification](docs/project/SPECIFICATION.md) | Full project requirements |
-| [Paper Implementation Check](docs/PAPER_IMPLEMENTATION_CHECK.md) | Analysis of research paper alignment |
-| [Implementation Status](docs/project/IMPLEMENTATION_STATUS.md) | Current implementation status |
+| [Database Schema](DATABASE_SCHEMA.md) | Complete database schema with Mermaid diagrams |
 
 ---
 
-## 🔧 Tech Stack
+## Tech Stack
 
 ### Backend
-- **Language:** Go 1.24+
-- **Framework:** Gin 1.11
-- **Database:** PostgreSQL 15 (Neon serverless)
-- **Tools:**
+- Language: Go 1.24+
+- Framework: Gin 1.11
+- Database: PostgreSQL 15 (Neon serverless)
+- Tools:
   - sqlc - Type-safe SQL code generation
   - goose - Database migrations
   - Bcrypt - Password hashing
@@ -175,15 +171,15 @@ HolyRedeemer/
   - In-memory cache - Performance optimization
 
 ### Frontend
-- **Framework:** React 18.3.1
-- **Language:** TypeScript 5.8.3
-- **Build Tool:** Vite 5.4.19
-- **Styling:** TailwindCSS 3.4.17
-- **UI Components:** Shadcn/UI (Radix UI)
-- **State Management:**
-  - TanStack Query 5.83 - Server state & caching
+- Framework: React 18.3.1
+- Language: TypeScript 5.8.3
+- Build Tool: Vite 5.4.19
+- Styling: TailwindCSS 3.4.17
+- UI Components: Shadcn/UI (Radix UI)
+- State Management:
+  - TanStack Query 5.83 - Server state and caching
   - Zustand 5.0.9 - Client state
-- **Specialized Libraries:**
+- Specialized Libraries:
   - html5-qrcode - QR/barcode scanning
   - qrcode.react - QR generation
   - Recharts - Charts for reports
@@ -195,45 +191,45 @@ HolyRedeemer/
   - Framer Motion - Animations
 
 ### Infrastructure
-- **Database:** PostgreSQL 15 (Docker for local dev, Neon for production)
-- **Authentication:** JWT (15min access, 7 day refresh)
-- **API:** RESTful API with Gin framework
-- **Ports:** Frontend 4127, Backend 8080, PostgreSQL 5433
+- Database: PostgreSQL 15 (Docker for local dev, Neon for production)
+- Authentication: JWT (15min access, 7 day refresh)
+- API: RESTful API with Gin framework
+- Ports: Frontend 4127, Backend 8080, PostgreSQL 5433
 
 ---
 
-## 🎯 Core Features
+## Core Features
 
 ### Admin Module
-- **Dashboard** - System-wide statistics and overview
-- **User Management** - Create, edit, and archive users (students, librarians, admins)
-- **Book Management** - Full CRUD for books and categories with Excel import/export
-- **QR Management** - Generate and print QR codes for book copies
-- **Settings** - Configure library policies (fine rates, loan periods, limits)
-- **Audit Logs** - Track all system actions for security
-- **Reports** - Visual analytics and downloadable reports
-- **Cache Management** - Clear server cache when needed
+- Dashboard - System-wide statistics and overview
+- User Management - Create, edit, and archive users (students, librarians, admins)
+- Book Management - Full CRUD for books and categories with Excel import/export
+- QR Management - Generate and print QR codes for book copies
+- Settings - Configure library policies (fine rates, loan periods, limits)
+- Audit Logs - Track all system actions for security
+- Reports - Visual analytics and downloadable reports
+- Cache Management - Clear server cache when needed
 
 ### Librarian Module
-- **Dashboard** - Daily operations overview
-- **Circulation** - RFID/QR-based checkout and return station
-- **Student Lookup** - Find students, view their loans, fines, and history
-- **Book Catalog** - Search and manage book inventory
-- **Daily Operations** - Review due items, overdue books, and pending requests
-- **Reports** - Operational reports and statistics
+- Dashboard - Daily operations overview
+- Circulation - RFID/QR-based checkout and return station
+- Student Lookup - Find students, view their loans, fines, and history
+- Book Catalog - Search and manage book inventory
+- Daily Operations - Review due items, overdue books, and pending requests
+- Reports - Operational reports and statistics
 
 ### Student Module
-- **Catalog** - Search and browse library inventory
-- **Dashboard** - Personal overview of active loans and fines
-- **Account** - View borrowing history, active requests, and fine details
-- **Notifications** - In-app alerts for due dates and request updates
-- **Book Requests** - Reserve or request unavailable books
-- **Favorites** - Bookmark books for quick access
-- **Achievements** - Earn badges for reading milestones
+- Catalog - Search and browse library inventory
+- Dashboard - Personal overview of active loans and fines
+- Account - View borrowing history, active requests, and fine details
+- Notifications - In-app alerts for due dates and request updates
+- Book Requests - Reserve or request unavailable books
+- Favorites - Bookmark books for quick access
+- Achievements - Earn badges for reading milestones
 
 ---
 
-## 🛠️ Development
+## Development
 
 ### Backend Commands
 
@@ -267,72 +263,47 @@ npm run lint         # Run ESLint
 
 ---
 
-## 📊 Database Schema
+## Database Schema
 
 ### Key Tables
 
-- **users** - Authentication and user accounts
-- **students** - Student profiles with RFID codes
-- **librarians** - Staff accounts
-- **admins** - Administrator accounts
-- **books** - Book catalog
-- **book_copies** - Individual physical copies with QR codes
-- **transactions** - Circulation records (checkout/return)
-- **fines** - Fine records
-- **payments** - Fine payment history
-- **book_requests** - Reservation system
-- **notifications** - In-app user notifications
-- **audit_logs** - Security audit trail
-- **library_settings** - System configuration
-- **categories** - Book categorization
-- **refresh_tokens** - JWT refresh token management
-- **student_favorites** - Student bookmarked books
-- **achievements** - Gamification badges
+| Table | Description |
+|-------|-------------|
+| users | Authentication and user accounts |
+| students | Student profiles with RFID codes |
+| librarians | Staff accounts |
+| books | Book catalog |
+| book_copies | Individual physical copies with QR codes |
+| transactions | Circulation records (checkout/return) |
+| fines | Fine records |
+| payments | Fine payment history |
+| book_requests | Reservation system |
+| notifications | In-app user notifications |
+| audit_logs | Security audit trail |
+| library_settings | System configuration |
+| categories | Book categorization |
+| refresh_tokens | JWT refresh token management |
+| favorite_books | Student bookmarked books |
+| achievements | Gamification badges |
+| student_achievements | Student earned badges |
 
-See [Architecture](docs/architecture/ARCHITECTURE.md) for complete schema details.
-
----
-
-## 🔐 Security
-
-- **Authentication:** JWT tokens with automatic refresh
-- **Password Hashing:** Bcrypt (cost: 10)
-- **Role-Based Access:** Middleware enforces role permissions
-- **Audit Logging:** All sensitive actions logged
-- **CORS Protection:** Configurable allowed origins
-- **Input Validation:** Request validation on all endpoints
-- **SQL Injection Protection:** Parameterized queries via sqlc
+See [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) for complete schema details with Mermaid diagrams.
 
 ---
 
-## 📝 Implementation Status
+## Security
 
-The system is approximately **90% complete** relative to the research paper requirements.
-
-**Implemented:**
-- ✅ Complete circulation workflow (checkout, return, renewal)
-- ✅ RFID and QR code integration
-- ✅ Fine calculation and payment tracking
-- ✅ Student, librarian, and admin portals
-- ✅ Book management with categories
-- ✅ Reports and analytics
-- ✅ Role-based access control
-- ✅ Audit logging
-- ✅ Admin management
-- ✅ Cache management
-- ✅ Student achievements and favorites
-
-**Pending:**
-- ⚠️ New School Year Setup workflow
-- ⚠️ Automated database backups (relies on provider)
-- ⚠️ Receipt generation
-- ⚠️ Email notifications (in-app only)
-
-See [Paper Implementation Check](docs/PAPER_IMPLEMENTATION_CHECK.md) for detailed analysis.
+- Authentication: JWT tokens with automatic refresh
+- Password Hashing: Bcrypt (cost: 10)
+- Role-Based Access: Middleware enforces role permissions
+- Audit Logging: All sensitive actions logged
+- CORS Protection: Configurable allowed origins
+- Input Validation: Request validation on all endpoints
+- SQL Injection Protection: Parameterized queries via sqlc
 
 ---
 
-## 🚦 Testing
+## Testing
 
 ### Backend Tests
 
@@ -361,30 +332,24 @@ npm run test:e2e
 
 ---
 
-## 🐛 Known Issues
+## Known Issues
 
-1. **Frontend Login Tests** - 3 tests fail in Vitest due to jsdom not providing `ResizeObserver` API. This is a test environment issue only; the feature works correctly in browsers.
+1. Frontend Login Tests - 3 tests fail in Vitest due to jsdom not providing `ResizeObserver` API. This is a test environment issue only; the feature works correctly in browsers.
 
 ---
 
-## 📄 License
+## License
 
 MIT License
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Please see [Contributing Guide](docs/guides/CONTRIBUTING.md) for development setup and guidelines.
 
 ---
 
-## 👥 Authors
+## Authors
 
 Holy Redeemer School of Cabuyao - Library Management System Development Team
-
----
-
-## 📞 Support
-
-For questions or issues, please refer to the documentation in the `docs/` directory or check the [Implementation Status](docs/project/IMPLEMENTATION_STATUS.md).

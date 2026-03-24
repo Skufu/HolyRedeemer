@@ -94,14 +94,14 @@ response.InternalError(c, "error message")
 Use helpers in `handlers/helpers.go`:
 
 ```go
-toPgUUID(uuid)             // uuid.UUID → pgtype.UUID
-fromPgUUID(pgUUID)         // pgtype.UUID → uuid.UUID
-toPgText(string)           // string → pgtype.Text
-fromPgText(pgText)         // pgtype.Text → string
-toPgTimestamp(time)        // time.Time → pgtype.Timestamp
-fromPgTimestamp(ts)        // pgtype.Timestamp → time.Time
-toPgDate(time)             // time.Time → pgtype.Date
-formatPgDate(d, layout)    // pgtype.Date → formatted string
+toPgUUID(uuid)             // uuid.UUID -> pgtype.UUID
+fromPgUUID(pgUUID)         // pgtype.UUID -> uuid.UUID
+toPgText(string)           // string -> pgtype.Text
+fromPgText(pgText)         // pgtype.Text -> string
+toPgTimestamp(time)        // time.Time -> pgtype.Timestamp
+fromPgTimestamp(ts)        // pgtype.Timestamp -> time.Time
+toPgDate(time)             // time.Time -> pgtype.Date
+formatPgDate(d, layout)    // pgtype.Date -> formatted string
 ```
 
 ---
@@ -112,29 +112,30 @@ formatPgDate(d, layout)    // pgtype.Date → formatted string
 
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
-| `users` | Authentication | username, password_hash, role, status |
-| `students` | Student profiles | user_id, student_id, grade_level, rfid_code |
-| `librarians` | Staff profiles | user_id, employee_id, department |
-| `admins` | Admin profiles | user_id, name |
-| `books` | Book catalog | title, author, isbn, category_id |
-| `book_copies` | Physical copies | book_id, qr_code, status, condition |
-| `categories` | Book categories | name, color_code |
-| `transactions` | Circulation | student_id, copy_id, checkout_date, due_date |
-| `fines` | Fine records | transaction_id, student_id, amount, status |
-| `payments` | Payment records | fine_id, amount, payment_method |
-| `notifications` | In-app alerts | user_id, type, title, message |
-| `book_requests` | Reservations | student_id, book_id, status |
-| `student_favorites` | Bookmarked books | student_id, book_id |
-| `achievements` | Gamification badges | name, description, icon |
-| `library_settings` | System config | key, value, category |
-| `audit_logs` | Security trail | user_id, action, entity_type, old/new values |
+| users | Authentication | username, password_hash, role, status |
+| students | Student profiles | user_id, student_id, grade_level, rfid_code |
+| librarians | Staff profiles | user_id, employee_id, department |
+| books | Book catalog | title, author, isbn, category_id |
+| book_copies | Physical copies | book_id, qr_code, status, condition |
+| categories | Book categories | name, color_code |
+| transactions | Circulation | student_id, copy_id, checkout_date, due_date |
+| fines | Fine records | transaction_id, student_id, amount, status |
+| payments | Payment records | fine_id, amount, payment_method |
+| notifications | In-app alerts | user_id, type, title, message |
+| book_requests | Reservations | student_id, book_id, status |
+| favorite_books | Bookmarked books | student_id, book_id |
+| achievements | Gamification badges | name, description, icon |
+| student_achievements | Earned badges | student_id, achievement_id |
+| library_settings | System config | key, value, category |
+| audit_logs | Security trail | user_id, action, entity_type, old/new values |
+| refresh_tokens | JWT tokens | user_id, token_hash, expires_at |
 
 ### Enums
 
 ```sql
 -- user_role: super_admin, admin, librarian, student
 -- user_status: active, inactive, suspended
--- student_status: active, inactive, graduated, transferred, suspended
+-- student_status: active, inactive, graduated, transferred
 -- book_status: active, discontinued, archived
 -- copy_status: available, borrowed, damaged, lost, reserved, retired
 -- copy_condition: excellent, good, fair, poor
@@ -144,24 +145,26 @@ formatPgDate(d, layout)    // pgtype.Date → formatted string
 -- notification_type: due_reminder, overdue, fine, request_update, system
 ```
 
+For complete schema with Mermaid diagrams, see [DATABASE_SCHEMA.md](../../DATABASE_SCHEMA.md).
+
 ---
 
 ## Authentication Flow
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Client    │────▶│  /login     │────▶│  Database   │
-│             │     │             │     │             │
-│             │◀────│ JWT Tokens  │◀────│ User + Hash │
-└─────────────┘     └─────────────┘     └─────────────┘
-       │
-       │ Authorization: Bearer <access_token>
-       ▼
-┌─────────────┐     ┌─────────────┐
-│  Protected  │────▶│ Auth        │
-│  Endpoint   │     │ Middleware  │
-│             │◀────│ + Claims    │
-└─────────────┘     └─────────────┘
++-------------+     +-------------+     +-------------+
+|   Client    |---->|  /login     |---->|  Database   |
+|             |     |             |     |             |
+|             |<----| JWT Tokens  |<----| User + Hash |
++-------------+     +-------------+     +-------------+
+       |
+       | Authorization: Bearer <access_token>
+       v
++-------------+     +-------------+
+|  Protected  |---->| Auth        |
+|  Endpoint   |     | Middleware  |
+|             |<----| + Claims    |
++-------------+     +-------------+
 ```
 
 ### Role Permissions
@@ -247,10 +250,11 @@ POST /api/v1/cache/clear
 | Reports | `queries/reports.sql` | `handlers/reports.go` |
 | Notifications | `queries/notifications.sql` | `handlers/notifications.go` |
 | Settings | `queries/settings.sql` | `handlers/settings.go` |
-| Audit logs | `queries/audit_logs.sql` | `handlers/audit.go` |
+| Audit logs | `queries/audit.sql` | `handlers/audit.go` |
 | Librarians | `queries/librarians.sql` | `handlers/librarians.go` |
 | Admins | `queries/admins.sql` | `handlers/admins.go` |
 | Requests | `queries/requests.sql` | `handlers/requests.go` |
+| Favorites | `queries/favorites.sql` | `handlers/students.go` |
 
 ---
 
@@ -333,7 +337,7 @@ make sqlc
 
 | Component | Technology | Version |
 |-----------|------------|---------|
-| Language | Go | 1.24.1 |
+| Language | Go | 1.24+ |
 | Framework | Gin | 1.11.0 |
 | Database | PostgreSQL | 15 |
 | Query Builder | sqlc | latest |

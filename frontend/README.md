@@ -2,7 +2,7 @@
 
 A modern React 18.3 web application for the Holy Redeemer School Library Management System, providing role-based portals for Admin, Librarian, and Student users.
 
-## 📚 Documentation
+## Documentation
 
 - [Root Project README](../README.md) - Main project documentation
 - [Backend API](../backend/README.md) - Backend API documentation
@@ -10,7 +10,7 @@ A modern React 18.3 web application for the Holy Redeemer School Library Managem
 - [Architecture](../docs/architecture/ARCHITECTURE.md) - System architecture overview
 - [Contributing](../docs/guides/CONTRIBUTING.md) - Development guidelines
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Using Setup Script (Recommended)
 
@@ -37,13 +37,13 @@ npm run dev
 
 **URL:** http://localhost:4127
 
-## 📋 Requirements
+## Requirements
 
-- **Node.js** 18+ or 20+
-- **npm** or **pnpm**
+- Node.js 18+ or 20+
+- npm or pnpm
 - Backend API running on port 8080 (see backend setup)
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 frontend/
@@ -114,56 +114,56 @@ frontend/
 └── .env.example                # Environment variables template
 ```
 
-## 🔧 Tech Stack
+## Tech Stack
 
 ### Core Framework
-- **React 18.3.1** - UI library
-- **TypeScript 5.8.3** - Type-safe development
-- **Vite 5.4.19** - Build tool and dev server
+- React 18.3.1 - UI library
+- TypeScript 5.8.3 - Type-safe development
+- Vite 5.4.19 - Build tool and dev server
 
 ### State Management
-- **TanStack Query 5.83.0** (React Query) - Server state management, caching, and synchronization
-- **Zustand 5.0.9** - Client state management (authentication)
+- TanStack Query 5.83.0 (React Query) - Server state management, caching, and synchronization
+- Zustand 5.0.9 - Client state management (authentication)
 
 ### UI Components
-- **shadcn/ui** - Pre-built component library based on Radix UI
+- shadcn/ui - Pre-built component library based on Radix UI
   - 40+ components including: Button, Dialog, Table, Form, Select, etc.
-- **Tailwind CSS 3.4.17** - Utility-first styling
-- **Radix UI** - Accessible, unstyled component primitives
-- **Lucide React 0.462.0** - Icon library
+- Tailwind CSS 3.4.17 - Utility-first styling
+- Radix UI - Accessible, unstyled component primitives
+- Lucide React 0.462.0 - Icon library
 
-### Data Fetching & API
-- **Axios 1.13.2** - HTTP client with interceptors
-- **React Router DOM 6.30.1** - Client-side routing
-- **React Hook Form 7.61.1** - Form management
-- **Zod 3.25.76** - Schema validation
+### Data Fetching and API
+- Axios 1.13.2 - HTTP client with interceptors
+- React Router DOM 6.30.1 - Client-side routing
+- React Hook Form 7.61.1 - Form management
+- Zod 3.25.76 - Schema validation
 
 ### Specialized Libraries
-- **html5-qrcode 2.3.8** - QR/Barcode scanning
-- **qrcode.react 4.2.0** - QR code generation
-- **Recharts 2.15.4** - Charting library for reports
-- **date-fns 3.6.0** - Date manipulation
-- **xlsx 0.18.5** - Excel file handling (import/export)
-- **Framer Motion 12.29.2** - Animations
+- html5-qrcode 2.3.8 - QR/Barcode scanning
+- qrcode.react 4.2.0 - QR code generation
+- Recharts 2.15.4 - Charting library for reports
+- date-fns 3.6.0 - Date manipulation
+- xlsx 0.18.5 - Excel file handling (import/export)
+- Framer Motion 12.29.2 - Animations
 
 ### Testing
-- **Vitest 3.0.0** - Unit testing framework
-- **React Testing Library** - Component testing
-- **MSW 2.7.3** - API mocking for tests
-- **Playwright 1.57.0** - E2E testing
+- Vitest 3.0.0 - Unit testing framework
+- React Testing Library - Component testing
+- MSW 2.7.3 - API mocking for tests
+- Playwright 1.57.0 - E2E testing
 
-## 🔐 Authentication
+## Authentication
 
 ### Token Management
-- **Access Token**: Stored in `localStorage` as `lms_access_token` (15 min expiry)
-- **Refresh Token**: Stored in `localStorage` as `lms_refresh_token` (7 days expiry)
-- **User Data**: Stored in `localStorage` as `lms_user`
+- Access Token: Stored in `localStorage` as `lms_access_token` (15 min expiry)
+- Refresh Token: Stored in `localStorage` as `lms_refresh_token` (7 days expiry)
+- User Data: Stored in `localStorage` as `lms_user`
 
 ### Authentication Flow
 1. User logs in via `/login` page
 2. Tokens received from `/api/v1/auth/login` endpoint
 3. Access token added to all API requests via `Authorization: Bearer <token>` header
-4. **Automatic Token Refresh**: Axios interceptor handles 401 responses by:
+4. Automatic Token Refresh: Axios interceptor handles 401 responses by:
    - Using refresh token to get new access token
    - Retrying failed requests with new token
    - Redirecting to login if refresh fails
@@ -172,13 +172,13 @@ frontend/
 Three user roles with different access levels:
 
 | Role | Access | Default Page |
-|------|---------|--------------|
-| **Super Admin** | Full system access, settings, audit logs, admin management, cache management | `/admin/dashboard` |
-| **Admin** | Full system access, settings, audit logs | `/admin/dashboard` |
-| **Librarian** | Circulation, books, reports, daily operations | `/librarian/dashboard` |
-| **Student** | Catalog, account, notifications, requests, favorites, achievements | `/student/dashboard` |
+|------|--------|--------------|
+| Super Admin | Full system access, settings, audit logs, admin management, cache management | `/admin/dashboard` |
+| Admin | Full system access, settings, audit logs | `/admin/dashboard` |
+| Librarian | Circulation, books, reports, daily operations | `/librarian/dashboard` |
+| Student | Catalog, account, notifications, requests, favorites, achievements | `/student/dashboard` |
 
-## 🛠️ Development
+## Development
 
 ### Available Scripts
 
@@ -223,7 +223,7 @@ export const api = axios.create({
 **Features:**
 - Automatic token injection from localStorage
 - Request/response logging
-- **Automatic token refresh on 401 errors**
+- Automatic token refresh on 401 errors
 - Error handling with typed responses
 
 ### Service Layer Pattern
@@ -285,19 +285,19 @@ Routes defined in `App.tsx` using React Router:
 - `/student/notifications` - Notifications
 - `/student/favorites` - Favorite books
 
-## 🎨 UI Components
+## UI Components
 
 ### shadcn/ui Component Library
 
 The project uses shadcn/ui components based on Radix UI primitives:
 
 **Available Components:**
-- **Form Components**: Button, Input, Select, Checkbox, Radio Group, Switch
-- **Layout Components**: Card, Dialog, Sheet, Sidebar, Separator
-- **Feedback Components**: Alert, Toast (Sonner), Progress, Badge
-- **Data Display**: Table, Avatar, Skeleton, Code
-- **Navigation**: Tabs, Breadcrumb, Menu, Command
-- **Other**: Tooltip, Dropdown, Popover, Calendar, DatePicker
+- Form Components: Button, Input, Select, Checkbox, Radio Group, Switch
+- Layout Components: Card, Dialog, Sheet, Sidebar, Separator
+- Feedback Components: Alert, Toast (Sonner), Progress, Badge
+- Data Display: Table, Avatar, Skeleton, Code
+- Navigation: Tabs, Breadcrumb, Menu, Command
+- Other: Tooltip, Dropdown, Popover, Calendar, DatePicker
 
 ### Custom Components
 
@@ -324,12 +324,7 @@ The project uses shadcn/ui components based on Radix UI primitives:
 --info: #3B82F6;
 ```
 
-**Typography:**
-- Sans-serif font stack
-- Responsive sizing
-- Clear hierarchy
-
-## 📊 State Management
+## State Management
 
 ### TanStack Query (Server State)
 
@@ -389,7 +384,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
 const { user, isAuthenticated, logout } = useAuthStore();
 ```
 
-## 🧪 Testing
+## Testing
 
 ### Test Structure
 
@@ -417,7 +412,7 @@ npm run test:e2e
 npm run test:e2e:ui
 ```
 
-## 🔄 Data Synchronization
+## Data Synchronization
 
 ### Automatic Refetching
 
@@ -433,7 +428,7 @@ For features requiring real-time updates:
 - Polling (set `refetchInterval` in useQuery)
 - Manual refetch on specific actions
 
-## 📦 Build & Deployment
+## Build and Deployment
 
 ### Production Build
 
@@ -453,21 +448,21 @@ Serves the production build locally for testing.
 
 ### Deployment Options
 
-1. **Vercel** (Recommended for React)
+1. Vercel (Recommended for React)
    - Automatic builds from GitHub
    - Edge network CDN
    - Easy environment variable management
 
-2. **Netlify**
+2. Netlify
    - Drag-and-drop deployment
    - Build command: `npm run build`
    - Publish directory: `dist`
 
-3. **Render**
+3. Render
    - Static site deployment
    - Custom domain support
 
-## 🚨 Common Issues & Solutions
+## Common Issues and Solutions
 
 ### CORS Errors
 
@@ -502,6 +497,6 @@ window.location.href = '/login';
 - Check browser permissions
 - Use USB barcode scanner as alternative
 
-## 📄 License
+## License
 
 MIT License

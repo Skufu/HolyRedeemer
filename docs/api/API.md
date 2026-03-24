@@ -82,6 +82,7 @@ List books with pagination and filters.
 | per_page | int | Items per page (max: 100) |
 | search | string | Search title/author/ISBN |
 | category_id | uuid | Filter by category |
+| status | string | Filter by status |
 
 **Response:**
 ```json
@@ -94,8 +95,8 @@ List books with pagination and filters.
       "author": "Author Name",
       "isbn": "978-...",
       "category": "Fiction",
-      "totalCopies": 5,
-      "availableCopies": 3,
+      "total_copies": 5,
+      "available_copies": 3,
       "status": "active"
     }
   ],
@@ -109,7 +110,7 @@ List books with pagination and filters.
 ```
 
 ### GET /books/:id
-Get book details.
+Get book details with copies.
 
 ### POST /books
 Create new book. **Staff only.**
@@ -152,12 +153,45 @@ List all categories.
 ### POST /categories
 Create category. **Admin only.**
 
+**Request:**
+```json
+{
+  "name": "Science Fiction",
+  "description": "Sci-fi books",
+  "color_code": "#3B82F6"
+}
+```
+
+### PUT /categories/:id
+Update category. **Admin only.**
+
+### DELETE /categories/:id
+Delete category. **Admin only.**
+
 ---
 
 ## Book Copies
 
 ### GET /copies/:qr_code
 Lookup copy by QR code.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "qr_code": "HR-a1b2c3d4-C1",
+    "book": {
+      "id": "uuid",
+      "title": "Book Title",
+      "author": "Author"
+    },
+    "status": "available",
+    "condition": "good"
+  }
+}
+```
 
 ### POST /copies/:qr_code/regenerate
 Regenerate QR code. **Admin only.**
@@ -175,11 +209,33 @@ Get current student profile.
 ### GET /students/me/dashboard
 Get student dashboard data.
 
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "current_loans": 3,
+    "overdue_books": 1,
+    "total_fines": 50.00,
+    "books_read_this_year": 12,
+    "achievements_count": 5,
+    "recent_activity": []
+  }
+}
+```
+
 ### GET /students/me/favorites
 Get student's favorite books.
 
 ### POST /students/me/favorites
 Add book to favorites.
+
+**Request:**
+```json
+{
+  "book_id": "uuid"
+}
+```
 
 ### DELETE /students/me/favorites/:bookId
 Remove book from favorites.
@@ -322,6 +378,16 @@ List overdue loans. **Staff only.**
 ### GET /transactions
 List all transactions.
 
+**Query Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| page | int | Page number |
+| per_page | int | Items per page |
+| student_id | uuid | Filter by student |
+| status | string | borrowed/returned/overdue |
+| start_date | date | Filter from date |
+| end_date | date | Filter to date |
+
 ---
 
 ## Fines
@@ -354,6 +420,13 @@ Record payment. **Staff only.**
 ### POST /fines/:id/waive
 Waive fine. **Admin only.**
 
+**Request:**
+```json
+{
+  "reason": "Financial hardship"
+}
+```
+
 ---
 
 ## Reports
@@ -365,15 +438,15 @@ Dashboard statistics.
 ```json
 {
   "data": {
-    "totalBooks": 500,
-    "totalCopies": 1200,
-    "activeStudents": 300,
-    "currentLoans": 150,
-    "overdueBooks": 12,
-    "totalFines": 2500.00,
-    "checkoutsToday": 25,
-    "returnsToday": 18,
-    "dueToday": 8
+    "total_books": 500,
+    "total_copies": 1200,
+    "active_students": 300,
+    "current_loans": 150,
+    "overdue_books": 12,
+    "total_fines": 2500.00,
+    "checkouts_today": 25,
+    "returns_today": 18,
+    "due_today": 8
   }
 }
 ```
@@ -390,6 +463,11 @@ Most borrowed books.
 ### GET /reports/activity
 Recent library activity.
 
+**Query Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| limit | int | Number of items (default: 50) |
+
 ---
 
 ## Notifications
@@ -401,6 +479,7 @@ List notifications.
 | Param | Type | Description |
 |-------|------|-------------|
 | is_read | bool | Filter by read status |
+| type | string | Filter by type |
 
 ### GET /notifications/unread-count
 Get unread notification count.
@@ -423,6 +502,18 @@ Get librarian details. **Admin only.**
 
 ### POST /librarians
 Create librarian. **Admin only.**
+
+**Request:**
+```json
+{
+  "username": "librarian1",
+  "password": "password",
+  "name": "Jane Smith",
+  "email": "jane@school.edu",
+  "phone": "09123456789",
+  "department": "Library"
+}
+```
 
 ### PUT /librarians/:id
 Update librarian. **Admin only.**
@@ -462,6 +553,10 @@ Get audit logs. **Admin only.**
 | user_id | uuid | Filter by user |
 | action | string | Filter by action type |
 | entity_type | string | Filter by entity type |
+| start_date | date | Filter from date |
+| end_date | date | Filter to date |
+| page | int | Page number |
+| per_page | int | Items per page |
 
 ---
 
@@ -498,9 +593,17 @@ Get fine-related settings.
 ### POST /cache/clear
 Clear server cache. **Super Admin only.**
 
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Cache cleared successfully"
+}
+```
+
 ---
 
-## Requests
+## Book Requests
 
 ### GET /requests
 List book requests. **Staff only.**
@@ -512,7 +615,7 @@ Create book request.
 ```json
 {
   "book_id": "uuid",
-  "request_type": "reservation|request",
+  "request_type": "reservation",
   "notes": "For research project"
 }
 ```
@@ -526,12 +629,53 @@ Approve request. **Staff only.**
 ### PUT /requests/:id/reject
 Reject request. **Staff only.**
 
+### PUT /requests/:id/fulfill
+Mark request as fulfilled. **Staff only.**
+
 ---
 
 ## Achievements
 
-### GET /students/achievements
+### GET /achievements
 List all available achievements.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "code": "first_book",
+      "name": "First Book",
+      "description": "Borrowed your first book",
+      "icon": "book-open",
+      "color": "blue",
+      "requirement_type": "books_borrowed",
+      "requirement_value": 1
+    }
+  ]
+}
+```
+
+---
+
+## Health Checks
+
+### GET /health
+Full health check with database connection.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "database": "connected",
+  "timestamp": "2024-01-15T10:00:00Z"
+}
+```
+
+### GET /healthz
+Lightweight health check (no database query).
 
 ---
 
@@ -566,7 +710,7 @@ All errors follow this format:
 
 ## Rate Limits
 
-API requests are subject to rate limiting. Current limits:
+API requests are subject to rate limiting:
 - 100 requests per minute per IP
 - 1000 requests per hour per user
 
