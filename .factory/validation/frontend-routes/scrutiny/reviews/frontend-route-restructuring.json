@@ -1,0 +1,33 @@
+{
+  "featureId": "frontend-route-restructuring",
+  "reviewedAt": "2026-03-25T07:30:00.000Z",
+  "commitId": "95dd9ca",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The implementation correctly restructures frontend routes as specified. All old admin routes (books, qr-management, excel-migration, reports) have been removed from the admin section, redirect stubs have been added to navigate users to the new librarian routes, and new routes have been created under /librarian with the corresponding librarian components. TypeScript compilation and lint checks passed successfully.",
+    "issues": [
+      {
+        "file": "frontend/src/App.tsx",
+        "line": 17,
+        "severity": "non_blocking",
+        "description": "Unused import: 'AdminReports' is imported but never used in the route configuration. The import was left behind when the route was removed. This is a dead import that should be cleaned up, but it does not affect functionality since it's lazily loaded and never invoked."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The worker used React Router's Navigate component with 'replace' prop for route redirects. This pattern prevents the old route from being added to browser history, which is the correct UX for moved routes. However, this pattern is not documented in AGENTS.md or the frontend-worker skill.",
+      "evidence": "frontend/src/App.tsx lines 81-84: <Route path=\"/admin/books\" element={<Navigate to=\"/librarian/books-management\" replace />} />"
+    },
+    {
+      "area": "conventions",
+      "observation": "The redirect stubs are placed outside of any ProtectedRoute wrapper. This means any user (even unauthenticated) who navigates to /admin/books will be redirected to /librarian/books-management, where they will then hit the ProtectedRoute and be redirected to login if not authenticated as a librarian. This appears intentional for UX continuity, but could be documented as a pattern.",
+      "evidence": "Lines 81-84 in App.tsx show redirect routes at the top level of the Routes component, not nested inside any ProtectedRoute element"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "PASS: The frontend route restructuring is correctly implemented. All 8 assertions (VAL-ROUTES-001 through VAL-ROUTES-008) are satisfied. The implementation removes book/QR/excel/reports routes from admin, adds redirects from old admin paths to new librarian paths, and creates new librarian routes with the appropriate components. One minor cleanup issue (unused AdminReports import) was noted as non-blocking."
+}
