@@ -1,0 +1,21 @@
+{
+  "milestone": "frontend-components",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "typecheck": { "passed": true, "command": "npx tsc --noEmit", "exitCode": 0 },
+    "lint": { "passed": true, "command": "npm run lint", "exitCode": 0 },
+    "test": { "passed": true, "command": "npm run test -- --run", "exitCode": 0 }
+  },
+  "reviewsSummary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [],
+  "rejectedObservations": [],
+  "previousRound": null
+}
