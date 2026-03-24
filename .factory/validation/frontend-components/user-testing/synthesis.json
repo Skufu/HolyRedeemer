@@ -1,6 +1,6 @@
 {
   "milestone": "frontend-components",
-  "round": 2,
+  "round": 3,
   "status": "fail",
   "assertionsSummary": {
     "total": 6,
@@ -23,7 +23,7 @@
     }
   ],
   "appliedUpdates": [],
-  "previousRound": ".factory/validation/frontend-components/user-testing/synthesis.json (round 1)",
+  "previousRound": ".factory/validation/frontend-components/user-testing/synthesis.json (round 2)",
   "testingNotes": {
     "staticAnalysis": {
       "fileExistence": {
@@ -33,6 +33,14 @@
       },
       "typeScriptCompilation": "npx tsc --noEmit passed with exit code 0"
     },
-    "blockingReason": "VAL-FRONTEND-006 requires browser testing to verify components render without console errors, but the librarian routes (books-management, qr-management, excel-migration) are not yet configured in App.tsx. The frontend-route-restructuring feature is part of the pending frontend-routes milestone."
+    "blockingReason": "VAL-FRONTEND-006 requires browser testing to verify components render without console errors, but the librarian routes (books-management, qr-management, excel-migration) are not yet configured in App.tsx. The frontend-route-restructuring feature is part of the pending frontend-routes milestone.",
+    "appTsxAnalysis": {
+      "librarianRoutes": "Only /librarian/dashboard, /librarian/circulation, /librarian/student-lookup, /librarian/books, /librarian/daily-operations, /librarian/reports, /librarian/settings exist",
+      "missingRoutes": [
+        "/librarian/books-management",
+        "/librarian/qr-management",
+        "/librarian/excel-migration"
+      ]
+    }
   }
 }
