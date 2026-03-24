@@ -1,0 +1,22 @@
+{
+  "milestone": "sidebar-nav",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "typecheck": { "passed": true, "command": "npx tsc --noEmit", "exitCode": 0 },
+    "lint": { "passed": true, "command": "npm run lint", "exitCode": 0, "warnings": 4 },
+    "backend-test": { "passed": true, "command": "go test ./...", "exitCode": 0 },
+    "backend-build": { "passed": true, "command": "go build ./...", "exitCode": 0 }
+  },
+  "reviewsSummary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [],
+  "rejectedObservations": [],
+  "previousRound": null
+}
