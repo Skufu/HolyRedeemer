@@ -135,3 +135,55 @@ None identified for backend permissions. All permission assertions can run in pa
 - JSON file input with `-d @file.json` is most reliable
 - Use `Set-Location` instead of `cd` for directory changes
 - Chain commands with `;` instead of `&&`
+
+## Frontend Routes Testing
+
+### Services
+
+| Service | Port | URL |
+|---------|------|-----|
+| Frontend Dev Server | 4127 | http://localhost:4127 |
+| Backend API | 8080 | http://localhost:8080 |
+
+### Starting Frontend
+
+```powershell
+cd frontend
+npm run dev
+# Frontend runs on port 4127
+```
+
+## Flow Validator Guidance: Frontend Routes
+
+### Testing Tool
+
+Use `agent-browser` skill for browser automation testing of frontend routes.
+
+### Isolation Rules
+
+1. Each validator should use a separate browser session (--session parameter)
+2. Do not share cookies/localStorage between validators
+3. Test user login credentials are provided per-assertion group
+
+### Test Users
+
+| Role | Username | Password | Access |
+|------|----------|----------|--------|
+| librarian | librarian | lib123 | /librarian/* routes |
+| admin | admin | admin123 | /admin/* routes |
+| super_admin | admin | admin123 | Both /admin/* and /librarian/* routes |
+
+### Assertions to Test
+
+- VAL-ROUTES-001: /admin/books redirects to /librarian/books-management
+- VAL-ROUTES-002: /admin/qr-management redirects to /librarian/qr-management
+- VAL-ROUTES-003: /admin/excel-migration redirects to /librarian/excel-migration
+- VAL-ROUTES-004: /admin/reports redirects to /librarian/reports
+- VAL-ROUTES-005: /librarian/books-management renders BooksManagement component
+- VAL-ROUTES-006: /librarian/qr-management renders QRManagement component
+- VAL-ROUTES-007: /librarian/excel-migration renders ExcelMigration component
+- VAL-ROUTES-008: Librarian can navigate to all librarian routes without auth errors
+
+### Concurrency
+
+Max concurrent validators: 2 (browser instances are resource-intensive)

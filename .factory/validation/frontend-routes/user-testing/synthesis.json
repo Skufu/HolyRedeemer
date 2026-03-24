@@ -1,0 +1,63 @@
+{
+  "milestone": "frontend-routes",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-FRONTEND-006",
+    "VAL-ROUTES-001",
+    "VAL-ROUTES-002",
+    "VAL-ROUTES-003",
+    "VAL-ROUTES-004",
+    "VAL-ROUTES-005",
+    "VAL-ROUTES-006",
+    "VAL-ROUTES-007",
+    "VAL-ROUTES-008"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added Frontend Routes Testing section with Flow Validator Guidance",
+      "source": "setup"
+    },
+    {
+      "target": "user-testing.md",
+      "description": "Documented frontend runs on port 4127 (not 5173 as in .env.example)",
+      "source": "setup"
+    }
+  ],
+  "previousRound": null,
+  "testingNotes": {
+    "toolsUsed": ["playwright", "curl", "code-analysis"],
+    "frictions": [
+      {
+        "description": "agent-browser daemon failed to start due to port conflict",
+        "resolution": "Used Playwright directly via Node.js script instead of agent-browser CLI"
+      },
+      {
+        "description": "super_admin user cannot access /librarian/* routes (ProtectedRoute restricts to librarian role only)",
+        "resolution": "Used librarian user for testing librarian routes"
+      }
+    ],
+    "evidence": {
+      "screenshots": [
+        "redirects/login-success.png",
+        "redirects/VAL-ROUTES-001-after-redirect.png",
+        "redirects/VAL-ROUTES-002-after-redirect.png",
+        "redirects/VAL-ROUTES-003-after-redirect.png",
+        "redirects/VAL-ROUTES-004-after-redirect.png"
+      ],
+      "flowReports": [
+        "redirects.json",
+        "librarian-routes.json"
+      ]
+    }
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "groupId": "librarian-routes",
+  "testedAt": "2026-03-25T07:45:00.000Z",
+  "isolation": {
+    "frontendUrl": "http://localhost:4127",
+    "backendUrl": "http://localhost:8080",
+    "testUser": {
+      "username": "librarian",
+      "password": "lib123"
+    },
+    "browserSession": "a27199d0d7ee__librarian"
+  },
+  "toolsUsed": ["curl", "code-analysis"],
+  "assertions": [
+    {
+      "id": "VAL-ROUTES-005",
+      "title": "/librarian/books-management renders the BooksManagement component",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Verify route configuration in App.tsx",
+          "expected": "Route path '/librarian/books-management' should exist with BooksManagement component",
+          "observed": "Route exists at line 105: <Route path=\"books-management\" element={<LibrarianBooksManagement />} /> inside /librarian protected route"
+        },
+        {
+          "action": "Verify BooksManagement component exists",
+          "expected": "Component file should exist at frontend/src/pages/librarian/BooksManagement.tsx",
+          "observed": "Component exists and is a valid React component (462 lines, imports useBooks hook, contains BooksManagement class)"
+        },
+        {
+          "action": "Test HTTP response",
+          "expected": "HTTP 200 response",
+          "observed": "curl test: HTTP Status 200"
+        },
+        {
+          "action": "Attempt browser automation testing",
+          "expected": "Browser opens and navigates to route",
+          "observed": "Browser tool daemon failed to start - persistent 'Daemon failed to start (port: 127.0.0.1:50838)' error"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "could not test - browser tool blocked",
+        "network": "curl: GET /librarian/books-management -> 200"
+      },
+      "issues": "Browser automation tool (agent-browser) failed to start daemon - could not perform full UI testing"
+    },
+    {
+      "id": "VAL-ROUTES-006",
+      "title": "/librarian/qr-management renders the QRManagement component",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Verify route configuration in App.tsx",
+          "expected": "Route path '/librarian/qr-management' should exist with QRManagement component",
+          "observed": "Route exists at line 106: <Route path=\"qr-management\" element={<LibrarianQRManagement />} /> inside /librarian protected route"
+        },
+        {
+          "action": "Verify QRManagement component exists",
+          "expected": "Component file should exist at frontend/src/pages/librarian/QRManagement.tsx",
+          "observed": "Component exists and is a valid React component (615 lines, imports QRCodeSVG, contains QRManagement class)"
+        },
+        {
+          "action": "Test HTTP response",
+          "expected": "HTTP 200 response",
+          "observed": "curl test: HTTP Status 200"
+        },
+        {
+          "action": "Attempt browser automation testing",
+          "expected": "Browser opens and navigates to route",
+          "observed": "Browser tool daemon failed to start - persistent error"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "could not test - browser tool blocked",
+        "network": "curl: GET /librarian/qr-management -> 200"
+      },
+      "issues": "Browser automation tool (agent-browser) failed to start daemon"
+    },
+    {
+      "id": "VAL-ROUTES-007",
+      "title": "/librarian/excel-migration renders the ExcelMigration component",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Verify route configuration in App.tsx",
+          "expected": "Route path '/librarian/excel-migration' should exist with ExcelMigration component",
+          "observed": "Route exists at line 107: <Route path=\"excel-migration\" element={<LibrarianExcelMigration />} /> inside /librarian protected route"
+        },
+        {
+          "action": "Verify ExcelMigration component exists",
+          "expected": "Component file should exist at frontend/src/pages/librarian/ExcelMigration.tsx",
+          "observed": "Component exists and is a valid React component (757 lines, imports FileSpreadsheet, Upload, contains ExcelMigration class)"
+        },
+        {
+          "action": "Test HTTP response",
+          "expected": "HTTP 200 response",
+          "observed": "curl test: HTTP Status 200"
+        },
+        {
+          "action": "Attempt browser automation testing",
+          "expected": "Browser opens and navigates to route",
+          "observed": "Browser tool daemon failed to start - persistent error"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "could not test - browser tool blocked",
+        "network": "curl: GET /librarian/excel-migration -> 200"
+      },
+      "issues": "Browser automation tool (agent-browser) failed to start daemon"
+    },
+    {
+      "id": "VAL-ROUTES-008",
+      "title": "Librarian can navigate to librarian routes without auth errors",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Verify ProtectedRoute configuration in App.tsx",
+          "expected": "Librarian routes should be protected with allowedRoles=['librarian']",
+          "observed": "Line 91: <ProtectedRoute allowedRoles={['librarian']}> wraps all librarian routes including books-management, qr-management, excel-migration"
+        },
+        {
+          "action": "Verify ProtectedRoute component logic",
+          "expected": "ProtectedRoute should allow 'librarian' role access",
+          "observed": "ProtectedRoute.tsx: allowedRoles check passes if user.role is in allowedRoles array. librarian role is included in allowedRoles={['librarian']}"
+        },
+        {
+          "action": "Test HTTP responses for all routes",
+          "expected": "All routes should return HTTP 200",
+          "observed": "curl tests: All 3 routes returned HTTP 200"
+        },
+        {
+          "action": "Attempt browser automation to verify no redirect to login",
+          "expected": "No redirect to login page after authentication",
+          "observed": "Browser tool daemon failed to start - could not test authentication flow"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "could not test - browser tool blocked",
+        "network": "curl: GET /librarian/books-management -> 200, GET /librarian/qr-management -> 200, GET /librarian/excel-migration -> 200"
+      },
+      "issues": "Browser automation tool (agent-browser) failed to start daemon - could not test full authentication flow"
+    }
+  ],
+  "frictions": [],
+  "blockers": [
+    {
+      "description": "agent-browser tool failed to start daemon with persistent error: 'Daemon failed to start (port: 127.0.0.1:50838)'. Multiple attempts were made including: killing existing processes, cleaning lock files, using different session names, setting environment variables, and waiting extended periods. The daemon could not initialize despite the tool being installed and Chromium being available.",
+      "affectedAssertions": ["VAL-ROUTES-005", "VAL-ROUTES-006", "VAL-ROUTES-007", "VAL-ROUTES-008"],
+      "quickFixAttempted": "1. agent-browser close (successful); 2. Removed stale .pid and .port files from ~/.agent-browser; 3. Killed chrome.exe processes; 4. Waited 10+ seconds between attempts; 5. Tried --native flag; 6. Tried fresh PowerShell session; 7. Tried setting AGENT_BROWSER_HOME to temp directory; 8. Verified no port conflicts with netstat. All attempts failed with same daemon error."
+    }
+  ],
+  "codeAnalysisFindings": {
+    "routeConfiguration": {
+      "file": "frontend/src/App.tsx",
+      "librarianRoutesProtected": true,
+      "allowedRoles": ["librarian"],
+      "routes": [
+        {"path": "/librarian/books-management", "component": "LibrarianBooksManagement", "line": 105},
+        {"path": "/librarian/qr-management", "component": "LibrarianQRManagement", "line": 106},
+        {"path": "/librarian/excel-migration", "component": "LibrarianExcelMigration", "line": 107}
+      ]
+    },
+    "componentsExist": {
+      "BooksManagement": {"path": "frontend/src/pages/librarian/BooksManagement.tsx", "exists": true, "lines": 462},
+      "QRManagement": {"path": "frontend/src/pages/librarian/QRManagement.tsx", "exists": true, "lines": 615},
+      "ExcelMigration": {"path": "frontend/src/pages/librarian/ExcelMigration.tsx", "exists": true, "lines": 757}
+    },
+    "protectedRouteLogic": {
+      "file": "frontend/src/components/ProtectedRoute.tsx",
+      "allowsLibrarian": true,
+      "redirectOnUnauthorized": true
+    },
+    "httpResponses": {
+      "/librarian/books-management": 200,
+      "/librarian/qr-management": 200,
+      "/librarian/excel-migration": 200
+    }
+  },
+  "summary": "Tested 4 assertions: 0 passed, 0 failed, 4 blocked (browser automation tool daemon failed to start). Code analysis confirms all route configurations are correct, components exist, and HTTP responses are 200. Unable to perform full UI testing including login flow and visual verification due to agent-browser daemon startup failure."
+}
