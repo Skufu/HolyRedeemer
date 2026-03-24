@@ -1,6 +1,6 @@
 {
   "milestone": "frontend-components",
-  "round": 3,
+  "round": 4,
   "status": "fail",
   "assertionsSummary": {
     "total": 6,
@@ -23,7 +23,7 @@
     }
   ],
   "appliedUpdates": [],
-  "previousRound": ".factory/validation/frontend-components/user-testing/synthesis.json (round 2)",
+  "previousRound": ".factory/validation/frontend-components/user-testing/synthesis.json (round 3)",
   "testingNotes": {
     "staticAnalysis": {
       "fileExistence": {
@@ -41,6 +41,10 @@
         "/librarian/qr-management",
         "/librarian/excel-migration"
       ]
+    },
+    "featureStatus": {
+      "frontend-route-restructuring": "pending",
+      "note": "This feature must be completed before VAL-FRONTEND-006 can be tested"
     }
   }
 }
