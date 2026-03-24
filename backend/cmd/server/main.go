@@ -116,11 +116,11 @@ func main() {
 		{
 			books.GET("", bookHandler.ListBooks)
 			books.GET("/:id", bookHandler.GetBook)
-			books.POST("", middleware.RequireRoles("admin", "super_admin", "librarian"), bookHandler.CreateBook)
-			books.PUT("/:id", middleware.RequireRoles("admin", "super_admin", "librarian"), bookHandler.UpdateBook)
-			books.DELETE("/:id", middleware.RequireRoles("admin", "super_admin"), bookHandler.DeleteBook)
+			books.POST("", middleware.RequireRoles("librarian", "super_admin"), bookHandler.CreateBook)
+			books.PUT("/:id", middleware.RequireRoles("librarian", "super_admin"), bookHandler.UpdateBook)
+			books.DELETE("/:id", middleware.RequireRoles("super_admin"), bookHandler.DeleteBook)
 			books.GET("/:id/copies", bookHandler.ListCopies)
-			books.POST("/:id/copies", middleware.RequireRoles("admin", "super_admin", "librarian"), bookHandler.CreateCopy)
+			books.POST("/:id/copies", middleware.RequireRoles("librarian", "super_admin"), bookHandler.CreateCopy)
 		}
 
 		// Categories routes
@@ -178,13 +178,13 @@ func main() {
 		{
 			fines.GET("", fineHandler.ListFines)
 			fines.GET("/:id", fineHandler.GetFine)
-			fines.POST("/:id/pay", middleware.RequireRoles("librarian", "admin", "super_admin"), fineHandler.PayFine)
-			fines.POST("/:id/waive", middleware.RequireRoles("admin", "super_admin"), fineHandler.WaiveFine)
+			fines.POST("/:id/pay", middleware.RequireRoles("librarian", "super_admin"), fineHandler.PayFine)
+			fines.POST("/:id/waive", middleware.RequireRoles("super_admin"), fineHandler.WaiveFine)
 		}
 
 		// Report routes
 		reports := v1.Group("/reports")
-		reports.Use(middleware.Auth(jwtManager))
+		reports.Use(middleware.Auth(jwtManager), middleware.RequireRoles("librarian", "super_admin"))
 		{
 			reports.GET("/dashboard", reportHandler.GetDashboardStats)
 			reports.GET("/charts/categories", reportHandler.GetBooksByCategory)
