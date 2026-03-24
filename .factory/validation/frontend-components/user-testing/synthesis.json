@@ -1,6 +1,6 @@
 {
   "milestone": "frontend-components",
-  "round": 1,
+  "round": 2,
   "status": "fail",
   "assertionsSummary": {
     "total": 6,
@@ -19,11 +19,11 @@
   "blockedAssertions": [
     {
       "id": "VAL-FRONTEND-006",
-      "blockedBy": "Routes for /librarian/books-management, /librarian/qr-management, /librarian/excel-migration are not configured in App.tsx. These routes are part of the pending frontend-routes milestone. Browser testing cannot proceed until routes are added."
+      "blockedBy": "Routes for /librarian/books-management, /librarian/qr-management, /librarian/excel-migration are not configured in App.tsx. The frontend-route-restructuring feature (milestone: frontend-routes) is still pending. Browser testing cannot proceed until routes are added."
     }
   ],
   "appliedUpdates": [],
-  "previousRound": null,
+  "previousRound": ".factory/validation/frontend-components/user-testing/synthesis.json (round 1)",
   "testingNotes": {
     "staticAnalysis": {
       "fileExistence": {
@@ -33,6 +33,6 @@
       },
       "typeScriptCompilation": "npx tsc --noEmit passed with exit code 0"
     },
-    "blockingReason": "VAL-FRONTEND-006 requires browser testing to verify components render without console errors, but the librarian routes (books-management, qr-management, excel-migration) are not yet configured in App.tsx. This is intentional - route configuration is part of the frontend-routes milestone."
+    "blockingReason": "VAL-FRONTEND-006 requires browser testing to verify components render without console errors, but the librarian routes (books-management, qr-management, excel-migration) are not yet configured in App.tsx. The frontend-route-restructuring feature is part of the pending frontend-routes milestone."
   }
 }
