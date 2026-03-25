@@ -354,6 +354,336 @@ erDiagram
 
 ---
 
+## Interaction Diagrams (Workflow Focus)
+
+These diagrams show specific workflows and interactions for presentation purposes.
+
+### 1. User Authentication & Profile Access
+
+**Focus:** How users log in and access role-specific data
+
+```mermaid
+erDiagram
+    users {
+        uuid id PK
+        varchar username UK "Login ID"
+        varchar password_hash "Bcrypt"
+        enum role "student|librarian|admin"
+        varchar email
+        varchar name
+        enum status "active|inactive"
+    }
+    
+    refresh_tokens {
+        uuid id PK
+        uuid user_id FK
+        varchar token_hash
+        timestamp expires_at
+    }
+    
+    student_profiles {
+        uuid id PK
+        uuid user_id FK,UK
+        varchar student_id UK "2024-0001"
+        int grade_level "1-12"
+        varchar section "St. Augustine"
+        varchar rfid_code UK "Card scan"
+    }
+    
+    staff_profiles {
+        uuid id PK
+        uuid user_id FK,UK
+        varchar employee_id UK "EMP-001"
+        varchar department "Library"
+        varchar phone
+    }
+    
+    users ||--o{ refresh_tokens : "has many tokens"
+    users ||--o| student_profiles : "extends to (if student)"
+    users ||--o| staff_profiles : "extends to (if staff)"
+```
+
+**Key Points:**
+- One login (`users`) → multiple possible profiles
+- `student_profiles` has school-specific data (grade, section, RFID)
+- `staff_profiles` has employment data (employee_id, department)
+- **No name/email duplication** — all come from `users`
+
+---
+
+### 2. Book Circulation (Checkout/Return)
+
+**Focus:** The complete borrowing lifecycle
+
+```mermaid
+erDiagram
+    student_profiles {
+        uuid id PK
+        uuid user_id FK
+        varchar student_id "2024-0001"
+        int grade_level
+    }
+    
+    books {
+        uuid id PK
+        varchar title
+        varchar isbn
+        uuid category_id FK
+    }
+    
+    book_copies {
+        uuid id PK
+        uuid book_id FK
+        varchar qr_code UK "HR-00000001-C1"
+        enum status "available|borrowed"
+        enum condition "good|fair|poor"
+    }
+    
+    staff_profiles {
+        uuid id PK
+        varchar employee_id
+        varchar department
+    }
+    
+    transactions {
+        uuid id PK
+        uuid student_id FK "WHO borrowed"
+        uuid copy_id FK "WHAT copy"
+        uuid librarian_id FK "WHO processed checkout"
+        timestamp checkout_date
+        date due_date
+        timestamp return_date
+        uuid returned_by FK "WHO processed return"
+        enum status "borrowed|returned|overdue"
+        int renewal_count
+    }
+    
+    student_profiles ||--o{ transactions : "borrows (1:N)"
+    book_copies ||--o{ transactions : "borrowed in (1:N)"
+    staff_profiles ||--o{ transactions : "processes checkout"
+    staff_profiles ||--o{ transactions : "processes return"
+    books ||--o{ book_copies : "has copies (1:N)"
+```
+
+**Key Points:**
+- **Master-Detail:** `books` (title) → `book_copies` (individual items)
+- **Who did what:** `librarian_id` (checkout) vs `returned_by` (return)
+- **Status tracking:** From `borrowed` → `returned` or `overdue`
+- **Due date calculated:** Based on `library_settings.loan_duration_days`
+
+---
+
+### 3. Fine & Payment Workflow
+
+**Focus:** How fines are created and paid
+
+```mermaid
+erDiagram
+    transactions {
+        uuid id PK
+        uuid student_id FK
+        date due_date
+        timestamp return_date
+        enum status
+    }
+    
+    fines {
+        uuid id PK
+        uuid transaction_id FK "NULLABLE - manual fines"
+        uuid student_id FK "Who owes"
+        decimal amount "PHP amount"
+        enum fine_type "overdue|lost|damaged"
+        enum status "pending|partial|paid|waived"
+    }
+    
+    payments {
+        uuid id PK
+        uuid fine_id FK "Which fine"
+        decimal amount "Payment amount"
+        enum payment_method "cash|gcash|bank_transfer"
+        varchar reference_number "GCash ref"
+        timestamp payment_date
+        uuid processed_by FK "Staff who recorded"
+    }
+    
+    staff_profiles {
+        uuid id PK
+        varchar employee_id
+    }
+    
+    student_profiles {
+        uuid id PK
+        varchar student_id
+    }
+    
+    transactions ||--o| fines : "generates (1:0..1)"
+    fines ||--o{ payments : "paid by (1:N)"
+    fines }o--|| student_profiles : "owed by"
+    payments }o--|| staff_profiles : "recorded by"
+```
+
+**Key Points:**
+- **One transaction = max one fine** (1:0..1)
+- **One fine = many payments** (supports partial payments)
+- **Student derived:** `payment → fine → student` (no redundant `payment.student_id`)
+- **Manual fines supported:** `fine.transaction_id` can be NULL (e.g., lost ID card fee)
+
+---
+
+### 4. Book Request & Reservation
+
+**Focus:** How students request books
+
+```mermaid
+erDiagram
+    student_profiles {
+        uuid id PK
+        varchar student_id
+        varchar grade_level
+    }
+    
+    books {
+        uuid id PK
+        varchar title
+        varchar isbn
+    }
+    
+    book_requests {
+        uuid id PK
+        uuid student_id FK "Requester"
+        uuid book_id FK "Requested title"
+        enum request_type "reservation|request"
+        enum status "pending|approved|rejected|fulfilled"
+        timestamp request_date
+        timestamp processed_at
+        uuid processed_by FK "Staff who handled"
+    }
+    
+    staff_profiles {
+        uuid id PK
+        varchar employee_id
+    }
+    
+    student_profiles ||--o{ book_requests : "makes (1:N)"
+    books ||--o{ book_requests : "requested (1:N)"
+    staff_profiles ||--o{ book_requests : "handles (1:N)"
+```
+
+**Key Points:**
+- **Title-level requests:** Student requests `books` (title), not `book_copies` (specific copy)
+- **Queue system:** Multiple students can request same book → ordered by `request_date`
+- **Staff approval:** Librarian approves/rejects and marks `fulfilled` when book ready
+- **Two types:** `reservation` (book available) vs `request` (book not in library yet)
+
+---
+
+### 5. Student Engagement (Favorites & Achievements)
+
+**Focus:** Gamification and bookmarks
+
+```mermaid
+erDiagram
+    student_profiles {
+        uuid id PK
+        varchar student_id
+    }
+    
+    books {
+        uuid id PK
+        varchar title
+    }
+    
+    favorite_books {
+        uuid id PK
+        uuid student_id FK
+        uuid book_id FK
+        timestamp created_at
+    }
+    
+    achievements {
+        uuid id PK
+        varchar code UK "first_book|bookworm|speed_reader"
+        varchar name
+        varchar requirement_type
+        int requirement_value
+    }
+    
+    student_achievements {
+        uuid id PK
+        uuid student_id FK
+        uuid achievement_id FK
+        timestamp unlocked_at
+    }
+    
+    student_profiles ||--o{ favorite_books : "saves"
+    books ||--o{ favorite_books : "is favorited"
+    student_profiles ||--o{ student_achievements : "earns"
+    achievements ||--o{ student_achievements : "awarded as"
+```
+
+**Key Points:**
+- **Junction tables:** Handle many-to-many relationships cleanly
+- **Favorites:** Simple bookmarking (student + book + timestamp)
+- **Achievements:** Gamification system with unlock tracking
+- **4NF Compliance:** Multi-valued attributes handled via junction tables
+
+---
+
+### 6. Audit Trail & Notifications
+
+**Focus:** System tracking and messaging
+
+```mermaid
+erDiagram
+    users {
+        uuid id PK
+        varchar username
+        varchar name
+    }
+    
+    audit_logs {
+        uuid id PK
+        uuid user_id FK "Who performed"
+        enum action "create|update|delete|checkout|login"
+        varchar entity_type "books|students|transactions"
+        uuid entity_id
+        jsonb old_values
+        jsonb new_values
+        timestamp created_at
+    }
+    
+    notifications {
+        uuid id PK
+        uuid user_id FK "Recipient"
+        enum type "due_reminder|overdue|fine|system"
+        varchar title
+        text message
+        boolean is_read
+        varchar reference_type "transaction|fine|request"
+        uuid reference_id
+        timestamp created_at
+    }
+    
+    library_settings {
+        varchar key PK "loan_duration_days|fine_per_day"
+        text value
+        varchar category
+        uuid updated_by FK
+        timestamp updated_at
+    }
+    
+    users ||--o{ audit_logs : "generates (1:N)"
+    users ||--o{ notifications : "receives (1:N)"
+    users ||--o{ library_settings : "modifies (1:N)"
+```
+
+**Key Points:**
+- **Audit logs:** Immutable history of all changes (old vs new values in JSONB)
+- **Notifications:** User-facing alerts with polymorphic references (can link to transaction, fine, etc.)
+- **Settings:** Key-value store for configurable policies
+
+---
+
 ## Enum Types
 
 ### user_role
