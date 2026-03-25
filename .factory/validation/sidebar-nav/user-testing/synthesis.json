@@ -1,0 +1,39 @@
+{
+  "milestone": "sidebar-nav",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 11,
+    "passed": 11,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-SIDEBAR-001",
+    "VAL-SIDEBAR-002",
+    "VAL-SIDEBAR-003",
+    "VAL-SIDEBAR-004",
+    "VAL-SIDEBAR-005",
+    "VAL-SIDEBAR-006",
+    "VAL-SIDEBAR-007",
+    "VAL-SIDEBAR-008",
+    "VAL-SIDEBAR-009",
+    "VAL-SIDEBAR-010",
+    "VAL-SIDEBAR-011"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added 'Flow Validator Guidance: Sidebar Navigation' section with isolation rules, test users, and assertions to test",
+      "source": "setup"
+    }
+  ],
+  "previousRound": null,
+  "flowReports": [
+    ".factory/validation/sidebar-nav/user-testing/flows/admin-sidebar.json",
+    ".factory/validation/sidebar-nav/user-testing/flows/librarian-sidebar.json"
+  ],
+  "evidenceDirectory": "evidence/sidebar-nav/"
+}

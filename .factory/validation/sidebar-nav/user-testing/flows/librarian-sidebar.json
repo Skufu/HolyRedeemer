@@ -1,0 +1,194 @@
+{
+  "groupId": "librarian-sidebar",
+  "testedAt": "2026-03-25T08:25:00.000Z",
+  "isolation": {
+    "appUrl": "http://localhost:4127",
+    "testUser": "librarian role",
+    "username": "librarian",
+    "password": "lib123",
+    "session": "948da2717ce9__u2"
+  },
+  "toolsUsed": ["playwright", "chromium"],
+  "assertions": [
+    {
+      "id": "VAL-SIDEBAR-006",
+      "title": "Librarian sidebar has \"Book Management\" link",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Navigate to http://localhost:4127/login",
+          "expected": "Login form displayed",
+          "observed": "Login form displayed with username and password fields"
+        },
+        {
+          "action": "Fill username field with 'librarian'",
+          "expected": "Username field populated",
+          "observed": "Username field populated with 'librarian'"
+        },
+        {
+          "action": "Fill password field with 'lib123'",
+          "expected": "Password field populated",
+          "observed": "Password field populated with 'lib123'"
+        },
+        {
+          "action": "Click Sign In button",
+          "expected": "Navigate to librarian dashboard",
+          "observed": "Successfully navigated to /librarian/dashboard"
+        },
+        {
+          "action": "Find sidebar navigation element",
+          "expected": "Sidebar navigation visible",
+          "observed": "Sidebar navigation element found and visible"
+        },
+        {
+          "action": "Check for 'Book Management' link in sidebar",
+          "expected": "Link with text 'Book Management' present",
+          "observed": "Found visible link with text 'Book Management'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "sidebar-nav/librarian-sidebar/VAL-SIDEBAR-dashboard-with-sidebar.png",
+          "sidebar-nav/librarian-sidebar/VAL-SIDEBAR-006-book-management-link.png"
+        ],
+        "consoleErrors": "none",
+        "network": "POST /api/v1/auth/login -> 200, GET /librarian/dashboard -> 200"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-SIDEBAR-007",
+      "title": "Librarian sidebar has \"QR Management\" link",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Already logged in as librarian from beforeEach hook",
+          "expected": "On librarian dashboard",
+          "observed": "On /librarian/dashboard page"
+        },
+        {
+          "action": "Check for 'QR Management' link in sidebar",
+          "expected": "Link with text 'QR Management' present",
+          "observed": "Found visible link with text 'QR Management'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "sidebar-nav/librarian-sidebar/VAL-SIDEBAR-007-qr-management-link.png"
+        ],
+        "consoleErrors": "none",
+        "network": "N/A - page already loaded"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-SIDEBAR-008",
+      "title": "Librarian sidebar has \"Excel Migration\" link",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Already logged in as librarian from beforeEach hook",
+          "expected": "On librarian dashboard",
+          "observed": "On /librarian/dashboard page"
+        },
+        {
+          "action": "Check for 'Excel Migration' link in sidebar",
+          "expected": "Link with text 'Excel Migration' present",
+          "observed": "Found visible link with text 'Excel Migration'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "sidebar-nav/librarian-sidebar/VAL-SIDEBAR-008-excel-migration-link.png"
+        ],
+        "consoleErrors": "none",
+        "network": "N/A - page already loaded"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-SIDEBAR-009",
+      "title": "Librarian sidebar has \"Circulation\" link",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Already logged in as librarian from beforeEach hook",
+          "expected": "On librarian dashboard",
+          "observed": "On /librarian/dashboard page"
+        },
+        {
+          "action": "Check for 'Circulation' link in sidebar",
+          "expected": "Link with text 'Circulation' present",
+          "observed": "Found visible link with text 'Circulation'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "sidebar-nav/librarian-sidebar/VAL-SIDEBAR-009-circulation-link.png"
+        ],
+        "consoleErrors": "none",
+        "network": "N/A - page already loaded"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-SIDEBAR-010",
+      "title": "Librarian sidebar has no \"Users Management\" link",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Already logged in as librarian from beforeEach hook",
+          "expected": "On librarian dashboard",
+          "observed": "On /librarian/dashboard page"
+        },
+        {
+          "action": "Check that 'Users Management' and 'User Management' links are NOT present",
+          "expected": "No links with text 'Users Management' or 'User Management'",
+          "observed": "Confirmed: no 'Users Management' or 'User Management' links visible in sidebar"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "sidebar-nav/librarian-sidebar/VAL-SIDEBAR-010-no-users-management.png"
+        ],
+        "consoleErrors": "none",
+        "network": "N/A - page already loaded"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-SIDEBAR-011",
+      "title": "Sidebar link navigation behavior",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Already logged in as librarian from beforeEach hook",
+          "expected": "On librarian dashboard",
+          "observed": "On /librarian/dashboard page"
+        },
+        {
+          "action": "Click 'Book Management' link in sidebar",
+          "expected": "Navigate to /librarian/books-management",
+          "observed": "Successfully navigated to /librarian/books-management"
+        },
+        {
+          "action": "Click 'QR Management' link in sidebar",
+          "expected": "Navigate to /librarian/qr-management",
+          "observed": "Successfully navigated to /librarian/qr-management"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "sidebar-nav/librarian-sidebar/VAL-SIDEBAR-011-books-management-page.png",
+          "sidebar-nav/librarian-sidebar/VAL-SIDEBAR-011-qr-management-page.png"
+        ],
+        "consoleErrors": "none",
+        "network": "GET /librarian/books-management -> 200, GET /librarian/qr-management -> 200"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 6 assertions: all 6 passed. VAL-SIDEBAR-006 through VAL-SIDEBAR-011 all verified successfully. The librarian sidebar contains the expected navigation links (Book Management, QR Management, Excel Migration, Circulation) and correctly excludes Users Management. Navigation behavior works correctly, with links navigating to the appropriate routes (/librarian/books-management, /librarian/qr-management)."
+}

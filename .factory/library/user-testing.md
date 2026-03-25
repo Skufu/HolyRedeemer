@@ -187,3 +187,51 @@ Use `agent-browser` skill for browser automation testing of frontend routes.
 ### Concurrency
 
 Max concurrent validators: 2 (browser instances are resource-intensive)
+
+## Flow Validator Guidance: Sidebar Navigation
+
+### Testing Tool
+
+Use `agent-browser` skill for browser automation testing of sidebar navigation.
+
+### Isolation Rules
+
+1. Each validator should use a separate browser session (--session parameter)
+2. Do not share cookies/localStorage between validators
+3. Test user login credentials are provided per-assertion group
+4. Sidebar tests should not modify any data - they are read-only verification
+
+### Test Users
+
+| Role | Username | Password | Expected Sidebar Items |
+|------|----------|----------|------------------------|
+| admin | admin | admin123 | Dashboard, Users Management, Audit Logs, School Year Setup, Settings, User Settings |
+| librarian | librarian | lib123 | Dashboard, Circulation, Books Catalog, Book Management, QR Management, Excel Migration, Student Lookup, Daily Operations, Reports, Settings |
+| super_admin | admin | admin123 | Same as admin |
+
+### Assertions to Test
+
+- VAL-SIDEBAR-001: Admin sidebar has no "Books Management" link
+- VAL-SIDEBAR-002: Admin sidebar has no "QR/Copy Management" link
+- VAL-SIDEBAR-003: Admin sidebar has no "Excel Migration" link
+- VAL-SIDEBAR-004: Admin sidebar has no "Circulation" link
+- VAL-SIDEBAR-005: Admin sidebar shows required admin links (Users Management, Audit Logs, School Year Setup, Settings, User Settings)
+- VAL-SIDEBAR-006: Librarian sidebar has "Book Management" link
+- VAL-SIDEBAR-007: Librarian sidebar has "QR Management" link
+- VAL-SIDEBAR-008: Librarian sidebar has "Excel Migration" link
+- VAL-SIDEBAR-009: Librarian sidebar has "Circulation" link
+- VAL-SIDEBAR-010: Librarian sidebar has no "Users Management" link
+- VAL-SIDEBAR-011: Sidebar link navigation behavior
+
+### Concurrency
+
+Max concurrent validators: 2 (browser instances are resource-intensive)
+
+### Testing Approach
+
+1. Login as the test user
+2. Navigate to the dashboard
+3. Wait for sidebar to load
+4. Extract all sidebar navigation labels
+5. Verify presence/absence of expected labels
+6. For VAL-SIDEBAR-011, click each link and verify navigation

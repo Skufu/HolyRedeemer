@@ -1,0 +1,108 @@
+{
+  "groupId": "admin-sidebar",
+  "testedAt": "2026-03-25T08:18:00.000Z",
+  "isolation": {
+    "appUrl": "http://localhost:4127",
+    "testUser": "admin",
+    "username": "admin",
+    "password": "admin123",
+    "session": "948da2717ce9__u1"
+  },
+  "toolsUsed": ["agent-browser"],
+  "assertions": [
+    {
+      "id": "VAL-SIDEBAR-001",
+      "title": "Admin sidebar has no \"Books Management\" link",
+      "status": "pass",
+      "steps": [
+        { "action": "Navigate to http://localhost:4127/login", "expected": "Login form displayed", "observed": "Login form displayed" },
+        { "action": "Fill username and password", "expected": "Fields populated", "observed": "Fields populated with admin/admin123" },
+        { "action": "Click Sign In", "expected": "Redirect to admin dashboard", "observed": "Redirected to /admin/dashboard" },
+        { "action": "Extract sidebar navigation items", "expected": "Sidebar items listed", "observed": "Found: Dashboard, Users Management, Audit Logs, School Year Setup, Settings, User Settings" },
+        { "action": "Verify no 'Books Management' link", "expected": "No Books Management link present", "observed": "No Books Management link found in sidebar" }
+      ],
+      "evidence": {
+        "screenshots": ["sidebar-nav/admin-sidebar/login-page.png", "sidebar-nav/admin-sidebar/admin-dashboard.png", "sidebar-nav/admin-sidebar/admin-dashboard-annotated.png"],
+        "consoleErrors": "none",
+        "network": "N/A"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-SIDEBAR-002",
+      "title": "Admin sidebar has no \"QR/Copy Management\" link",
+      "status": "pass",
+      "steps": [
+        { "action": "Verify no 'QR/Copy Management' or 'QR Management' link", "expected": "No QR-related link present", "observed": "No QR Management or QR/Copy Management link found in sidebar" }
+      ],
+      "evidence": {
+        "screenshots": ["sidebar-nav/admin-sidebar/admin-dashboard.png"],
+        "consoleErrors": "none",
+        "network": "N/A"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-SIDEBAR-003",
+      "title": "Admin sidebar has no \"Excel Migration\" link",
+      "status": "pass",
+      "steps": [
+        { "action": "Verify no 'Excel Migration' link", "expected": "No Excel Migration link present", "observed": "No Excel Migration link found in sidebar" }
+      ],
+      "evidence": {
+        "screenshots": ["sidebar-nav/admin-sidebar/admin-dashboard.png"],
+        "consoleErrors": "none",
+        "network": "N/A"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-SIDEBAR-004",
+      "title": "Admin sidebar has no \"Circulation\" link",
+      "status": "pass",
+      "steps": [
+        { "action": "Verify no 'Circulation' or 'Circulation Station' link", "expected": "No Circulation-related link present", "observed": "No Circulation or Circulation Station link found in sidebar" }
+      ],
+      "evidence": {
+        "screenshots": ["sidebar-nav/admin-sidebar/admin-dashboard.png"],
+        "consoleErrors": "none",
+        "network": "N/A"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-SIDEBAR-005",
+      "title": "Admin sidebar shows required admin links",
+      "status": "pass",
+      "steps": [
+        { "action": "Verify 'Users Management' link present", "expected": "Users Management link present", "observed": "Users Management link found at /admin/users" },
+        { "action": "Verify 'Audit Logs' link present", "expected": "Audit Logs link present", "observed": "Audit Logs link found at /admin/audit-logs" },
+        { "action": "Verify 'School Year Setup' link present", "expected": "School Year Setup link present", "observed": "School Year Setup link found at /admin/school-year-setup" },
+        { "action": "Verify 'Settings' link present", "expected": "Settings link present", "observed": "Settings link found at /admin/settings" },
+        { "action": "Verify 'User Settings' link present", "expected": "User Settings link present", "observed": "User Settings link found at /admin/user-settings" }
+      ],
+      "evidence": {
+        "screenshots": ["sidebar-nav/admin-sidebar/admin-dashboard-annotated.png"],
+        "consoleErrors": "none",
+        "network": "N/A"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Frontend server (Vite) was not running on port 4127 - had to start it manually using cmd /c start command",
+      "resolved": true,
+      "resolution": "Started frontend server using: cmd /c 'start \"Vite Server\" cmd /c \"cd /d C:\\Users\\ADRIAN\\github\\skufu\\holyredeemer\\frontend && npx vite --host\"'",
+      "affectedAssertions": ["VAL-SIDEBAR-001", "VAL-SIDEBAR-002", "VAL-SIDEBAR-003", "VAL-SIDEBAR-004", "VAL-SIDEBAR-005"]
+    },
+    {
+      "description": "agent-browser daemon port conflicts - multiple failed attempts to start browser session",
+      "resolved": true,
+      "resolution": "Killed existing node processes and waited before retrying browser session start",
+      "affectedAssertions": ["VAL-SIDEBAR-001", "VAL-SIDEBAR-002", "VAL-SIDEBAR-003", "VAL-SIDEBAR-004", "VAL-SIDEBAR-005"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 5 assertions: all 5 passed. Admin sidebar correctly excludes Books Management, QR/Copy Management, Excel Migration, and Circulation links, while including all required admin links (Users Management, Audit Logs, School Year Setup, Settings, User Settings)."
+}
