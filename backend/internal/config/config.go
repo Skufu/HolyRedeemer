@@ -54,7 +54,7 @@ func Load() *Config {
 		JWTRefreshExpiry: getDurationEnv("JWT_REFRESH_EXPIRY", 7*24*time.Hour),
 
 		// CORS
-		CORSOrigins: getEnvSlice("CORS_ORIGINS", []string{"http://localhost:5173", "http://localhost:3000"}),
+		CORSOrigins: getEnvSlice("CORS_ORIGINS", []string{"http://localhost:4127", "http://localhost:4128", "http://localhost:5173", "http://localhost:3000"}),
 
 		// Library defaults
 		DefaultLoanDays:       getIntEnv("DEFAULT_LOAN_DAYS", 7),

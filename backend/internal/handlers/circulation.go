@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/holyredeemer/library-api/internal/middleware"
 	"github.com/holyredeemer/library-api/internal/repositories/sqlcdb"
 	"github.com/holyredeemer/library-api/pkg/response"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -37,6 +40,41 @@ func (h *CirculationHandler) invalidateCirculationCaches() {
 	h.cache.DeletePrefix(cache.BooksListPrefix)
 	h.cache.DeletePrefix(cache.BookDetailPrefix)
 	h.cache.Delete(cache.DashboardStatsKey)
+}
+
+func generateReceiptNo() string {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return fmt.Sprintf("RCT-%s-%04d", time.Now().Format("20060102"), r.Intn(10000))
+}
+
+type nextReservationInfo struct {
+	RequestID   uuid.UUID
+	UserID      uuid.UUID
+	StudentName string
+}
+
+func (h *CirculationHandler) getNextPendingReservationForBook(ctx context.Context, bookID uuid.UUID) (*nextReservationInfo, error) {
+	row := h.db.QueryRow(ctx, `
+		SELECT br.id, u.id, u.name
+		FROM book_requests br
+		JOIN students s ON br.student_id = s.id
+		JOIN users u ON s.user_id = u.id
+		WHERE br.book_id = $1
+		  AND br.request_type = 'reservation'
+		  AND br.status = 'pending'
+		ORDER BY br.request_date ASC
+		LIMIT 1
+	`, bookID)
+
+	var info nextReservationInfo
+	if err := row.Scan(&info.RequestID, &info.UserID, &info.StudentName); err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &info, nil
 }
 
 // CheckoutRequest represents the checkout request
@@ -206,6 +244,12 @@ func (h *CirculationHandler) Checkout(c *gin.Context) {
 		BookID:    copy.BookID,
 	})
 
+	if copy.BookID.Valid {
+		if err := CancelPendingReservationsForBook(c.Request.Context(), h.db, fromPgUUID(copy.BookID)); err != nil {
+			log.Printf("Failed to auto-cancel pending reservations for book %s: %v", fromPgUUID(copy.BookID), err)
+		}
+	}
+
 	resp := CheckoutResponse{
 		TransactionID: txn.ID.String(),
 		CheckoutDate:  formatPgTimestamp(txn.CheckoutDate, time.RFC3339),
@@ -235,6 +279,7 @@ type ReturnRequest struct {
 // ReturnResponse represents the return response
 type ReturnResponse struct {
 	TransactionID string `json:"transaction_id"`
+	ReceiptNo     string `json:"receipt_no"`
 	ReturnDate    string `json:"return_date"`
 	DaysOverdue   int    `json:"days_overdue"`
 	Fine          *struct {
@@ -303,6 +348,7 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 
 	// Update transaction
 	now := time.Now()
+	receiptNo := generateReceiptNo()
 	_, err = queries.UpdateTransactionReturn(c.Request.Context(), sqlcdb.UpdateTransactionReturnParams{
 		ID:              loan.ID,
 		ReturnDate:      toPgTimestampNullable(now, true),
@@ -313,6 +359,29 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 	if err != nil {
 		response.InternalError(c, "Failed to process return")
 		return
+	}
+
+	if returnCondition.Valid && returnCondition.CopyCondition == sqlcdb.CopyConditionPoor {
+		if _, err = tx.Exec(c.Request.Context(), `
+			UPDATE transactions
+			SET circulation_status = 'damaged',
+			    incident_type = 'damage',
+			    receipt_no = $2
+			WHERE id = $1
+		`, loan.ID, receiptNo); err != nil {
+			response.InternalError(c, "Failed to update return receipt")
+			return
+		}
+	} else {
+		if _, err = tx.Exec(c.Request.Context(), `
+			UPDATE transactions
+			SET circulation_status = 'returned',
+			    receipt_no = $2
+			WHERE id = $1
+		`, loan.ID, receiptNo); err != nil {
+			response.InternalError(c, "Failed to update return receipt")
+			return
+		}
 	}
 
 	// Update copy status
@@ -332,6 +401,7 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 	// Check for overdue and create fine if needed
 	resp := ReturnResponse{
 		TransactionID: loan.ID.String(),
+		ReceiptNo:     receiptNo,
 		ReturnDate:    now.Format(time.RFC3339),
 		DaysOverdue:   0,
 	}
@@ -383,8 +453,29 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 
 	h.invalidateCirculationCaches()
 
+	copy, err := h.queries.GetCopyByID(c.Request.Context(), copyID)
+	if err == nil && copy.BookID.Valid {
+		nextReservation, reservationErr := h.getNextPendingReservationForBook(c.Request.Context(), fromPgUUID(copy.BookID))
+		if reservationErr != nil {
+			log.Printf("Failed to check pending reservations for book %s: %v", fromPgUUID(copy.BookID), reservationErr)
+		} else if nextReservation != nil {
+			_, notifyErr := h.queries.CreateNotification(c.Request.Context(), sqlcdb.CreateNotificationParams{
+				UserID:        toPgUUID(nextReservation.UserID),
+				Type:          sqlcdb.NotificationTypeRequestUpdate,
+				Title:         "Reserved Book Now Available",
+				Message:       fmt.Sprintf("Good news, %s! A copy of '%s' has been returned and is now available for you.", nextReservation.StudentName, copy.BookTitle),
+				ReferenceType: toPgText("request"),
+				ReferenceID:   toPgUUID(nextReservation.RequestID),
+			})
+			if notifyErr != nil {
+				log.Printf("Failed to notify next reservation in queue: %v", notifyErr)
+			}
+		}
+	}
+
 	// Log audit entry
 	LogAuditFromContext(c, h.queries, sqlcdb.AuditActionReturn, "transaction", loan.ID, map[string]interface{}{
+		"receipt_no":   resp.ReceiptNo,
 		"days_overdue": resp.DaysOverdue,
 	})
 

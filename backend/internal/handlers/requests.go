@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -30,6 +32,28 @@ func (h *RequestHandler) invalidateRequestCaches() {
 	h.cache.Delete(cache.DashboardStatsKey)
 	h.cache.DeletePrefix(cache.BooksListPrefix)
 	h.cache.DeletePrefix(cache.BookDetailPrefix)
+}
+
+func CancelPendingReservationsForBook(ctx context.Context, db *pgxpool.Pool, bookID uuid.UUID) error {
+	result, err := db.Exec(ctx, `
+		UPDATE book_requests
+		SET status = 'cancelled',
+		    auto_cancelled_at = CURRENT_TIMESTAMP,
+		    processed_at = CURRENT_TIMESTAMP,
+		    notes = COALESCE(notes, 'Auto-cancelled: copy checked out')
+		WHERE book_id = $1
+		  AND request_type = 'reservation'
+		  AND status = 'pending'
+	`, bookID)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() > 0 {
+		log.Printf("Auto-cancelled %d pending reservation(s) for book %s", result.RowsAffected(), bookID)
+	}
+
+	return nil
 }
 
 // ListRequests returns paginated list of book requests

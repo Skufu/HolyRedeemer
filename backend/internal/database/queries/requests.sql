@@ -82,3 +82,33 @@ WHERE student_id = $1
   AND book_id = $2
   AND request_type = 'reservation'
   AND status = 'approved';
+
+-- name: CancelPendingReservationsForBook :exec
+UPDATE book_requests
+SET status = 'cancelled',
+    auto_cancelled_at = NOW()
+WHERE book_id = $1
+  AND status = 'pending'
+  AND request_type = 'reservation';
+
+-- name: GetNextPendingReservation :one
+SELECT *
+FROM book_requests
+WHERE book_id = $1
+  AND status = 'pending'
+  AND request_type = 'reservation'
+ORDER BY reservation_queue_position ASC
+LIMIT 1;
+
+-- name: GetReservationQueuePosition :one
+SELECT reservation_queue_position
+FROM book_requests
+WHERE student_id = $1
+  AND book_id = $2
+  AND status = 'pending';
+
+-- name: UpdateReservationQueuePositions :exec
+UPDATE book_requests
+SET reservation_queue_position = reservation_queue_position - 1
+WHERE book_id = $1
+  AND reservation_queue_position > $2;

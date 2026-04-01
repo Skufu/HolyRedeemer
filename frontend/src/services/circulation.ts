@@ -26,6 +26,9 @@ export interface ReturnResponse {
   return_date: string;
   days_overdue: number;
   fine?: { id: string; amount: number; type: string };
+  receiptNo?: string;
+  incidentType?: string;
+  circulationStatus?: string;
 }
 
 export interface RenewResponse {
@@ -47,6 +50,7 @@ export interface ActiveLoan {
   dueDate: string;
   status: string;
   renewCount: number;
+  circulationStatus?: string;
 }
 
 export interface OverdueLoan extends ActiveLoan {

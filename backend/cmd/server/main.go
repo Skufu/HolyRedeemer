@@ -66,6 +66,7 @@ func main() {
 	circulationHandler := handlers.NewCirculationHandler(queries, cfg, db.Pool, appCache)
 	reportHandler := handlers.NewReportHandler(queries, appCache)
 	fineHandler := handlers.NewFineHandler(queries, db.Pool, appCache)
+	damageLostHandler := handlers.NewDamageLostHandler(queries, db.Pool, appCache)
 	notificationHandler := handlers.NewNotificationHandler(queries)
 	auditHandler := handlers.NewAuditHandler(queries)
 	librarianHandler := handlers.NewLibrarianHandler(queries, db.Pool)
@@ -182,6 +183,15 @@ func main() {
 			fines.POST("/:id/waive", middleware.RequireRoles("super_admin"), fineHandler.WaiveFine)
 		}
 
+		damageLost := v1.Group("/damage-lost")
+		damageLost.Use(middleware.Auth(jwtManager), middleware.RequireRoles("librarian", "admin", "super_admin"))
+		{
+			damageLost.POST("/report", damageLostHandler.ReportDamage)
+			damageLost.GET("/incidents", damageLostHandler.ListIncidents)
+			damageLost.GET("/incidents/:id", damageLostHandler.GetIncident)
+			damageLost.PUT("/incidents/:id/resolve", damageLostHandler.ResolveIncident)
+		}
+
 		// Report routes
 		reports := v1.Group("/reports")
 		reports.Use(middleware.Auth(jwtManager), middleware.RequireRoles("librarian", "super_admin"))
@@ -191,6 +201,15 @@ func main() {
 			reports.GET("/charts/trends", reportHandler.GetMonthlyTrends)
 			reports.GET("/charts/top-borrowed", reportHandler.GetTopBorrowedBooks)
 			reports.GET("/activity", reportHandler.GetRecentActivity)
+			reports.GET("/charts/students-by-grade", reportHandler.GetStudentsByGradeLevel)
+			reports.GET("/charts/loans-by-grade", reportHandler.GetLoansByGradeLevel)
+			reports.GET("/charts/overdue-by-grade", reportHandler.GetOverdueByGradeLevel)
+			reports.GET("/charts/fines-by-grade", reportHandler.GetFinesByGradeLevel)
+			reports.GET("/charts/category-usage", reportHandler.GetCategoryUsageByGradeLevel)
+			reports.GET("/charts/top-borrowed-by-grade", reportHandler.GetTopBorrowedByGradeLevel)
+			reports.GET("/charts/circulation-status", reportHandler.GetCirculationStatusDistribution)
+			reports.GET("/charts/damage-lost-stats", reportHandler.GetDamageLostStats)
+			reports.GET("/charts/trends-by-year", reportHandler.GetMonthlyTrendsByYear)
 		}
 
 		// Notification routes

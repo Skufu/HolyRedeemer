@@ -17,7 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, History, Filter, Loader2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Search, History, Filter, Loader2, Eye, Code } from 'lucide-react';
 import { useAuditLogs } from '@/hooks/useAudit';
 
 const actionColors: Record<string, string> = {
@@ -38,6 +45,7 @@ const AuditLogs: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
+  const [selectedLog, setSelectedLog] = useState<any>(null);
 
   const { data: logsData, isLoading } = useAuditLogs({
     page,
@@ -83,8 +91,8 @@ const AuditLogs: React.FC = () => {
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-primary">Audit Logs</h1>
-          <p className="text-muted-foreground">Track all system activities and changes</p>
+          <h1 className="text-3xl font-display font-bold text-foreground">Audit Logs</h1>
+          <p className="text-muted-foreground mt-1">Track all system activities and changes</p>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <History className="h-4 w-4" />
@@ -126,16 +134,17 @@ const AuditLogs: React.FC = () => {
               <TableHead>User</TableHead>
               <TableHead>Action</TableHead>
               <TableHead>Entity</TableHead>
-              <TableHead>Entity ID</TableHead>
               <TableHead>IP Address</TableHead>
+              <TableHead className="text-right">Details</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredLogs.map((log, index) => (
               <TableRow
                 key={log.id}
-                className="animate-fade-in-up"
+                className="animate-fade-in-up cursor-pointer hover:bg-muted/30"
                 style={{ animationDelay: `${index * 0.02}s` }}
+                onClick={() => setSelectedLog(log)}
               >
                 <TableCell className="text-sm">{formatTimestamp(log.createdAt)}</TableCell>
                 <TableCell className="font-medium">{log.userName || log.username || 'System'}</TableCell>
@@ -145,8 +154,12 @@ const AuditLogs: React.FC = () => {
                   </Badge>
                 </TableCell>
                 <TableCell>{log.entityType || '-'}</TableCell>
-                <TableCell className="font-mono text-xs">{log.entityId?.slice(0, 8) || '-'}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{log.ipAddress || '-'}</TableCell>
+                <TableCell className="text-right">
+                  <button type="button" className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent transition-colors">
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -185,6 +198,68 @@ const AuditLogs: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Detail Dialog */}
+      <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Code className="h-5 w-5" /> Audit Log Details
+            </DialogTitle>
+            <DialogDescription>
+              {selectedLog?.action?.replace('_', ' ')} — {formatTimestamp(selectedLog?.createdAt)}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedLog && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">User</p>
+                  <p className="font-medium">{selectedLog.userName || selectedLog.username || 'System'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Action</p>
+                  <Badge className={actionColors[selectedLog.action] || 'bg-muted'}>
+                    {selectedLog.action.replace('_', ' ')}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Entity Type</p>
+                  <p className="font-medium">{selectedLog.entityType || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Entity ID</p>
+                  <p className="font-mono text-xs">{selectedLog.entityId || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">IP Address</p>
+                  <p className="font-mono text-sm">{selectedLog.ipAddress || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">User Agent</p>
+                  <p className="text-xs truncate">{selectedLog.userAgent || '-'}</p>
+                </div>
+              </div>
+              {selectedLog.oldValues && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Old Values</p>
+                  <pre className="bg-muted p-3 rounded-lg text-xs overflow-x-auto">
+                    {JSON.stringify(selectedLog.oldValues, null, 2)}
+                  </pre>
+                </div>
+              )}
+              {selectedLog.newValues && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">New Values</p>
+                  <pre className="bg-muted p-3 rounded-lg text-xs overflow-x-auto">
+                    {JSON.stringify(selectedLog.newValues, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

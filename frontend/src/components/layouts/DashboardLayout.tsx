@@ -15,19 +15,20 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import {
-  BookOpen, Bell, ChevronDown, LogOut, User, Menu, Home, Book, QrCode, Upload,
+  BookOpen, Bell, ChevronDown, LogOut, User, Menu, Home, Upload, Book, QrCode,
   Users, BarChart3, Settings, ClipboardList, ScanLine, Search, CalendarDays,
-  BookMarked, UserCircle, BellRing, Clock, CalendarClock, CreditCard
+  BookMarked, UserCircle, BellRing, Clock, CalendarClock, CreditCard, ShieldAlert
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const adminNavItems = [
-  { to: '/admin/dashboard', icon: Home, label: 'Dashboard' },
+  { to: '/admin/reports', icon: BarChart3, label: 'Reports & Analytics' },
   { to: '/admin/users', icon: Users, label: 'Users Management' },
   { to: '/admin/audit-logs', icon: ClipboardList, label: 'Audit Logs' },
   { to: '/admin/school-year-setup', icon: CalendarDays, label: 'School Year Setup' },
   { to: '/admin/settings', icon: Settings, label: 'Settings' },
   { to: '/admin/user-settings', icon: UserCircle, label: 'User Settings' },
+  { to: '/admin/damage-lost', icon: ShieldAlert, label: 'Damage & Lost' },
 ];
 
 const librarianNavItems = [
@@ -40,6 +41,7 @@ const librarianNavItems = [
   { to: '/librarian/student-lookup', icon: Search, label: 'Student Lookup' },
   { to: '/librarian/daily-operations', icon: CalendarDays, label: 'Daily Operations' },
   { to: '/librarian/reports', icon: BarChart3, label: 'Reports' },
+  { to: '/librarian/damage-lost', icon: ShieldAlert, label: 'Damage & Lost' },
   { to: '/librarian/settings', icon: Settings, label: 'Settings' },
 ];
 

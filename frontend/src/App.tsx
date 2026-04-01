@@ -18,6 +18,8 @@ const AdminReports = lazy(() => import("@/pages/admin/Reports"));
 const Settings = lazy(() => import("@/pages/admin/Settings"));
 const AuditLogs = lazy(() => import("@/pages/admin/AuditLogs"));
 const SchoolYearSetup = lazy(() => import("@/pages/admin/SchoolYearSetup"));
+const AdminDamageLost = lazy(() => import("@/pages/admin/DamageLost"));
+const LibrarianDamageLost = lazy(() => import("@/pages/librarian/DamageLost"));
 const LibrarianDashboard = lazy(() => import("@/pages/librarian/Dashboard"));
 const LibrarianBooksManagement = lazy(() => import("@/pages/librarian/BooksManagement"));
 const LibrarianQRManagement = lazy(() => import("@/pages/librarian/QRManagement"));
@@ -72,11 +74,12 @@ const App = () => (
                   <DashboardLayout />
                 </ProtectedRoute>
               }>
-                <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><AdminDashboard /></Suspense>} />
+                <Route index element={<Navigate to="/admin/reports" replace />} />
                 <Route path="users" element={<Suspense fallback={<PageLoader />}><UsersManagement /></Suspense>} />
                 <Route path="school-year-setup" element={<Suspense fallback={<PageLoader />}><SchoolYearSetup /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
                 <Route path="audit-logs" element={<Suspense fallback={<PageLoader />}><AuditLogs /></Suspense>} />
+                <Route path="damage-lost" element={<Suspense fallback={<PageLoader />}><AdminDamageLost /></Suspense>} />
                 <Route path="user-settings" element={<Suspense fallback={<PageLoader />}><UserSettings /></Suspense>} />
               </Route>
 
@@ -84,7 +87,7 @@ const App = () => (
               <Route path="/admin/books" element={<Navigate to="/librarian/books-management" replace />} />
               <Route path="/admin/qr-management" element={<Navigate to="/librarian/qr-management" replace />} />
               <Route path="/admin/excel-migration" element={<Navigate to="/librarian/excel-migration" replace />} />
-              <Route path="/admin/reports" element={<Navigate to="/librarian/reports" replace />} />
+              <Route path="/admin/reports" element={<Suspense fallback={<PageLoader />}><AdminReports /></Suspense>} />
 
               {/* Librarian Routes */}
               <Route path="/librarian" element={
@@ -101,6 +104,7 @@ const App = () => (
                 <Route path="excel-migration" element={<Suspense fallback={<PageLoader />}><LibrarianExcelMigration /></Suspense>} />
                 <Route path="daily-operations" element={<Suspense fallback={<PageLoader />}><DailyOperations /></Suspense>} />
                 <Route path="reports" element={<Suspense fallback={<PageLoader />}><LibrarianReports /></Suspense>} />
+                <Route path="damage-lost" element={<Suspense fallback={<PageLoader />}><LibrarianDamageLost /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<PageLoader />}><UserSettings /></Suspense>} />
               </Route>
 
@@ -142,7 +146,7 @@ const DashboardRedirect = () => {
   const user = JSON.parse(localStorage.getItem('lms_user') || '{}');
   const routes: Record<string, string> = {
     super_admin: '/admin/dashboard',
-    admin: '/admin/dashboard',
+    admin: '/admin/reports',
     librarian: '/librarian/dashboard',
     student: '/student/dashboard',
   };

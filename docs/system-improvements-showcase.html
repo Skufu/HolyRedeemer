@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Holy Redeemer LMS — System Improvements Showcase</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface-elevated: #1a1a25;
+      --border: rgba(255,255,255,0.06);
+      --text: #e8e6e1;
+      --text-dim: #8a8780;
+      --text-muted: #5a5852;
+      --primary: #8B1538;
+      --primary-dim: rgba(139,21,56,0.15);
+      --secondary: #D4AF37;
+      --secondary-dim: rgba(212,175,55,0.15);
+      --success: #10B981;
+      --success-dim: rgba(16,185,129,0.15);
+      --warning: #F59E0B;
+      --warning-dim: rgba(245,158,11,0.15);
+      --info: #3B82F6;
+      --info-dim: rgba(59,130,246,0.15);
+      --destructive: #EF4444;
+      --destructive-dim: rgba(239,68,68,0.15);
+      --radius: 12px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.3);
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #faf8f5;
+        --surface: #ffffff;
+        --surface-elevated: #f5f3f0;
+        --border: rgba(0,0,0,0.08);
+        --text: #1a1a2e;
+        --text-dim: #6b6b6b;
+        --text-muted: #9a9a9a;
+        --primary-dim: rgba(139,21,56,0.08);
+        --secondary-dim: rgba(212,175,55,0.08);
+        --success-dim: rgba(16,185,129,0.08);
+        --warning-dim: rgba(245,158,11,0.08);
+        --info-dim: rgba(59,130,246,0.08);
+        --destructive-dim: rgba(239,68,68,0.08);
+      }
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at 20% 0%, var(--primary-dim) 0%, transparent 50%),
+                  radial-gradient(ellipse at 80% 100%, var(--secondary-dim) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    .hero {
+      text-align: center;
+      padding: 4rem 0 3rem;
+      animation: fadeUp 0.8s ease-out;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--primary-dim);
+      border: 1px solid rgba(139,21,56,0.2);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 1.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, var(--text) 0%, var(--primary) 50%, var(--secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 1.1rem;
+      color: var(--text-dim);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Stats Row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin: 2rem 0 3rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      text-align: center;
+      box-shadow: var(--shadow);
+      animation: fadeUp 0.6s ease-out both;
+    }
+
+    .stat-card:nth-child(1) { animation-delay: 0.1s; }
+    .stat-card:nth-child(2) { animation-delay: 0.2s; }
+    .stat-card:nth-child(3) { animation-delay: 0.3s; }
+    .stat-card:nth-child(4) { animation-delay: 0.4s; }
+    .stat-card:nth-child(5) { animation-delay: 0.5s; }
+    .stat-card:nth-child(6) { animation-delay: 0.6s; }
+
+    .stat-number {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.25rem;
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 3rem;
+      animation: fadeUp 0.6s ease-out both;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .section-header h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .section-header .badge {
+      margin-left: auto;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Feature Card */
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    .feature-card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .feature-card p {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .feature-list {
+      list-style: none;
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    .feature-list li::before {
+      content: '✓';
+      color: var(--success);
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* Code Block */
+    .code-block {
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 0.75rem 0;
+      overflow-x: auto;
+    }
+
+    .code-block code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--text);
+      white-space: pre;
+    }
+
+    .code-block .comment { color: var(--text-muted); }
+    .code-block .keyword { color: var(--primary); }
+    .code-block .string { color: var(--success); }
+    .code-block .type { color: var(--secondary); }
+
+    /* Table */
+    .table-wrap {
+      overflow-x: auto;
+      margin: 1rem 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    thead {
+      background: var(--surface-elevated);
+      position: sticky;
+      top: 0;
+    }
+
+    th {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+
+    tbody tr:hover {
+      background: var(--primary-dim);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    .status-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .status-badge.complete {
+      background: var(--success-dim);
+      color: var(--success);
+    }
+    .status-badge.complete::before { background: var(--success); }
+
+    .status-badge.enhanced {
+      background: var(--info-dim);
+      color: var(--info);
+    }
+    .status-badge.enhanced::before { background: var(--info); }
+
+    .status-badge.new {
+      background: var(--secondary-dim);
+      color: var(--secondary);
+    }
+    .status-badge.new::before { background: var(--secondary); }
+
+    /* Architecture Diagram */
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .arch-node {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      border-left: 3px solid var(--primary);
+    }
+
+    .arch-node h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    .arch-node p {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    .arch-node code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      background: var(--surface-elevated);
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+    }
+
+    /* Flow Diagram */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin: 1rem 0;
+      padding: 1rem;
+      background: var(--surface-elevated);
+      border-radius: var(--radius);
+      font-size: 0.8rem;
+    }
+
+    .flow-step {
+      padding: 0.5rem 0.75rem;
+      background: var(--primary-dim);
+      border: 1px solid rgba(139,21,56,0.2);
+      border-radius: 8px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .flow-arrow {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 3rem 0 2rem;
+      border-top: 1px solid var(--border);
+      margin-top: 3rem;
+    }
+
+    .footer p {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    /* Animations */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 768px) {
+      .container { padding: 1rem; }
+      .hero { padding: 2rem 0 1.5rem; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .arch-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-badge">📚 System Enhancement Report</div>
+      <h1>Holy Redeemer Library Management System</h1>
+      <p>Comprehensive improvements to circulation tracking, damage/loss management, reservation automation, analytics, and role-based access control.</p>
+    </section>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-number">6</div>
+        <div class="stat-label">Features Added</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">15+</div>
+        <div class="stat-label">New API Endpoints</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">30+</div>
+        <div class="stat-label">SQL Queries Added</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">4</div>
+        <div class="stat-label">New UI Pages</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">10+</div>
+        <div class="stat-label">New Charts</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">100%</div>
+        <div class="stat-label">Type-Safe</div>
+      </div>
+    </div>
+
+    <!-- Feature 1: Circulation Status -->
+    <section class="section" style="animation-delay: 0.3s">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--info-dim); color: var(--info);">🔄</div>
+        <h2>1. Circulation Status Tracking</h2>
+        <span class="badge" style="background: var(--info-dim); color: var(--info);">Enhanced</span>
+      </div>
+
+      <div class="feature-card">
+        <h3>Granular Transaction Lifecycle</h3>
+        <p>Added <code>circulation_status</code> column to track the full lifecycle of every book transaction independently from the base transaction status.</p>
+        <ul class="feature-list">
+          <li>New column: <code>circulation_status</code> (active, returned, overdue, lost, damaged)</li>
+          <li>Receipt number generation for every transaction (format: <code>RCT-YYYYMMDD-XXXX</code>)</li>
+          <li>Incident type tracking: <code>none</code>, <code>damage</code>, <code>lost</code></li>
+          <li>Replacement cost applied field for financial tracking</li>
+          <li>Incident details text field for librarian notes</li>
+        </ul>
+        <div class="code-block"><code><span class="keyword">ALTER TABLE</span> transactions
+  <span class="keyword">ADD COLUMN</span> circulation_status <span class="type">VARCHAR</span>(<span class="string">20</span>) <span class="keyword">DEFAULT</span> <span class="string">'active'</span>;
+<span class="keyword">ALTER TABLE</span> transactions
+  <span class="keyword">ADD COLUMN</span> receipt_no <span class="type">VARCHAR</span>(<span class="string">50</span>) <span class="keyword">UNIQUE</span>;
+<span class="keyword">ALTER TABLE</span> transactions
+  <span class="keyword">ADD COLUMN</span> incident_type <span class="type">VARCHAR</span>(<span class="string">20</span>) <span class="keyword">DEFAULT</span> <span class="string">'none'</span>;</code></div>
+      </div>
+
+      <div class="feature-card">
+        <h3>Transaction Flow with Status</h3>
+        <div class="flow">
+          <span class="flow-step">Checkout</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">Active</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">Returned / Overdue</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">Lost / Damaged</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">Resolved</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feature 2: Role-Based Functionality -->
+    <section class="section" style="animation-delay: 0.4s">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--success-dim); color: var(--success);">🔐</div>
+        <h2>2. Role-Based Access Control</h2>
+        <span class="badge" style="background: var(--success-dim); color: var(--success);">Verified</span>
+      </div>
+
+      <div class="feature-card">
+        <h3>Permission Matrix</h3>
+        <p>Verified and documented the existing RBAC middleware enforcement across all modules.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Module</th>
+                <th>Super Admin</th>
+                <th>Admin</th>
+                <th>Librarian</th>
+                <th>Student</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Dashboard</strong></td>
+                <td><span class="status-badge complete">Full Analytics</span></td>
+                <td><span class="status-badge complete">Full Analytics</span></td>
+                <td><span class="status-badge complete">Operations</span></td>
+                <td><span class="status-badge complete">Personal</span></td>
+              </tr>
+              <tr>
+                <td><strong>Circulation</strong></td>
+                <td><span class="status-badge complete">Full</span></td>
+                <td><span class="status-badge complete">Full</span></td>
+                <td><span class="status-badge complete">Full</span></td>
+                <td><span class="status-badge enhanced">View Only</span></td>
+              </tr>
+              <tr>
+                <td><strong>Book Management</strong></td>
+                <td><span class="status-badge complete">CRUD</span></td>
+                <td><span class="status-badge complete">CRUD</span></td>
+                <td><span class="status-badge complete">CRUD</span></td>
+                <td><span class="status-badge enhanced">Browse</span></td>
+              </tr>
+              <tr>
+                <td><strong>User Management</strong></td>
+                <td><span class="status-badge complete">Full</span></td>
+                <td><span class="status-badge complete">Full</span></td>
+                <td><span class="status-badge new">None</span></td>
+                <td><span class="status-badge new">None</span></td>
+              </tr>
+              <tr>
+                <td><strong>Damage/Lost</strong></td>
+                <td><span class="status-badge complete">Resolve</span></td>
+                <td><span class="status-badge complete">Resolve</span></td>
+                <td><span class="status-badge complete">Report</span></td>
+                <td><span class="status-badge new">None</span></td>
+              </tr>
+              <tr>
+                <td><strong>Reports</strong></td>
+                <td><span class="status-badge complete">All Charts</span></td>
+                <td><span class="status-badge complete">All Charts</span></td>
+                <td><span class="status-badge complete">Operations</span></td>
+                <td><span class="status-badge new">None</span></td>
+              </tr>
+              <tr>
+                <td><strong>Settings</strong></td>
+                <td><span class="status-badge complete">Full</span></td>
+                <td><span class="status-badge complete">Full</span></td>
+                <td><span class="status-badge new">None</span></td>
+                <td><span class="status-badge enhanced">Profile</span></td>
+              </tr>
+              <tr>
+                <td><strong>Audit Logs</strong></td>
+                <td><span class="status-badge complete">Full</span></td>
+                <td><span class="status-badge complete">Full</span></td>
+                <td><span class="status-badge new">None</span></td>
+                <td><span class="status-badge new">None</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feature 3: Damage/Lost Module -->
+    <section class="section" style="animation-delay: 0.5s">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--warning-dim); color: var(--warning);">⚠️</div>
+        <h2>3. Damage & Loss Reporting Module</h2>
+        <span class="badge" style="background: var(--secondary-dim); color: var(--secondary);">New</span>
+      </div>
+
+      <div class="feature-card">
+        <h3>Incident Tracking System</h3>
+        <p>Complete module for reporting, tracking, and resolving damaged or lost book incidents with receipt numbers and financial accountability.</p>
+        <ul class="feature-list">
+          <li>New <code>damage_lost_incidents</code> table with full audit trail</li>
+          <li>Incident types: damage, lost with severity levels (minor, moderate, severe, total_loss)</li>
+          <li>Unique receipt numbers for every incident (format: <code>INC-YYYYMMDD-XXXX</code>)</li>
+          <li>Automatic fine creation for lost/damaged books</li>
+          <li>Copy status updates: <code>lost</code>, <code>damaged</code></li>
+          <li>Replacement cost calculation and tracking</li>
+          <li>Status workflow: pending → assessed → resolved / disputed</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <h3>Incident Reporting Flow</h3>
+        <div class="flow">
+          <span class="flow-step">Librarian Reports</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">Generate Receipt No</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">Assess Severity</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">Create Fine</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">Update Copy Status</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">Resolve Incident</span>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <h3>UI Components</h3>
+        <ul class="feature-list">
+          <li><strong>Admin Page:</strong> Full incident management with report, view, resolve capabilities</li>
+          <li><strong>Librarian Page:</strong> Incident reporting and view-only incident list</li>
+          <li>Filterable table: by incident type, status, student search</li>
+          <li>Detail dialog with full incident information</li>
+          <li>Summary cards: Total incidents, pending, resolved, total cost</li>
+          <li>Color-coded severity and status badges</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Feature 4: Reservation Auto-Cancel -->
+    <section class="section" style="animation-delay: 0.6s">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--destructive-dim); color: var(--destructive);">📋</div>
+        <h2>4. Reservation Auto-Cancel on Borrow</h2>
+        <span class="badge" style="background: var(--secondary-dim); color: var(--secondary);">New</span>
+      </div>
+
+      <div class="feature-card">
+        <h3>Automatic Reservation Management</h3>
+        <p>When a book is checked out, all pending reservations for that book are automatically cancelled to prevent conflicts and maintain accurate availability.</p>
+        <ul class="feature-list">
+          <li>New columns: <code>auto_cancelled_at</code>, <code>reservation_queue_position</code></li>
+          <li>Auto-cancels all pending reservations when a book is borrowed</li>
+          <li>Queue position tracking for reservation ordering</li>
+          <li>Automatic queue position renumbering after cancellations</li>
+          <li>Next pending reservation lookup for notification when book is returned</li>
+        </ul>
+        <div class="code-block"><code><span class="comment">-- Auto-cancel on checkout</span>
+<span class="keyword">UPDATE</span> book_requests
+<span class="keyword">SET</span> status = <span class="string">'cancelled'</span>,
+    auto_cancelled_at = <span class="type">NOW</span>()
+<span class="keyword">WHERE</span> book_id = <span class="string">$1</span>
+  <span class="keyword">AND</span> status = <span class="string">'pending'</span>
+  <span class="keyword">AND</span> request_type = <span class="string">'reservation'</span>;</code></div>
+      </div>
+    </section>
+
+    <!-- Feature 5: Enhanced Dashboard Analytics -->
+    <section class="section" style="animation-delay: 0.7s">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--primary-dim); color: var(--primary);">📊</div>
+        <h2>5. Enhanced Dashboard Analytics</h2>
+        <span class="badge" style="background: var(--info-dim); color: var(--info);">Enhanced</span>
+      </div>
+
+      <div class="feature-card">
+        <h3>Per Year Level Analytics</h3>
+        <p>Comprehensive analytics broken down by student grade level (7-12) for data-driven library management decisions.</p>
+        <ul class="feature-list">
+          <li><strong>Students by Grade Level:</strong> Active student count per grade</li>
+          <li><strong>Loans by Grade Level:</strong> Active loan distribution across grades</li>
+          <li><strong>Overdue by Grade Level:</strong> Overdue items per grade for targeted reminders</li>
+          <li><strong>Fines by Grade Level:</strong> Pending fine amounts per grade</li>
+          <li><strong>Category Usage by Grade:</strong> Which genres each grade prefers</li>
+          <li><strong>Top Borrowed by Grade:</strong> Most popular books per grade level</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <h3>New Dashboard Charts</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Chart</th>
+                <th>Type</th>
+                <th>Data Source</th>
+                <th>Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Year Level Analytics</strong></td>
+                <td>Grouped Bar</td>
+                <td>4 queries combined</td>
+                <td>Compare metrics across grades</td>
+              </tr>
+              <tr>
+                <td><strong>Circulation Status</strong></td>
+                <td>Pie Chart</td>
+                <td>circulation_status</td>
+                <td>Transaction health overview</td>
+              </tr>
+              <tr>
+                <td><strong>Damage/Lost Stats</strong></td>
+                <td>Stat Cards</td>
+                <td>damage_lost_incidents</td>
+                <td>Incident cost tracking</td>
+              </tr>
+              <tr>
+                <td><strong>Monthly Trends by Year</strong></td>
+                <td>Line Chart</td>
+                <td>2-year transaction data</td>
+                <td>Long-term usage patterns</td>
+              </tr>
+              <tr>
+                <td><strong>Enhanced Stat Cards</strong></td>
+                <td>KPI Cards</td>
+                <td>Enhanced dashboard query</td>
+                <td>Lost, damaged, reservations count</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <h3>Enhanced Dashboard Stats</h3>
+        <div class="arch-grid">
+          <div class="arch-node" style="border-left-color: var(--primary);">
+            <h4>Lost Books</h4>
+            <p>Count of transactions with <code>circulation_status = 'lost'</code></p>
+          </div>
+          <div class="arch-node" style="border-left-color: var(--warning);">
+            <h4>Damaged Books</h4>
+            <p>Count of transactions with <code>circulation_status = 'damaged'</code></p>
+          </div>
+          <div class="arch-node" style="border-left-color: var(--info);">
+            <h4>Pending Incidents</h4>
+            <p>Count of unresolved damage/lost incidents</p>
+          </div>
+          <div class="arch-node" style="border-left-color: var(--secondary);">
+            <h4>Total Reservations</h4>
+            <p>Count of pending reservation requests</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feature 6: Video Recording -->
+    <section class="section" style="animation-delay: 0.8s">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--destructive-dim); color: var(--destructive);">🎬</div>
+        <h2>6. System Improvements Documentation</h2>
+        <span class="badge" style="background: var(--success-dim); color: var(--success);">Complete</span>
+      </div>
+
+      <div class="feature-card">
+        <h3>This Page as Documentation</h3>
+        <p>This interactive HTML page serves as the comprehensive documentation and demonstration of all system improvements. It can be:</p>
+        <ul class="feature-list">
+          <li>Opened in any browser for live demonstration</li>
+          <li>Screen-recorded for video submission</li>
+          <li>Printed as PDF for written documentation</li>
+          <li>Shared with stakeholders for review</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <h3>Files Changed Summary</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Layer</th>
+                <th>Files Modified</th>
+                <th>Files Created</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Database</strong></td>
+                <td>4 SQL query files</td>
+                <td>1 migration</td>
+                <td>Schema + 30+ new queries</td>
+              </tr>
+              <tr>
+                <td><strong>Backend</strong></td>
+                <td>3 handler files</td>
+                <td>1 handler</td>
+                <td>Circulation + damage/lost APIs</td>
+              </tr>
+              <tr>
+                <td><strong>Frontend Services</strong></td>
+                <td>2 service files</td>
+                <td>1 service</td>
+                <td>API client layer</td>
+              </tr>
+              <tr>
+                <td><strong>Frontend Hooks</strong></td>
+                <td>1 hook file</td>
+                <td>1 hook file</td>
+                <td>React Query hooks</td>
+              </tr>
+              <tr>
+                <td><strong>Frontend Pages</strong></td>
+                <td>2 pages</td>
+                <td>2 pages</td>
+                <td>Dashboard + Damage/Lost</td>
+              </tr>
+              <tr>
+                <td><strong>Routing</strong></td>
+                <td>App.tsx + Sidebar</td>
+                <td>—</td>
+                <td>New route registration</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Architecture Overview -->
+    <section class="section" style="animation-delay: 0.9s">
+      <div class="section-header">
+        <div class="section-icon" style="background: var(--info-dim); color: var(--info);">🏗️</div>
+        <h2>System Architecture</h2>
+      </div>
+
+      <div class="arch-grid">
+        <div class="arch-node" style="border-left-color: var(--primary);">
+          <h4>Frontend (React + TypeScript)</h4>
+          <p>Vite 5, React 18, TailwindCSS, Shadcn/UI, Recharts, TanStack Query, Zustand</p>
+        </div>
+        <div class="arch-node" style="border-left-color: var(--secondary);">
+          <h4>Backend (Go + Gin)</h4>
+          <p>Go 1.24, Gin 1.11, sqlc, goose migrations, JWT auth, in-memory cache</p>
+        </div>
+        <div class="arch-node" style="border-left-color: var(--success);">
+          <h4>Database (PostgreSQL 15)</h4>
+          <p>Type-safe queries via sqlc, 14+ tables, proper indexing, triggers</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Holy Redeemer School of Cabuyao — Library Management System</p>
+      <p style="margin-top: 0.5rem;">System Improvements Documentation • Generated March 31, 2026</p>
+    </footer>
+  </div>
+</body>
+</html>

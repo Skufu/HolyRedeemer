@@ -42,22 +42,26 @@ func (h *ReportHandler) GetDashboardStats(c *gin.Context) {
 		return
 	}
 
-	stats, err := h.queries.GetDashboardStats(c.Request.Context())
+	stats, err := h.queries.GetDashboardStatsEnhanced(c.Request.Context())
 	if err != nil {
 		response.InternalError(c, "Failed to fetch dashboard stats")
 		return
 	}
 
-	statsResponse := DashboardStatsResponse{
-		TotalBooks:     stats.TotalBooks,
-		TotalCopies:    stats.TotalCopies,
-		ActiveStudents: stats.ActiveStudents,
-		CurrentLoans:   stats.CurrentLoans,
-		OverdueBooks:   stats.OverdueBooks,
-		TotalFines:     stats.TotalFines,
-		CheckoutsToday: stats.CheckoutsToday,
-		ReturnsToday:   stats.ReturnsToday,
-		DueToday:       stats.DueToday,
+	statsResponse := DashboardStatsEnhancedResponse{
+		TotalBooks:        stats.TotalBooks,
+		TotalCopies:       stats.TotalCopies,
+		ActiveStudents:    stats.ActiveStudents,
+		CurrentLoans:      stats.CurrentLoans,
+		OverdueBooks:      stats.OverdueBooks,
+		TotalFines:        stats.TotalFines,
+		CheckoutsToday:    stats.CheckoutsToday,
+		ReturnsToday:      stats.ReturnsToday,
+		DueToday:          stats.DueToday,
+		LostBooks:         stats.LostBooks,
+		DamagedBooks:      stats.DamagedBooks,
+		PendingIncidents:  stats.PendingIncidents,
+		TotalReservations: stats.TotalReservations,
 	}
 
 	h.cache.Set(cache.DashboardStatsKey, statsResponse, dashboardStatsTTL)
@@ -174,4 +178,177 @@ func (h *ReportHandler) GetRecentActivity(c *gin.Context) {
 	}
 
 	response.Success(c, activities, "")
+}
+
+type GradeLevelDataPoint struct {
+	GradeLevel int32 `json:"grade_level"`
+	Count      int64 `json:"count"`
+}
+
+type GradeLevelFinesPoint struct {
+	GradeLevel  int32   `json:"grade_level"`
+	TotalAmount float64 `json:"total_amount"`
+}
+
+type CategoryUsagePoint struct {
+	GradeLevel  int32  `json:"grade_level"`
+	Category    string `json:"category"`
+	BorrowCount int64  `json:"borrow_count"`
+}
+
+type TopBorrowedByGradePoint struct {
+	GradeLevel  int32  `json:"grade_level"`
+	Title       string `json:"title"`
+	BorrowCount int64  `json:"borrow_count"`
+}
+
+type CirculationStatusPoint struct {
+	Status string `json:"circulation_status"`
+	Count  int64  `json:"count"`
+}
+
+type DamageLostStatsResponse struct {
+	DamageCount int64   `json:"damage_count"`
+	LostCount   int64   `json:"lost_count"`
+	TotalCost   float64 `json:"total_cost"`
+}
+
+type MonthlyTrendsByYearPoint struct {
+	Year      int32  `json:"year"`
+	Month     string `json:"month"`
+	Checkouts int64  `json:"checkouts"`
+	Returns   int64  `json:"returns"`
+}
+
+type DashboardStatsEnhancedResponse struct {
+	TotalBooks        int64   `json:"totalBooks"`
+	TotalCopies       int64   `json:"totalCopies"`
+	ActiveStudents    int64   `json:"activeStudents"`
+	CurrentLoans      int64   `json:"currentLoans"`
+	OverdueBooks      int64   `json:"overdueBooks"`
+	TotalFines        float64 `json:"totalFines"`
+	CheckoutsToday    int64   `json:"checkoutsToday"`
+	ReturnsToday      int64   `json:"returnsToday"`
+	DueToday          int64   `json:"dueToday"`
+	LostBooks         int64   `json:"lostBooks"`
+	DamagedBooks      int64   `json:"damagedBooks"`
+	PendingIncidents  int64   `json:"pendingIncidents"`
+	TotalReservations int64   `json:"totalReservations"`
+}
+
+func (h *ReportHandler) GetStudentsByGradeLevel(c *gin.Context) {
+	data, err := h.queries.GetStudentsByGradeLevel(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to fetch students by grade")
+		return
+	}
+	result := make([]GradeLevelDataPoint, len(data))
+	for i, d := range data {
+		result[i] = GradeLevelDataPoint{GradeLevel: d.GradeLevel, Count: d.Count}
+	}
+	response.Success(c, result, "")
+}
+
+func (h *ReportHandler) GetLoansByGradeLevel(c *gin.Context) {
+	data, err := h.queries.GetLoansByGradeLevel(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to fetch loans by grade")
+		return
+	}
+	result := make([]GradeLevelDataPoint, len(data))
+	for i, d := range data {
+		result[i] = GradeLevelDataPoint{GradeLevel: d.GradeLevel, Count: d.Count}
+	}
+	response.Success(c, result, "")
+}
+
+func (h *ReportHandler) GetOverdueByGradeLevel(c *gin.Context) {
+	data, err := h.queries.GetOverdueByGradeLevel(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to fetch overdue by grade")
+		return
+	}
+	result := make([]GradeLevelDataPoint, len(data))
+	for i, d := range data {
+		result[i] = GradeLevelDataPoint{GradeLevel: d.GradeLevel, Count: d.Count}
+	}
+	response.Success(c, result, "")
+}
+
+func (h *ReportHandler) GetFinesByGradeLevel(c *gin.Context) {
+	data, err := h.queries.GetFinesByGradeLevel(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to fetch fines by grade")
+		return
+	}
+	result := make([]GradeLevelFinesPoint, len(data))
+	for i, d := range data {
+		result[i] = GradeLevelFinesPoint{GradeLevel: d.GradeLevel, TotalAmount: d.TotalAmount}
+	}
+	response.Success(c, result, "")
+}
+
+func (h *ReportHandler) GetCategoryUsageByGradeLevel(c *gin.Context) {
+	data, err := h.queries.GetCategoryUsageByGradeLevel(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to fetch category usage")
+		return
+	}
+	result := make([]CategoryUsagePoint, len(data))
+	for i, d := range data {
+		result[i] = CategoryUsagePoint{GradeLevel: d.GradeLevel, Category: fromPgText(d.Category), BorrowCount: d.BorrowCount}
+	}
+	response.Success(c, result, "")
+}
+
+func (h *ReportHandler) GetTopBorrowedByGradeLevel(c *gin.Context) {
+	data, err := h.queries.GetTopBorrowedByGradeLevel(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to fetch top borrowed by grade")
+		return
+	}
+	result := make([]TopBorrowedByGradePoint, len(data))
+	for i, d := range data {
+		result[i] = TopBorrowedByGradePoint{GradeLevel: d.GradeLevel, Title: d.Title, BorrowCount: d.BorrowCount}
+	}
+	response.Success(c, result, "")
+}
+
+func (h *ReportHandler) GetCirculationStatusDistribution(c *gin.Context) {
+	data, err := h.queries.GetCirculationStatusDistribution(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to fetch circulation status")
+		return
+	}
+	result := make([]CirculationStatusPoint, len(data))
+	for i, d := range data {
+		result[i] = CirculationStatusPoint{Status: d.CirculationStatus, Count: d.Count}
+	}
+	response.Success(c, result, "")
+}
+
+func (h *ReportHandler) GetDamageLostStats(c *gin.Context) {
+	data, err := h.queries.GetDamageLostStats(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to fetch damage/lost stats")
+		return
+	}
+	response.Success(c, DamageLostStatsResponse{
+		DamageCount: data.DamageCount,
+		LostCount:   data.LostCount,
+		TotalCost:   data.TotalCost,
+	}, "")
+}
+
+func (h *ReportHandler) GetMonthlyTrendsByYear(c *gin.Context) {
+	data, err := h.queries.GetMonthlyTrendsByYear(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to fetch monthly trends by year")
+		return
+	}
+	result := make([]MonthlyTrendsByYearPoint, len(data))
+	for i, d := range data {
+		result[i] = MonthlyTrendsByYearPoint{Year: d.Year, Month: d.Month, Checkouts: d.Checkouts, Returns: d.Returns}
+	}
+	response.Success(c, result, "")
 }

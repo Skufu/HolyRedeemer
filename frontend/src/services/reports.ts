@@ -36,6 +36,53 @@ export interface RecentActivity {
   time: string;
 }
 
+export interface GradeLevelData {
+  grade_level: number;
+  count: number;
+}
+
+export interface GradeLevelFines {
+  grade_level: number;
+  total_amount: number;
+}
+
+export interface CategoryUsage {
+  grade_level: number;
+  category: string;
+  borrow_count: number;
+}
+
+export interface TopBorrowedByGrade {
+  grade_level: number;
+  title: string;
+  borrow_count: number;
+}
+
+export interface DashboardStatsEnhanced extends DashboardStats {
+  lostBooks: number;
+  damagedBooks: number;
+  pendingIncidents: number;
+  totalReservations: number;
+}
+
+export interface CirculationStatusDist {
+  circulation_status: string;
+  count: number;
+}
+
+export interface DamageLostStats {
+  damage_count: number;
+  lost_count: number;
+  total_cost: number;
+}
+
+export interface MonthlyTrendsByYear {
+  year: number;
+  month: string;
+  checkouts: number;
+  returns: number;
+}
+
 export const reportsService = {
   getDashboard: async (): Promise<ApiResponse<DashboardStats>> => {
     const response = await api.get<ApiResponse<DashboardStats>>('/reports/dashboard');
@@ -65,6 +112,56 @@ export const reportsService = {
     const response = await api.get<ApiResponse<RecentActivity[]>>('/reports/activity', {
       params: { limit },
     });
+    return response.data;
+  },
+
+  getDashboardEnhanced: async (): Promise<ApiResponse<DashboardStatsEnhanced>> => {
+    const response = await api.get<ApiResponse<DashboardStatsEnhanced>>('/reports/dashboard');
+    return response.data;
+  },
+
+  getStudentsByGradeLevel: async (): Promise<ApiResponse<GradeLevelData[]>> => {
+    const response = await api.get<ApiResponse<GradeLevelData[]>>('/reports/charts/students-by-grade');
+    return response.data;
+  },
+
+  getLoansByGradeLevel: async (): Promise<ApiResponse<GradeLevelData[]>> => {
+    const response = await api.get<ApiResponse<GradeLevelData[]>>('/reports/charts/loans-by-grade');
+    return response.data;
+  },
+
+  getOverdueByGradeLevel: async (): Promise<ApiResponse<GradeLevelData[]>> => {
+    const response = await api.get<ApiResponse<GradeLevelData[]>>('/reports/charts/overdue-by-grade');
+    return response.data;
+  },
+
+  getFinesByGradeLevel: async (): Promise<ApiResponse<GradeLevelFines[]>> => {
+    const response = await api.get<ApiResponse<GradeLevelFines[]>>('/reports/charts/fines-by-grade');
+    return response.data;
+  },
+
+  getCategoryUsageByGradeLevel: async (): Promise<ApiResponse<CategoryUsage[]>> => {
+    const response = await api.get<ApiResponse<CategoryUsage[]>>('/reports/charts/category-usage');
+    return response.data;
+  },
+
+  getTopBorrowedByGradeLevel: async (): Promise<ApiResponse<TopBorrowedByGrade[]>> => {
+    const response = await api.get<ApiResponse<TopBorrowedByGrade[]>>('/reports/charts/top-borrowed-by-grade');
+    return response.data;
+  },
+
+  getCirculationStatusDistribution: async (): Promise<ApiResponse<CirculationStatusDist[]>> => {
+    const response = await api.get<ApiResponse<CirculationStatusDist[]>>('/reports/charts/circulation-status');
+    return response.data;
+  },
+
+  getDamageLostStats: async (): Promise<ApiResponse<DamageLostStats>> => {
+    const response = await api.get<ApiResponse<DamageLostStats>>('/reports/charts/damage-lost-stats');
+    return response.data;
+  },
+
+  getMonthlyTrendsByYear: async (): Promise<ApiResponse<MonthlyTrendsByYear[]>> => {
+    const response = await api.get<ApiResponse<MonthlyTrendsByYear[]>>('/reports/charts/trends-by-year');
     return response.data;
   },
 };

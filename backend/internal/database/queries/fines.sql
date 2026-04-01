@@ -85,3 +85,8 @@ ORDER BY p.payment_date DESC;
 
 -- name: GetTotalPaidForFine :one
 SELECT COALESCE(SUM(amount), 0)::float8 FROM payments WHERE fine_id = $1;
+
+-- name: CreateFineForIncident :one
+INSERT INTO fines (transaction_id, student_id, amount, fine_type, description)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING *;

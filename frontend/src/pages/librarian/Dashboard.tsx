@@ -10,12 +10,16 @@ import {
   TrendingUp,
   QrCode,
   Search,
-  Loader2
+  Loader2,
+  CalendarCheck,
+  BookMarked,
+  ArrowUpRight,
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { useDashboardStats } from '@/hooks/useDashboard';
+import { useDashboardEnhanced } from '@/hooks/useDashboard';
 import { useCurrentLoans, useOverdueLoans } from '@/hooks/useCirculation';
+import { useRecentActivity } from '@/hooks/useDashboard';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { staggerContainerVariants, staggerItemVariants, cardHoverVariants } from '@/lib/animations';
 
@@ -34,13 +38,15 @@ const CountUp = ({ value, className }: { value: number, className?: string }) =>
 const LibrarianDashboard: React.FC = () => {
   const navigate = useNavigate();
 
-  const { data: dashboardData, isLoading: statsLoading } = useDashboardStats();
+  const { data: dashboardData, isLoading: statsLoading } = useDashboardEnhanced();
   const { data: currentLoansData, isLoading: loansLoading } = useCurrentLoans();
   const { data: overdueData, isLoading: overdueLoading } = useOverdueLoans();
+  const { data: activityData } = useRecentActivity(5);
 
   const stats = dashboardData?.data;
   const currentLoans = currentLoansData?.data || [];
   const overdueLoans = overdueData?.data || [];
+  const recentActivity = activityData?.data || [];
 
   const dueSoon = currentLoans.filter(loan => {
     const daysUntilDue = differenceInDays(new Date(loan.dueDate), new Date());
@@ -120,7 +126,9 @@ const LibrarianDashboard: React.FC = () => {
               { label: 'Checkout/Return', icon: ArrowRightLeft, path: '/librarian/circulation' },
               { label: 'Student Lookup', icon: Search, path: '/librarian/student-lookup' },
               { label: 'Book Search', icon: BookOpen, path: '/librarian/books' },
+              { label: 'Damage & Lost', icon: AlertTriangle, path: '/librarian/damage-lost' },
               { label: 'Daily Operations', icon: Clock, path: '/librarian/daily-operations' },
+              { label: 'Reports', icon: TrendingUp, path: '/librarian/reports' },
             ].map((action) => (
               <motion.div key={action.label} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button

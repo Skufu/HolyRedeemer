@@ -78,7 +78,8 @@ func TestLoad_DefaultValues(t *testing.T) {
 	assert.Equal(t, 1, cfg.DefaultGracePeriod, "Default DEFAULT_GRACE_PERIOD should be 1")
 	assert.Equal(t, 200.0, cfg.DefaultMaxFineCap, "Default DEFAULT_MAX_FINE_CAP should be 200.0")
 	assert.Equal(t, 100.0, cfg.DefaultBlockThreshold, "Default DEFAULT_BLOCK_THRESHOLD should be 100.0")
-	assert.Contains(t, cfg.CORSOrigins, "http://localhost:5173", "CORS_ORIGINS should contain default frontend URL")
+	assert.Contains(t, cfg.CORSOrigins, "http://localhost:4127", "CORS_ORIGINS should contain default frontend URL (Vite port)")
+	assert.Contains(t, cfg.CORSOrigins, "http://localhost:5173", "CORS_ORIGINS should contain fallback frontend URL")
 }
 
 func TestLoad_CustomValues(t *testing.T) {

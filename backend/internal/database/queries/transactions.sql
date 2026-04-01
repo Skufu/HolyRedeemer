@@ -158,3 +158,91 @@ JOIN students s ON t.student_id = s.id
 JOIN users u ON s.user_id = u.id
 WHERE t.id = $1
 FOR UPDATE;
+
+-- name: UpdateTransactionReturnWithStatus :one
+UPDATE transactions
+SET return_date = $2,
+    returned_by = $3,
+    status = 'returned',
+    return_condition = $4,
+    circulation_status = 'returned',
+    receipt_no = $5,
+    notes = COALESCE(sqlc.narg('notes'), notes)
+WHERE id = $1
+RETURNING *;
+
+-- name: MarkTransactionLost :one
+UPDATE transactions
+SET status = 'lost',
+    circulation_status = 'lost',
+    incident_type = 'lost',
+    receipt_no = $2,
+    replacement_cost_applied = $3,
+    incident_details = COALESCE(sqlc.narg('incident_details'), incident_details)
+WHERE id = $1
+RETURNING *;
+
+-- name: MarkTransactionDamaged :one
+UPDATE transactions
+SET status = 'damaged',
+    circulation_status = 'damaged',
+    incident_type = 'damage',
+    receipt_no = $2,
+    incident_details = COALESCE(sqlc.narg('incident_details'), incident_details)
+WHERE id = $1
+RETURNING *;
+
+-- name: GetTransactionByReceiptNo :one
+SELECT * FROM transactions WHERE receipt_no = $1;
+
+-- name: ListDamageLostIncidents :many
+SELECT dli.*,
+       t.receipt_no as transaction_receipt_no,
+       t.circulation_status,
+       t.status as transaction_status,
+       bc.copy_number,
+       b.title as book_title,
+       b.author as book_author,
+       s.student_id as student_number,
+       s.grade_level,
+       u.name as student_name
+FROM damage_lost_incidents dli
+JOIN transactions t ON dli.transaction_id = t.id
+JOIN book_copies bc ON dli.copy_id = bc.id
+JOIN books b ON bc.book_id = b.id
+JOIN students s ON dli.student_id = s.id
+JOIN users u ON s.user_id = u.id
+ORDER BY dli.reported_at DESC;
+
+-- name: CreateDamageLostIncident :one
+INSERT INTO damage_lost_incidents (
+    transaction_id,
+    copy_id,
+    student_id,
+    incident_type,
+    severity,
+    description,
+    assessed_cost,
+    receipt_no,
+    reported_by,
+    reported_at,
+    status
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+RETURNING *;
+
+-- name: GetTransactionWithCirculationStatus :one
+SELECT t.*, 
+       b.title as book_title,
+       b.author as book_author,
+       bc.copy_number,
+       bc.qr_code,
+       s.student_id as student_number,
+       s.grade_level,
+       u.name as student_name
+FROM transactions t
+JOIN book_copies bc ON t.copy_id = bc.id
+JOIN books b ON bc.book_id = b.id
+JOIN students s ON t.student_id = s.id
+JOIN users u ON s.user_id = u.id
+WHERE t.id = $1;
