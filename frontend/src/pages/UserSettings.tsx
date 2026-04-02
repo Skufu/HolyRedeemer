@@ -80,14 +80,14 @@ const UserSettings: React.FC = () => {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="high-contrast">High Contrast (Coming Soon)</Label>
+                <Label htmlFor="high-contrast">High Contrast</Label>
                 <p className="text-sm text-muted-foreground">Increase contrast for better visibility</p>
               </div>
               <Switch id="high-contrast" disabled />
             </div>
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="large-text">Larger Text (Coming Soon)</Label>
+                <Label htmlFor="large-text">Larger Text</Label>
                 <p className="text-sm text-muted-foreground">Increase the font size of the application</p>
               </div>
               <Switch id="large-text" disabled />

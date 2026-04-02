@@ -74,12 +74,14 @@ const App = () => (
                   <DashboardLayout />
                 </ProtectedRoute>
               }>
-                <Route index element={<Navigate to="/admin/reports" replace />} />
+                <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><AdminDashboard /></Suspense>} />
                 <Route path="users" element={<Suspense fallback={<PageLoader />}><UsersManagement /></Suspense>} />
                 <Route path="school-year-setup" element={<Suspense fallback={<PageLoader />}><SchoolYearSetup /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
                 <Route path="audit-logs" element={<Suspense fallback={<PageLoader />}><AuditLogs /></Suspense>} />
                 <Route path="damage-lost" element={<Suspense fallback={<PageLoader />}><AdminDamageLost /></Suspense>} />
+                <Route path="reports" element={<Suspense fallback={<PageLoader />}><AdminReports /></Suspense>} />
                 <Route path="user-settings" element={<Suspense fallback={<PageLoader />}><UserSettings /></Suspense>} />
               </Route>
 
@@ -87,7 +89,6 @@ const App = () => (
               <Route path="/admin/books" element={<Navigate to="/librarian/books-management" replace />} />
               <Route path="/admin/qr-management" element={<Navigate to="/librarian/qr-management" replace />} />
               <Route path="/admin/excel-migration" element={<Navigate to="/librarian/excel-migration" replace />} />
-              <Route path="/admin/reports" element={<Suspense fallback={<PageLoader />}><AdminReports /></Suspense>} />
 
               {/* Librarian Routes */}
               <Route path="/librarian" element={
@@ -146,7 +147,7 @@ const DashboardRedirect = () => {
   const user = JSON.parse(localStorage.getItem('lms_user') || '{}');
   const routes: Record<string, string> = {
     super_admin: '/admin/dashboard',
-    admin: '/admin/reports',
+    admin: '/admin/dashboard',
     librarian: '/librarian/dashboard',
     student: '/student/dashboard',
   };

@@ -494,3 +494,46 @@
     ring-offset-color: hsl(var(--background));
   }
 }
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  body::before {
+    display: none !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  [data-state='open'] > .fixed {
+    display: none !important;
+  }
+
+  .fixed.inset-0:not(.print\:shadow-none) {
+    display: none !important;
+  }
+
+  #receipt-content {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  .border-b,
+  .border-t {
+    border-color: #ccc !important;
+  }
+
+  .text-muted-foreground {
+    color: #666 !important;
+  }
+
+  .text-destructive {
+    color: #c00 !important;
+  }
+}

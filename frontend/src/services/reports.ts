@@ -83,7 +83,46 @@ export interface MonthlyTrendsByYear {
   returns: number;
 }
 
+export interface OverviewData {
+  stats: {
+    totalBooks: number; totalCopies: number; activeStudents: number;
+    currentLoans: number; overdueBooks: number; totalFines: number;
+    checkoutsToday: number; returnsToday: number; dueToday: number;
+    lostBooks: number; damagedBooks: number; pendingIncidents: number;
+    totalReservations: number;
+  };
+  categories: CategoryChartData[];
+  topBorrowed: TopBook[];
+  trends: TrendData[];
+  studentsByGrade: { grade_level: number; count: number }[];
+  loansByGrade: { grade_level: number; count: number }[];
+  overdueByGrade: { grade_level: number; count: number }[];
+  finesByGrade: { grade_level: number; total_amount: number }[];
+  circulationStatus: { circulation_status: string; count: number }[];
+  damageLostStats: { damage_count: number; lost_count: number; total_cost: number };
+}
+
+export interface LoanSummaryItem {
+  id: string; bookTitle: string; studentName: string; studentNumber: string;
+  dueDate: string; checkoutDate: string; status: string; daysOverdue: number; fineAmount: number;
+}
+
+export interface LibrarianDashboardData {
+  stats: OverviewData['stats'];
+  currentLoans: LoanSummaryItem[];
+  overdueLoans: LoanSummaryItem[];
+  recentActivity: { id: string; type: string; description: string; time: string }[];
+}
+
 export const reportsService = {
+  getLibrarianDashboard: async (): Promise<ApiResponse<LibrarianDashboardData>> => {
+    const response = await api.get<ApiResponse<LibrarianDashboardData>>('/reports/librarian-dashboard');
+    return response.data;
+  },
+  getOverview: async (): Promise<ApiResponse<OverviewData>> => {
+    const response = await api.get<ApiResponse<OverviewData>>('/reports/overview');
+    return response.data;
+  },
   getDashboard: async (): Promise<ApiResponse<DashboardStats>> => {
     const response = await api.get<ApiResponse<DashboardStats>>('/reports/dashboard');
     return response.data;

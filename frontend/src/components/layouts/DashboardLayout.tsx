@@ -25,10 +25,8 @@ const adminNavItems = [
   { to: '/admin/reports', icon: BarChart3, label: 'Reports & Analytics' },
   { to: '/admin/users', icon: Users, label: 'Users Management' },
   { to: '/admin/audit-logs', icon: ClipboardList, label: 'Audit Logs' },
-  { to: '/admin/school-year-setup', icon: CalendarDays, label: 'School Year Setup' },
   { to: '/admin/settings', icon: Settings, label: 'Settings' },
   { to: '/admin/user-settings', icon: UserCircle, label: 'User Settings' },
-  { to: '/admin/damage-lost', icon: ShieldAlert, label: 'Damage & Lost' },
 ];
 
 const librarianNavItems = [

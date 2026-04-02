@@ -1,6 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
 import { reportsService } from '@/services/reports';
 
+export const useLibrarianDashboard = () => {
+  return useQuery({
+    queryKey: ['librarian-dashboard'],
+    queryFn: () => reportsService.getLibrarianDashboard(),
+    refetchInterval: 60000,
+  });
+};
+
+export const useOverview = () => {
+  return useQuery({
+    queryKey: ['reports-overview'],
+    queryFn: () => reportsService.getOverview(),
+    refetchInterval: 60000,
+  });
+};
+
 export const useDashboardStats = () => {
   return useQuery({
     queryKey: ['dashboard', 'stats'],

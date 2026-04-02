@@ -153,10 +153,10 @@ func main() {
 			students.POST("", middleware.RequireRoles("admin", "super_admin"), studentHandler.CreateStudent)
 			students.PUT("/:id", middleware.RequireRoles("admin", "super_admin", "librarian"), studentHandler.UpdateStudent)
 			students.POST("/reserve", studentHandler.ReserveBook)
-			students.GET("/:id/loans", studentHandler.GetStudentLoans)
-			students.GET("/:id/history", studentHandler.GetStudentHistory)
-			students.GET("/:id/requests", studentHandler.GetStudentRequests)
-			students.GET("/:id/fines", studentHandler.GetStudentFines)
+			students.GET("/:id/loans", middleware.RequireRoles("librarian", "admin", "super_admin"), studentHandler.GetStudentLoans)
+			students.GET("/:id/history", middleware.RequireRoles("librarian", "admin", "super_admin"), studentHandler.GetStudentHistory)
+			students.GET("/:id/requests", middleware.RequireRoles("librarian", "admin", "super_admin"), studentHandler.GetStudentRequests)
+			students.GET("/:id/fines", middleware.RequireRoles("librarian", "admin", "super_admin"), studentHandler.GetStudentFines)
 		}
 
 		// Circulation routes
@@ -165,13 +165,13 @@ func main() {
 		{
 			circulation.POST("/checkout", middleware.RequireRoles("librarian", "admin", "super_admin"), circulationHandler.Checkout)
 			circulation.POST("/return", middleware.RequireRoles("librarian", "admin", "super_admin"), circulationHandler.Return)
-			circulation.POST("/renew", circulationHandler.Renew)
+			circulation.POST("/renew", middleware.RequireRoles("librarian", "admin", "super_admin"), circulationHandler.Renew)
 			circulation.GET("/current", circulationHandler.ListCurrentLoans)
 			circulation.GET("/overdue", circulationHandler.ListOverdue)
 		}
 
 		// Transaction routes
-		v1.GET("/transactions", middleware.Auth(jwtManager), circulationHandler.ListTransactions)
+		v1.GET("/transactions", middleware.Auth(jwtManager), middleware.RequireRoles("librarian", "admin", "super_admin"), circulationHandler.ListTransactions)
 
 		// Fine routes
 		fines := v1.Group("/fines")
@@ -194,9 +194,12 @@ func main() {
 
 		// Report routes
 		reports := v1.Group("/reports")
-		reports.Use(middleware.Auth(jwtManager), middleware.RequireRoles("librarian", "super_admin"))
+		reports.Use(middleware.Auth(jwtManager), middleware.RequireRoles("librarian", "admin", "super_admin"))
 		{
 			reports.GET("/dashboard", reportHandler.GetDashboardStats)
+			reports.GET("/overview", reportHandler.GetOverviewData)
+			reports.GET("/daily-ops", reportHandler.GetDailyOperations)
+			reports.GET("/librarian-dashboard", reportHandler.GetLibrarianDashboard)
 			reports.GET("/charts/categories", reportHandler.GetBooksByCategory)
 			reports.GET("/charts/trends", reportHandler.GetMonthlyTrends)
 			reports.GET("/charts/top-borrowed", reportHandler.GetTopBorrowedBooks)
@@ -293,7 +296,7 @@ func main() {
 		requests.Use(middleware.Auth(jwtManager))
 		{
 			requests.GET("", middleware.RequireRoles("admin", "super_admin", "librarian"), requestHandler.ListRequests)
-			requests.POST("", requestHandler.CreateRequest)
+			requests.POST("", middleware.RequireRoles("student"), requestHandler.CreateRequest)
 			requests.GET("/pending-count", requestHandler.GetPendingCount)
 			requests.PUT("/:id/approve", middleware.RequireRoles("librarian", "admin", "super_admin"), requestHandler.ApproveRequest)
 			requests.PUT("/:id/reject", middleware.RequireRoles("librarian", "admin", "super_admin"), requestHandler.RejectRequest)

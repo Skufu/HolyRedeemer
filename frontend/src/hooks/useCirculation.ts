@@ -4,17 +4,19 @@ import { authService } from '@/services/auth';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/services/api';
 
-export const useCurrentLoans = (params?: ListLoansParams) => {
+export const useCurrentLoans = (params?: ListLoansParams & { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['loans', 'current', params],
     queryFn: () => circulationService.listCurrentLoans(params),
+    enabled: params?.enabled ?? true,
   });
 };
 
-export const useOverdueLoans = (params?: { page?: number; per_page?: number }) => {
+export const useOverdueLoans = (params?: { page?: number; per_page?: number; enabled?: boolean }) => {
   return useQuery({
     queryKey: ['loans', 'overdue', params],
     queryFn: () => circulationService.listOverdue(params),
+    enabled: params?.enabled ?? true,
   });
 };
 

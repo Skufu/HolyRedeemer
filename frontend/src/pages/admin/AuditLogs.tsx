@@ -70,13 +70,16 @@ const AuditLogs: React.FC = () => {
   });
 
   const formatTimestamp = (dateStr: string) => {
+    if (!dateStr) return '—';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '—';
     return new Intl.DateTimeFormat('en-PH', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-    }).format(new Date(dateStr));
+    }).format(date);
   };
 
   if (isLoading) {

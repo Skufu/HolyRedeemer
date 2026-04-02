@@ -35,16 +35,11 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useOverview } from '@/hooks/useDashboard';
 import { useFines } from '@/hooks/useFines';
 import { useOverdueLoans, useCurrentLoans } from '@/hooks/useCirculation';
+import { useBooks } from '@/hooks/useBooks';
 import {
-  useDashboardEnhanced,
-  useStudentsByGradeLevel,
-  useLoansByGradeLevel,
-  useOverdueByGradeLevel,
-  useFinesByGradeLevel,
-  useCirculationStatusDistribution,
-  useDamageLostStats,
   useCategoriesChart,
   useTopBorrowed,
   useMonthlyTrends,
@@ -77,38 +72,27 @@ const AdminReports: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const { toast } = useToast();
 
-  // Dashboard data
-  const { data: statsData, isLoading: statsLoading } = useDashboardEnhanced();
-  const { data: categoriesData } = useCategoriesChart();
-  const { data: topBorrowedData } = useTopBorrowed(10);
-  const { data: trendsData } = useMonthlyTrends(6);
-
-  // Year-level analytics
-  const { data: studentsByGradeData } = useStudentsByGradeLevel();
-  const { data: loansByGradeData } = useLoansByGradeLevel();
-  const { data: overdueByGradeData } = useOverdueByGradeLevel();
-  const { data: finesByGradeData } = useFinesByGradeLevel();
-  const { data: circulationStatusData } = useCirculationStatusDistribution();
-  const { data: damageLostStatsData } = useDamageLostStats();
-
-  // Report data
+  const { data: overviewData, isLoading: overviewLoading } = useOverview();
   const { data: currentLoansData, isLoading: loansLoading } = useCurrentLoans();
   const { data: overdueData, isLoading: overdueLoading } = useOverdueLoans();
   const { data: finesData, isLoading: finesLoading } = useFines();
+  const { data: booksData, isLoading: booksLoading } = useBooks({ per_page: 1000 });
 
-  const stats = statsData?.data;
-  const categories = categoriesData?.data || [];
-  const topBorrowed = topBorrowedData?.data || [];
-  const trends = trendsData?.data || [];
+  const overview = overviewData?.data;
+  const stats = overview?.stats;
+  const categories = overview?.categories || [];
+  const topBorrowed = overview?.topBorrowed || [];
+  const trends = overview?.trends || [];
+  const studentsByGrade = overview?.studentsByGrade || [];
+  const loansByGrade = overview?.loansByGrade || [];
+  const overdueByGrade = overview?.overdueByGrade || [];
+  const finesByGrade = overview?.finesByGrade || [];
+  const circulationStatus = overview?.circulationStatus || [];
+  const damageLostStats = overview?.damageLostStats;
+
   const allCurrentLoans = currentLoansData?.data || [];
   const allOverdueLoans = overdueData?.data || [];
   const allFines = finesData?.data || [];
-  const studentsByGrade = studentsByGradeData?.data || [];
-  const loansByGrade = loansByGradeData?.data || [];
-  const overdueByGrade = overdueByGradeData?.data || [];
-  const finesByGrade = finesByGradeData?.data || [];
-  const circulationStatus = circulationStatusData?.data || [];
-  const damageLostStats = damageLostStatsData?.data;
 
   const currentLoans = useMemo(
     () => filterByDateRange(allCurrentLoans, 'checkoutDate', startDate, endDate),
@@ -211,6 +195,8 @@ const AdminReports: React.FC = () => {
         rows.push(...fines.map((f) => ({ ...f, _amountFmt: `₱${f.amount.toFixed(2)}`, _dateFmt: safeFormatDate(f.created_at) })));
       } else if (selectedReport === 'usage') {
         rows.push(...topBorrowed.map((b, i) => ({ ...b, _rank: `#${i + 1}` })));
+      } else if (selectedReport === 'inventory') {
+        rows.push(...(booksData?.data || []));
       }
       if (fmt === 'pdf') {
         exportToPDF({ title: reportTitle, columns, rows });
@@ -223,7 +209,7 @@ const AdminReports: React.FC = () => {
     }
   };
 
-  if (statsLoading) {
+  if (overviewLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -542,6 +528,28 @@ const AdminReports: React.FC = () => {
                       </TableRow>
                     ))}
                     {fines.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No fines found</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              )}
+              {selectedReport === 'inventory' && booksLoading && (
+                <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+              )}
+              {selectedReport === 'inventory' && !booksLoading && (
+                <Table>
+                  <TableHeader><TableRow className="bg-muted/50"><TableHead>Title</TableHead><TableHead>Author</TableHead><TableHead>Category</TableHead><TableHead>ISBN</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">Available</TableHead><TableHead>Location</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {(booksData?.data || []).map((book) => (
+                      <TableRow key={book.id}>
+                        <TableCell className="font-medium">{book.title}</TableCell>
+                        <TableCell>{book.author}</TableCell>
+                        <TableCell>{book.category}</TableCell>
+                        <TableCell className="font-mono text-sm">{book.isbn || '—'}</TableCell>
+                        <TableCell className="text-center">{book.totalCopies}</TableCell>
+                        <TableCell className="text-center"><Badge variant={book.availableCopies > 0 ? 'default' : 'destructive'}>{book.availableCopies}</Badge></TableCell>
+                        <TableCell className="text-sm">{book.shelfLocation || '—'}</TableCell>
+                      </TableRow>
+                    ))}
+                    {(booksData?.data || []).length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No books found</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               )}

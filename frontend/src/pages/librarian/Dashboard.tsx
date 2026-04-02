@@ -17,43 +17,68 @@ import {
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { useDashboardEnhanced } from '@/hooks/useDashboard';
-import { useCurrentLoans, useOverdueLoans } from '@/hooks/useCirculation';
-import { useRecentActivity } from '@/hooks/useDashboard';
+import {
+  useLibrarianDashboard,
+  useStudentsByGradeLevel,
+  useLoansByGradeLevel,
+  useOverdueByGradeLevel,
+  useFinesByGradeLevel,
+} from '@/hooks/useDashboard';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { staggerContainerVariants, staggerItemVariants, cardHoverVariants } from '@/lib/animations';
 
 const CountUp = ({ value, className }: { value: number, className?: string }) => {
-  const count = useMotionValue(0);
-  const rounded = useTransform(count, Math.round);
+  const [display, setDisplay] = React.useState(0);
 
   React.useEffect(() => {
-    const animation = animate(count, value, { duration: 1.5, ease: "easeOut" });
-    return animation.stop;
-  }, [count, value]);
+    let start = 0;
+    const duration = 1500;
+    const stepTime = 20;
+    const steps = duration / stepTime;
+    const increment = value / steps;
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= value) {
+        setDisplay(value);
+        clearInterval(timer);
+      } else {
+        setDisplay(Math.round(start));
+      }
+    }, stepTime);
+    return () => clearInterval(timer);
+  }, [value]);
 
-  return <motion.span className={className}>{rounded}</motion.span>;
+  return <span className={className}>{display}</span>;
 };
 
 const LibrarianDashboard: React.FC = () => {
   const navigate = useNavigate();
 
-  const { data: dashboardData, isLoading: statsLoading } = useDashboardEnhanced();
-  const { data: currentLoansData, isLoading: loansLoading } = useCurrentLoans();
-  const { data: overdueData, isLoading: overdueLoading } = useOverdueLoans();
-  const { data: activityData } = useRecentActivity(5);
+  const { data: dashboardData, isLoading: statsLoading } = useLibrarianDashboard();
+  const { data: studentsByGradeData, isLoading: studentsByGradeLoading } = useStudentsByGradeLevel();
+  const { data: loansByGradeData, isLoading: loansByGradeLoading } = useLoansByGradeLevel();
+  const { data: overdueByGradeData, isLoading: overdueByGradeLoading } = useOverdueByGradeLevel();
+  const { data: finesByGradeData, isLoading: finesByGradeLoading } = useFinesByGradeLevel();
 
-  const stats = dashboardData?.data;
-  const currentLoans = currentLoansData?.data || [];
-  const overdueLoans = overdueData?.data || [];
-  const recentActivity = activityData?.data || [];
+  const stats = dashboardData?.data?.stats;
+  const studentsByGrade = studentsByGradeData?.data || [];
+  const loansByGrade = loansByGradeData?.data || [];
+  const overdueByGrade = overdueByGradeData?.data || [];
+  const finesByGrade = finesByGradeData?.data || [];
+  const currentLoans = dashboardData?.data?.currentLoans || [];
+  const overdueLoans = dashboardData?.data?.overdueLoans || [];
+  const recentActivity = dashboardData?.data?.recentActivity || [];
 
   const dueSoon = currentLoans.filter(loan => {
-    const daysUntilDue = differenceInDays(new Date(loan.dueDate), new Date());
-    return daysUntilDue >= 0 && daysUntilDue <= 3;
+    try {
+      const daysUntilDue = differenceInDays(new Date(loan.dueDate), new Date());
+      return daysUntilDue >= 0 && daysUntilDue <= 3;
+    } catch { return false; }
   });
 
-  const isLoading = statsLoading || loansLoading || overdueLoading;
+  const isLoading = statsLoading;
+  const yearLevelLoading = studentsByGradeLoading || loansByGradeLoading || overdueByGradeLoading || finesByGradeLoading;
 
   const quickStats = [
     { label: 'Active Loans', value: stats?.currentLoans ?? currentLoans.length, icon: BookOpen, color: 'text-info' },
@@ -61,6 +86,16 @@ const LibrarianDashboard: React.FC = () => {
     { label: 'Due Soon', value: dueSoon.length, icon: Clock, color: 'text-warning-foreground' },
     { label: 'Today\'s Checkouts', value: stats?.checkoutsToday ?? 0, icon: TrendingUp, color: 'text-success' },
   ];
+
+  const gradeLevels = [7, 8, 9, 10, 11, 12];
+  const yearLevelChartData = gradeLevels.map(grade => ({
+    gradeLevel: `Grade ${grade}`,
+    students: studentsByGrade.find(s => s.grade_level === grade)?.count || 0,
+    activeLoans: loansByGrade.find(l => l.grade_level === grade)?.count || 0,
+    overdue: overdueByGrade.find(o => o.grade_level === grade)?.count || 0,
+    fines: Math.round(finesByGrade.find(f => f.grade_level === grade)?.total_amount || 0),
+  }));
+  const chartColors = { primary: 'hsl(348, 68%, 25%)', success: 'hsl(150, 50%, 35%)', warning: 'hsl(38, 85%, 50%)', info: 'hsl(200, 60%, 40%)', destructive: 'hsl(0, 72%, 51%)' };
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -154,7 +189,7 @@ const LibrarianDashboard: React.FC = () => {
             <CardDescription>Books that need immediate attention</CardDescription>
           </CardHeader>
           <CardContent>
-            {overdueLoading ? (
+            {isLoading ? (
               <div className="flex justify-center py-6">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
@@ -189,7 +224,7 @@ const LibrarianDashboard: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {loansLoading ? (
+            {isLoading ? (
             <div className="flex justify-center py-6">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
@@ -216,6 +251,76 @@ const LibrarianDashboard: React.FC = () => {
             <div className="text-center py-6 text-muted-foreground">
               <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p>No books due soon</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Analytics by Year Level */}
+      <Card className="library-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-display">Analytics by Year Level</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {yearLevelLoading ? (
+            <div className="h-[320px] flex items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="h-[320px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={yearLevelChartData} margin={{ left: 0, right: 20 }}>
+                  <XAxis
+                    dataKey="gradeLevel"
+                    tick={{ fontSize: 12, fill: 'hsl(25, 15%, 40%)' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12, fill: 'hsl(25, 15%, 40%)' }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(38, 35%, 97%)',
+                      border: '1px solid hsl(35, 25%, 82%)',
+                      borderRadius: '8px',
+                      fontFamily: 'Source Serif 4, serif'
+                    }}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontFamily: 'Source Serif 4, serif', fontSize: '13px' }}
+                  />
+                  <Bar
+                    dataKey="students"
+                    name="Students"
+                    fill={chartColors.info}
+                    radius={[4, 4, 0, 0]}
+                    barSize={20}
+                  />
+                  <Bar
+                    dataKey="activeLoans"
+                    name="Active Loans"
+                    fill={chartColors.primary}
+                    radius={[4, 4, 0, 0]}
+                    barSize={20}
+                  />
+                  <Bar
+                    dataKey="overdue"
+                    name="Overdue"
+                    fill={chartColors.warning}
+                    radius={[4, 4, 0, 0]}
+                    barSize={20}
+                  />
+                  <Bar
+                    dataKey="fines"
+                    name="Fines (₱)"
+                    fill={chartColors.destructive}
+                    radius={[4, 4, 0, 0]}
+                    barSize={20}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           )}
         </CardContent>

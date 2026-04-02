@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { damageLostService, ListIncidentsParams, ReportIncidentRequest } from '@/services/damage_lost';
 
-export const useDamageLostIncidents = (params?: ListIncidentsParams) => {
+export const useDamageLostIncidents = (params?: ListIncidentsParams & { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['damage-lost', 'incidents', params],
     queryFn: () => damageLostService.listIncidents(params),
+    enabled: params?.enabled ?? true,
   });
 };
 

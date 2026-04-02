@@ -186,21 +186,36 @@ run() {
 }
 
 # Cleanup function to kill children on exit
+CLEANUP_DONE=false
 cleanup() {
-    echo "Stopping processes..."
-    # Kill all child processes in the current process group
-    # On GIT BASH / Windows MinGW, handling signals can be tricky.
-    # We try to kill the PID captured.
+    if [ "$CLEANUP_DONE" = true ]; then return; fi
+    CLEANUP_DONE=true
     
+    echo "Stopping processes..."
+    
+    # Reset trap to prevent recursive calls
+    trap - EXIT INT TERM
+    
+    # Kill specific PIDs
     if [ ! -z "$BACKEND_PID" ]; then
-        echo "Killing Backend ($BACKEND_PID)..."
         kill $BACKEND_PID 2>/dev/null || true
     fi
     
     if [ ! -z "$FRONTEND_PID" ]; then
-        echo "Killing Frontend ($FRONTEND_PID)..."
         kill $FRONTEND_PID 2>/dev/null || true
     fi
+    
+    # Wait briefly then force kill if still running
+    sleep 0.5
+    kill -9 $BACKEND_PID 2>/dev/null || true
+    kill -9 $FRONTEND_PID 2>/dev/null || true
+    
+    # Clean up any stray processes on our ports
+    lsof -ti:8080 2>/dev/null | xargs kill -9 2>/dev/null || true
+    lsof -ti:4127 2>/dev/null | xargs kill -9 2>/dev/null || true
+    lsof -ti:4128 2>/dev/null | xargs kill -9 2>/dev/null || true
+    
+    echo "All processes stopped."
 }
 
 # Trap exit to cleanup

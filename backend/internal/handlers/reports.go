@@ -68,6 +68,200 @@ func (h *ReportHandler) GetDashboardStats(c *gin.Context) {
 	response.Success(c, statsResponse, "")
 }
 
+type MonthlyTrendsPoint struct {
+	Month     string `json:"month"`
+	Checkouts int64  `json:"checkouts"`
+	Returns   int64  `json:"returns"`
+}
+
+type OverviewResponse struct {
+	Stats             DashboardStatsEnhancedResponse `json:"stats"`
+	Categories        []ChartDataPoint               `json:"categories"`
+	TopBorrowed       []ChartDataPoint               `json:"topBorrowed"`
+	Trends            []MonthlyTrendsPoint           `json:"trends"`
+	StudentsByGrade   []GradeLevelDataPoint          `json:"studentsByGrade"`
+	LoansByGrade      []GradeLevelDataPoint          `json:"loansByGrade"`
+	OverdueByGrade    []GradeLevelDataPoint          `json:"overdueByGrade"`
+	FinesByGrade      []GradeLevelFinesPoint         `json:"finesByGrade"`
+	CirculationStatus []CirculationStatusPoint       `json:"circulationStatus"`
+	DamageLostStats   DamageLostStatsResponse        `json:"damageLostStats"`
+}
+
+func (h *ReportHandler) GetOverviewData(c *gin.Context) {
+	if cached, found := h.cache.Get("overview_data"); found {
+		response.Success(c, cached, "")
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	stats, _ := h.queries.GetDashboardStatsEnhanced(ctx)
+	categories, _ := h.queries.GetBooksByCategory(ctx)
+	topBorrowed, _ := h.queries.GetTopBorrowedBooks(ctx)
+	trends, _ := h.queries.GetMonthlyTrends(ctx)
+	studentsByGrade, _ := h.queries.GetStudentsByGradeLevel(ctx)
+	loansByGrade, _ := h.queries.GetLoansByGradeLevel(ctx)
+	overdueByGrade, _ := h.queries.GetOverdueByGradeLevel(ctx)
+	finesByGrade, _ := h.queries.GetFinesByGradeLevel(ctx)
+	circStatus, _ := h.queries.GetCirculationStatusDistribution(ctx)
+	damageLost, _ := h.queries.GetDamageLostStats(ctx)
+
+	statsResponse := DashboardStatsEnhancedResponse{
+		TotalBooks: stats.TotalBooks, TotalCopies: stats.TotalCopies,
+		ActiveStudents: stats.ActiveStudents, CurrentLoans: stats.CurrentLoans,
+		OverdueBooks: stats.OverdueBooks, TotalFines: stats.TotalFines,
+		CheckoutsToday: stats.CheckoutsToday, ReturnsToday: stats.ReturnsToday,
+		DueToday: stats.DueToday, LostBooks: stats.LostBooks,
+		DamagedBooks: stats.DamagedBooks, PendingIncidents: stats.PendingIncidents,
+		TotalReservations: stats.TotalReservations,
+	}
+
+	catPoints := make([]ChartDataPoint, len(categories))
+	for i, cat := range categories {
+		catPoints[i] = ChartDataPoint{Name: cat.Name, Value: cat.Count}
+	}
+
+	topPoints := make([]ChartDataPoint, len(topBorrowed))
+	for i, b := range topBorrowed {
+		topPoints[i] = ChartDataPoint{Name: b.Title, Value: b.BorrowCount}
+	}
+
+	trendPoints := make([]MonthlyTrendsPoint, len(trends))
+	for i, t := range trends {
+		trendPoints[i] = MonthlyTrendsPoint{Month: t.Month, Checkouts: t.Checkouts, Returns: t.Returns}
+	}
+
+	sbGrade := make([]GradeLevelDataPoint, len(studentsByGrade))
+	for i, d := range studentsByGrade {
+		sbGrade[i] = GradeLevelDataPoint{GradeLevel: d.GradeLevel, Count: d.Count}
+	}
+
+	lbGrade := make([]GradeLevelDataPoint, len(loansByGrade))
+	for i, d := range loansByGrade {
+		lbGrade[i] = GradeLevelDataPoint{GradeLevel: d.GradeLevel, Count: d.Count}
+	}
+
+	obGrade := make([]GradeLevelDataPoint, len(overdueByGrade))
+	for i, d := range overdueByGrade {
+		obGrade[i] = GradeLevelDataPoint{GradeLevel: d.GradeLevel, Count: d.Count}
+	}
+
+	fbGrade := make([]GradeLevelFinesPoint, len(finesByGrade))
+	for i, d := range finesByGrade {
+		fbGrade[i] = GradeLevelFinesPoint{GradeLevel: d.GradeLevel, TotalAmount: d.TotalAmount}
+	}
+
+	csPoints := make([]CirculationStatusPoint, len(circStatus))
+	for i, d := range circStatus {
+		csPoints[i] = CirculationStatusPoint{Status: d.CirculationStatus, Count: d.Count}
+	}
+
+	overview := OverviewResponse{
+		Stats: statsResponse, Categories: catPoints, TopBorrowed: topPoints,
+		Trends: trendPoints, StudentsByGrade: sbGrade, LoansByGrade: lbGrade,
+		OverdueByGrade: obGrade, FinesByGrade: fbGrade, CirculationStatus: csPoints,
+		DamageLostStats: DamageLostStatsResponse{
+			DamageCount: damageLost.DamageCount, LostCount: damageLost.LostCount,
+			TotalCost: damageLost.TotalCost,
+		},
+	}
+
+	h.cache.Set("overview_data", overview, dashboardStatsTTL)
+	response.Success(c, overview, "")
+}
+
+func (h *ReportHandler) GetDailyOperations(c *gin.Context) {
+	h.GetOverviewData(c)
+}
+
+type LibrarianDashboardResponse struct {
+	Stats          DashboardStatsEnhancedResponse `json:"stats"`
+	CurrentLoans   []LoanSummaryItem              `json:"currentLoans"`
+	OverdueLoans   []LoanSummaryItem              `json:"overdueLoans"`
+	RecentActivity []ActivityItem                 `json:"recentActivity"`
+}
+
+type LoanSummaryItem struct {
+	ID            string  `json:"id"`
+	BookTitle     string  `json:"bookTitle"`
+	StudentName   string  `json:"studentName"`
+	StudentNumber string  `json:"studentNumber"`
+	DueDate       string  `json:"dueDate"`
+	CheckoutDate  string  `json:"checkoutDate"`
+	Status        string  `json:"status"`
+	DaysOverdue   int64   `json:"daysOverdue"`
+	FineAmount    float64 `json:"fineAmount"`
+}
+
+func (h *ReportHandler) GetLibrarianDashboard(c *gin.Context) {
+	if cached, found := h.cache.Get("librarian_dashboard"); found {
+		response.Success(c, cached, "")
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	stats, _ := h.queries.GetDashboardStatsEnhanced(ctx)
+	currentLoans, _ := h.queries.ListActiveTransactions(ctx, sqlcdb.ListActiveTransactionsParams{Limit: 50, Offset: 0})
+	overdueLoans, _ := h.queries.ListOverdueTransactions(ctx, sqlcdb.ListOverdueTransactionsParams{Limit: 50, Offset: 0})
+	recentActivity, _ := h.queries.GetRecentActivity(ctx)
+
+	statsResponse := DashboardStatsEnhancedResponse{
+		TotalBooks: stats.TotalBooks, TotalCopies: stats.TotalCopies,
+		ActiveStudents: stats.ActiveStudents, CurrentLoans: stats.CurrentLoans,
+		OverdueBooks: stats.OverdueBooks, TotalFines: stats.TotalFines,
+		CheckoutsToday: stats.CheckoutsToday, ReturnsToday: stats.ReturnsToday,
+		DueToday: stats.DueToday, LostBooks: stats.LostBooks,
+		DamagedBooks: stats.DamagedBooks, PendingIncidents: stats.PendingIncidents,
+		TotalReservations: stats.TotalReservations,
+	}
+
+	currentItems := make([]LoanSummaryItem, 0, len(currentLoans))
+	for _, l := range currentLoans {
+		currentItems = append(currentItems, LoanSummaryItem{
+			ID: l.ID.String(), BookTitle: l.BookTitle,
+			StudentName: l.StudentName, StudentNumber: l.StudentNumber,
+			DueDate: formatPgDate(l.DueDate, "2006-01-02"), CheckoutDate: formatPgTimestamp(l.CheckoutDate, "2006-01-02T15:04:05Z"),
+			Status: getTransactionStatus(l.Status),
+		})
+	}
+
+	overdueItems := make([]LoanSummaryItem, 0, len(overdueLoans))
+	for _, l := range overdueLoans {
+		overdueItems = append(overdueItems, LoanSummaryItem{
+			ID: l.ID.String(), BookTitle: l.BookTitle,
+			StudentName: l.StudentName, StudentNumber: l.StudentNumber,
+			DueDate: formatPgDate(l.DueDate, "2006-01-02"), CheckoutDate: formatPgTimestamp(l.CheckoutDate, "2006-01-02T15:04:05Z"),
+			Status: getTransactionStatus(l.Status), DaysOverdue: int64(l.DaysOverdue), FineAmount: 0,
+		})
+	}
+
+	activityItems := make([]ActivityItem, 0, len(recentActivity))
+	for _, a := range recentActivity {
+		description := ""
+		switch a.ActivityType {
+		case "checkout":
+			description = a.StudentName + " borrowed \"" + a.BookTitle + "\""
+		case "return":
+			description = a.StudentName + " returned \"" + a.BookTitle + "\""
+		case "overdue":
+			description = "Overdue: \"" + a.BookTitle + "\" by " + a.StudentName
+		}
+		activityItems = append(activityItems, ActivityItem{
+			ID: a.ID.String(), Type: a.ActivityType,
+			Description: description, Time: formatPgTimestamp(a.ActivityTime, "2006-01-02 15:04:05"),
+		})
+	}
+
+	dashResp := LibrarianDashboardResponse{
+		Stats: statsResponse, CurrentLoans: currentItems,
+		OverdueLoans: overdueItems, RecentActivity: activityItems,
+	}
+
+	h.cache.Set("librarian_dashboard", dashResp, dashboardStatsTTL)
+	response.Success(c, dashResp, "")
+}
+
 // ChartDataPoint matches frontend ChartDataPoint interface
 type ChartDataPoint struct {
 	Name  string `json:"name"`

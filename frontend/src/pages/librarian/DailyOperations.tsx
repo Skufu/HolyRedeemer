@@ -1,10 +1,34 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -15,24 +39,43 @@ import {
   Bell,
   CheckCircle,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  Search,
+  ArrowUpRight,
+  ArrowDownRight,
+  UserCheck,
+  TrendingUp,
+  Eye,
+  Loader2,
 } from 'lucide-react';
 import { format, isToday, parseISO } from 'date-fns';
 import { useCurrentLoans, useOverdueLoans, useNotifyOverdue } from '@/hooks/useCirculation';
 import { useRequests, useApproveRequest, useRejectRequest } from '@/hooks/useRequests';
 import { useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { cardHoverVariants, staggerContainerVariants, staggerItemVariants } from '@/lib/animations';
+
+const safeFormatDate = (dateStr: string | undefined | null, dateFormat: string = 'MMM d, yyyy') => {
+  if (!dateStr) return '—';
+  const date = new Date(dateStr);
+  return isNaN(date.getTime()) ? '—' : format(date, dateFormat);
+};
+
+type TabType = 'due-today' | 'overdue' | 'requests';
 
 const DailyOperations: React.FC = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { data: currentLoansResponse, isLoading: loansLoading, isFetching: loansFetching } = useCurrentLoans();
-  const { data: overdueLoansResponse, isLoading: overdueLoading, isFetching: overdueFetching } = useOverdueLoans();
-  const { data: requestsResponse, isLoading: requestsLoading, isFetching: requestsFetching } = useRequests({ status: 'pending' });
+  const [activeTab, setActiveTab] = useState<TabType>('due-today');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+
+  const { data: currentLoansResponse, isLoading: loansLoading } = useCurrentLoans();
+  const { data: overdueLoansResponse, isLoading: overdueLoading } = useOverdueLoans();
+  const { data: requestsResponse, isLoading: requestsLoading } = useRequests({ status: 'pending' });
 
   const approveRequest = useApproveRequest();
   const rejectRequest = useRejectRequest();
@@ -43,22 +86,20 @@ const DailyOperations: React.FC = () => {
   const pendingRequests = requestsResponse?.data || [];
 
   const dueToday = currentLoans.filter(loan => {
-    try {
-      const dueDate = parseISO(loan.dueDate);
-      return isToday(dueDate);
-    } catch {
-      return false;
-    }
+    try { return isToday(parseISO(loan.dueDate)); } catch { return false; }
   });
 
   const todayCheckouts = currentLoans.filter(loan => {
-    try {
-      const checkoutDate = parseISO(loan.checkoutDate);
-      return isToday(checkoutDate);
-    } catch {
-      return false;
-    }
+    try { return isToday(parseISO(loan.checkoutDate)); } catch { return false; }
   });
+
+  const filteredDueToday = dueToday.filter(l =>
+    !searchTerm || l.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) || l.bookTitle?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredOverdue = overdueBooks.filter(l =>
+    !searchTerm || l.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) || l.bookTitle?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['loans'] });
@@ -70,346 +111,343 @@ const DailyOperations: React.FC = () => {
     approveRequest.mutate(requestId, {
       onSuccess: () => {
         toast({
-          title: "Reservation Approved",
-          description: "Book reserved for student pickup. Complete the checkout at the Circulation desk.",
+          title: 'Reservation Approved',
+          description: 'Book reserved for student pickup.',
           action: (
             <ToastAction
               altText="Go to Checkout"
-              data-testid="toast-go-to-checkout"
               onClick={() => navigate(`/librarian/circulation?student_id=${request?.studentId}`)}
             >
               Go to Checkout
             </ToastAction>
-          )
+          ),
         });
-      }
+      },
     });
   };
 
   const handleReject = (requestId: string) => {
-    rejectRequest.mutate({ id: requestId });
+    const request = pendingRequests.find((r: { id: string }) => r.id === requestId);
+    setSelectedRequest(request);
+    setShowRejectDialog(true);
+  };
+
+  const confirmReject = () => {
+    if (selectedRequest) {
+      rejectRequest.mutate({ id: selectedRequest.id, reason: rejectReason || undefined });
+      setShowRejectDialog(false);
+      setRejectReason('');
+      setSelectedRequest(null);
+    }
   };
 
   const isLoading = loansLoading || overdueLoading || requestsLoading;
-  const isRefreshing = loansFetching || overdueFetching || requestsFetching;
+
+  const tabs = [
+    { id: 'due-today' as const, label: `Due Today`, count: dueToday.length, icon: Clock, color: 'text-warning' },
+    { id: 'overdue' as const, label: 'Overdue', count: overdueBooks.length, icon: AlertTriangle, color: 'text-destructive' },
+    { id: 'requests' as const, label: 'Requests', count: pendingRequests.length, icon: Bell, color: pendingRequests.length > 0 ? 'text-orange-600' : 'text-muted-foreground' },
+  ];
 
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-primary">Daily Operations</h1>
-          <p className="text-muted-foreground">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+          <h1 className="text-3xl font-display font-bold text-foreground">Daily Operations</h1>
+          <p className="text-muted-foreground mt-1">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={handleRefresh} disabled={isRefreshing}>
-          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Refresh
+        <Button variant="outline" className="gap-2" onClick={handleRefresh}>
+          <RefreshCw className="h-4 w-4" /> Refresh
         </Button>
       </div>
 
       {/* Quick Stats */}
-      <motion.div
-        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
-        initial="hidden"
-        animate="visible"
-        variants={staggerContainerVariants}
-      >
-        <motion.div variants={staggerItemVariants} whileHover="hover" whileTap="tap">
-          <motion.div variants={cardHoverVariants} initial="initial">
-            <Card className={pendingRequests.length > 0 ? 'border-orange-500/50 shadow-sm' : ''}>
-              <CardContent className="pt-6 text-center">
-                <div className="relative inline-block">
-                  <Bell className={`h-6 w-6 mx-auto mb-2 ${pendingRequests.length > 0 ? 'text-orange-600' : 'text-muted-foreground'}`} />
-                  {pendingRequests.length > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
-                    </span>
-                  )}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+        {[
+          { label: 'Pending Requests', value: pendingRequests.length, icon: Bell, color: 'text-orange-600', bg: 'bg-orange-500/10', pulse: pendingRequests.length > 0 },
+          { label: 'Checkouts Today', value: todayCheckouts.length, icon: ArrowUpRight, color: 'text-success', bg: 'bg-success/10' },
+          { label: 'Active Loans', value: currentLoans.length, icon: BookOpen, color: 'text-info', bg: 'bg-info/10' },
+          { label: 'Due Today', value: dueToday.length, icon: Clock, color: 'text-warning', bg: 'bg-warning/10' },
+          { label: 'Overdue', value: overdueBooks.length, icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
+        ].map(card => (
+          <Card key={card.label} className="library-card">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">{card.label}</p>
+                  <p className="text-3xl font-display font-bold mt-1">{isLoading ? '—' : card.value}</p>
                 </div>
-                {requestsLoading ? (
-                  <Skeleton className="h-8 w-8 mx-auto mb-1" />
-                ) : (
-                  <p className={`text-2xl font-bold ${pendingRequests.length > 0 ? 'text-orange-600' : ''}`}>{pendingRequests.length}</p>
-                )}
-                <p className={`text-sm ${pendingRequests.length > 0 ? 'text-orange-600/80 font-medium' : 'text-muted-foreground'}`}>Pending Requests</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.div>
-
-        <motion.div variants={staggerItemVariants} whileHover="hover" whileTap="tap">
-          <motion.div variants={cardHoverVariants} initial="initial">
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <BookOpen className="h-6 w-6 mx-auto mb-2 text-success" />
-                {loansLoading ? (
-                  <Skeleton className="h-8 w-8 mx-auto mb-1" />
-                ) : (
-                  <p className="text-2xl font-bold">{todayCheckouts.length}</p>
-                )}
-                <p className="text-sm text-muted-foreground">Checkouts Today</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.div>
-
-        <motion.div variants={staggerItemVariants} whileHover="hover" whileTap="tap">
-          <motion.div variants={cardHoverVariants} initial="initial">
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <RefreshCw className="h-6 w-6 mx-auto mb-2 text-info" />
-                {loansLoading ? (
-                  <Skeleton className="h-8 w-8 mx-auto mb-1" />
-                ) : (
-                  <p className="text-2xl font-bold">{currentLoans.length}</p>
-                )}
-                <p className="text-sm text-muted-foreground">Active Loans</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.div>
-
-        <motion.div variants={staggerItemVariants} whileHover="hover" whileTap="tap">
-          <motion.div variants={cardHoverVariants} initial="initial">
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <Clock className="h-6 w-6 mx-auto mb-2 text-warning-foreground" />
-                {loansLoading ? (
-                  <Skeleton className="h-8 w-8 mx-auto mb-1" />
-                ) : (
-                  <p className="text-2xl font-bold">{dueToday.length}</p>
-                )}
-                <p className="text-sm text-muted-foreground">Due Today</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.div>
-
-        <motion.div variants={staggerItemVariants} whileHover="hover" whileTap="tap">
-          <motion.div variants={cardHoverVariants} initial="initial">
-            <Card className={overdueBooks.length > 0 ? 'border-destructive/50' : ''}>
-              <CardContent className="pt-6 text-center">
-                <AlertTriangle className={`h-6 w-6 mx-auto mb-2 ${overdueBooks.length > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
-                {overdueLoading ? (
-                  <Skeleton className="h-8 w-8 mx-auto mb-1" />
-                ) : (
-                  <p className="text-2xl font-bold">{overdueBooks.length}</p>
-                )}
-                <p className="text-sm text-muted-foreground">Overdue Total</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.div>
-      </motion.div>
-
-      {/* Tabs */}
-      <Tabs defaultValue="due-today">
-        <TabsList className="h-auto p-1.5 flex gap-1 max-w-xl bg-muted/50">
-          <TabsTrigger value="due-today" className="flex-1 flex-col py-3 px-4 h-auto gap-2">
-            <Clock className="h-4 w-4" />
-            <span>Due Today ({dueToday.length})</span>
-          </TabsTrigger>
-          <TabsTrigger value="overdue" className="flex-1 flex-col py-3 px-4 h-auto gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            <span>Overdue ({overdueBooks.length})</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="requests"
-            className={cn(
-              "flex-1 flex-col py-3 px-4 h-auto gap-2",
-              pendingRequests.length > 0 && "text-orange-600 font-medium"
-            )}
-          >
-            <Bell className={cn(
-              "h-4 w-4",
-              pendingRequests.length > 0 && "text-orange-600 fill-orange-600"
-            )} />
-            <span>Requests ({pendingRequests.length})</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Due Today */}
-        <TabsContent value="due-today" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-display">Books Due Today</CardTitle>
-              <CardDescription>These books should be returned today</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
+                <div className={cn('p-3 rounded-xl', card.bg, card.pulse && 'animate-pulse')}>
+                  <card.icon className={cn('h-6 w-6', card.color)} />
                 </div>
-              ) : dueToday.length > 0 ? (
-                <div className="space-y-3">
-                  {dueToday.map((loan) => (
-                    <div key={loan.id} className="p-4 rounded-lg border bg-warning/5 border-warning/30 flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{loan.bookTitle}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Borrowed by: {loan.studentName} ({loan.studentNumber})
-                        </p>
-                      </div>
-                      <Badge>Due Today</Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CheckCircle className="h-12 w-12 mx-auto mb-2 text-success opacity-50" />
-                  <p>No books due today!</p>
-                </div>
-              )}
+              </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        ))}
+      </div>
 
-        {/* Overdue */}
-        <TabsContent value="overdue" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-display text-destructive">Overdue Books</CardTitle>
-              <CardDescription>These books need immediate follow-up</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {overdueLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-24 w-full" />
+      {/* Tab Navigation */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => { setActiveTab(tab.id); setSearchTerm(''); }}
+            className={cn(
+              'inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all',
+              activeTab === tab.id
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+            )}
+          >
+            <tab.icon className="h-4 w-4" />
+            {tab.label}
+            {tab.count > 0 && (
+              <span className={cn(
+                'ml-1 px-2 py-0.5 rounded-full text-xs font-bold',
+                activeTab === tab.id ? 'bg-primary-foreground/20' : 'bg-muted-foreground/20'
+              )}>
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      {(activeTab === 'due-today' || activeTab === 'overdue') && (
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search student or book..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      )}
+
+      {/* Due Today */}
+      {activeTab === 'due-today' && (
+        <Card className="library-card">
+          <CardHeader>
+            <CardTitle className="font-display flex items-center gap-2">
+              <Clock className="h-5 w-5 text-warning" /> Books Due Today
+            </CardTitle>
+            <CardDescription>{filteredDueToday.length} books should be returned today</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
+            ) : filteredDueToday.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead>Book</TableHead>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Student ID</TableHead>
+                    <TableHead>Checkout Date</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredDueToday.map(loan => (
+                    <TableRow key={loan.id} className="hover:bg-warning/5">
+                      <TableCell className="font-medium max-w-[200px] truncate">{loan.bookTitle}</TableCell>
+                      <TableCell>{loan.studentName}</TableCell>
+                      <TableCell className="font-mono text-sm">{loan.studentNumber}</TableCell>
+                      <TableCell>{safeFormatDate(loan.checkoutDate)}</TableCell>
+                      <TableCell className="text-center"><Badge variant="secondary">Due Today</Badge></TableCell>
+                    </TableRow>
                   ))}
-                </div>
-              ) : overdueBooks.length > 0 ? (
-                <div className="space-y-3">
-                  {overdueBooks.map((loan) => (
-                    <div key={loan.id} className="p-4 rounded-lg border border-destructive/50 bg-destructive/5">
-                      <div className="flex items-start justify-between">
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-12">
+                <CheckCircle className="h-12 w-12 mx-auto text-success/50 mb-3" />
+                <p className="text-muted-foreground">No books due today!</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Overdue */}
+      {activeTab === 'overdue' && (
+        <Card className="library-card">
+          <CardHeader>
+            <CardTitle className="font-display flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" /> Overdue Books
+            </CardTitle>
+            <CardDescription>{filteredOverdue.length} books need immediate follow-up</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            {overdueLoading ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
+            ) : filteredOverdue.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead>Book</TableHead>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead className="text-center">Days Overdue</TableHead>
+                    <TableHead className="text-right">Fine</TableHead>
+                    <TableHead className="text-center">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredOverdue.map(loan => (
+                    <TableRow key={loan.id} className="hover:bg-destructive/5">
+                      <TableCell className="font-medium max-w-[200px] truncate">{loan.bookTitle}</TableCell>
+                      <TableCell>
                         <div>
-                          <p className="font-medium">{loan.bookTitle}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {loan.studentName} ({loan.studentNumber})
-                          </p>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Due: {format(parseISO(loan.dueDate), 'MMM d, yyyy')}
-                          </p>
+                          <p className="font-medium">{loan.studentName}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{loan.studentNumber}</p>
                         </div>
-                        <div className="text-right flex flex-col items-end gap-2">
-                          <Badge variant="destructive">{loan.daysOverdue} days overdue</Badge>
-                          <p className="text-sm font-medium text-destructive">
-                            Fine: ₱{loan.fineAmount.toFixed(2)}
-                          </p>
+                      </TableCell>
+                      <TableCell>{safeFormatDate(loan.dueDate, 'MMM d, yyyy')}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="destructive" className="font-mono">{loan.daysOverdue} days</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">₱{loan.fineAmount.toFixed(2)}</TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 gap-1"
+                          onClick={() => notifyOverdue.mutate(loan.id)}
+                          disabled={notifyOverdue.isPending}
+                        >
+                          <Bell className="h-3 w-3" /> Notify
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-12">
+                <CheckCircle className="h-12 w-12 mx-auto text-success/50 mb-3" />
+                <p className="text-muted-foreground">No overdue books — great job!</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Requests */}
+      {activeTab === 'requests' && (
+        <Card className={cn('library-card', pendingRequests.length > 0 && 'border-orange-200')}>
+          <CardHeader className={pendingRequests.length > 0 ? 'bg-orange-500/5' : ''}>
+            <CardTitle className="font-display flex items-center gap-2">
+              <Bell className={cn('h-5 w-5', pendingRequests.length > 0 ? 'text-orange-600' : 'text-muted-foreground')} />
+              Pending Requests
+            </CardTitle>
+            <CardDescription>{pendingRequests.length} reservations awaiting approval</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            {requestsLoading ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
+            ) : pendingRequests.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead>Book</TableHead>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Request Date</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingRequests.map(req => (
+                    <TableRow key={req.id} className="hover:bg-orange-500/5">
+                      <TableCell className="font-medium max-w-[200px] truncate">{req.bookTitle || 'Unknown'}</TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{req.studentName}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{req.studentNumber}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{safeFormatDate(req.requestDate, 'MMM d, yyyy')}</TableCell>
+                      <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground italic">
+                        {req.notes || '—'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-2">
                           <Button
                             size="sm"
                             variant="outline"
                             className="h-8 gap-1"
-                            onClick={() => notifyOverdue.mutate(loan.id)}
-                            disabled={notifyOverdue.isPending}
-                          >
-                            <Bell className="h-3 w-3" />
-                            Notify Student
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CheckCircle className="h-12 w-12 mx-auto mb-2 text-success opacity-50" />
-                  <p>No overdue books!</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Requests */}
-        <TabsContent value="requests" className="mt-6">
-          <Card className={pendingRequests.length > 0 ? "border-orange-200 shadow-md" : ""}>
-            <CardHeader className={pendingRequests.length > 0 ? "bg-orange-50/50 rounded-t-lg border-b border-orange-100" : ""}>
-              <CardTitle className={`font-display ${pendingRequests.length > 0 ? "text-orange-800" : ""}`}>Pending Requests</CardTitle>
-              <CardDescription>Book reservations awaiting approval</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-20 w-full" />
-                  ))}
-                </div>
-              ) : pendingRequests.length > 0 ? (
-                <div className="space-y-3">
-                  {pendingRequests.map((req) => (
-                    <div
-                      key={req.id}
-                      className="p-4 rounded-lg border bg-muted/50"
-                      data-testid="request-card"
-                      data-request-id={req.id}
-                      data-request-title={req.bookTitle || 'Unknown Book'}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-medium">{req.bookTitle || 'Unknown Book'}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Requested by: {req.studentName}
-                          </p>
-                          {req.notes && (
-                            <p className="text-sm text-muted-foreground mt-1 italic">
-                              "{req.notes}"
-                            </p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-2">
-                            {format(parseISO(req.requestDate), 'MMM d, yyyy • h:mm a')}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleReject(req.id)}
-                            className="text-destructive hover:text-destructive"
-                            disabled={rejectRequest.isPending}
-                            aria-label="Reject request"
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-primary hover:text-primary"
                             onClick={() => navigate(`/librarian/circulation?student_id=${req.studentId}`)}
-                            title="Go to Checkout"
-                            aria-label="Go to Checkout"
                           >
-                            <ExternalLink className="h-4 w-4" />
+                            <ExternalLink className="h-3 w-3" /> Checkout
                           </Button>
                           <Button
                             size="sm"
+                            variant="outline"
+                            className="h-8 text-destructive hover:text-destructive"
+                            onClick={() => handleReject(req.id)}
+                            disabled={rejectRequest.isPending}
+                          >
+                            <XCircle className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-8 gap-1"
                             onClick={() => handleApprove(req.id)}
                             disabled={approveRequest.isPending}
-                            aria-label="Approve request"
                           >
-                            <CheckCircle className="h-4 w-4" />
+                            <CheckCircle className="h-3 w-3" /> Approve
                           </Button>
                         </div>
-                      </div>
-                    </div>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Bell className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No pending requests</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-12">
+                <Bell className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                <p className="text-muted-foreground">No pending requests</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reject Dialog */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Request</DialogTitle>
+            <DialogDescription>
+              {selectedRequest?.bookTitle} — {selectedRequest?.studentName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="reject-reason">Reason (optional)</Label>
+              <Textarea
+                id="reject-reason"
+                placeholder="Reason for rejection..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmReject} disabled={rejectRequest.isPending}>
+              {rejectRequest.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

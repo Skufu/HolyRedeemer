@@ -16,6 +16,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
   QrCode,
   Search,
   BookOpen,
@@ -30,6 +37,7 @@ import {
   Loader2,
   Keyboard,
   PartyPopper,
+  Printer,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import QRScannerModal from '@/components/circulation/QRScannerModal';
@@ -100,6 +108,7 @@ interface ReturnResult {
   copyNumber: number;
   daysOverdue: number;
   fineAmount?: number;
+  receiptNo?: string;
 }
 
 const Circulation: React.FC = () => {
@@ -120,6 +129,7 @@ const Circulation: React.FC = () => {
   const [checkoutResults, setCheckoutResults] = useState<CheckoutResult[]>([]);
   const [returnResults, setReturnResults] = useState<ReturnResult[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
 
   const { toast } = useToast();
 
@@ -393,6 +403,7 @@ const Circulation: React.FC = () => {
           copyNumber: copy.copyNumber,
           daysOverdue: response.data.days_overdue,
           fineAmount: response.data.fine?.amount,
+          receiptNo: response.data.receiptNo,
         });
       } catch {
         failureCount++;
@@ -506,6 +517,9 @@ const Circulation: React.FC = () => {
                         Copy #{r.copyNumber}
                         {r.daysOverdue > 0 && ` · ${r.daysOverdue} days overdue`}
                       </p>
+                      <p className="text-xs text-muted-foreground">
+                        Receipt: {r.receiptNo || 'N/A'}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {r.fineAmount ? (
@@ -531,10 +545,71 @@ const Circulation: React.FC = () => {
               </div>
             )}
 
-            <Button onClick={clearAll} className="gap-2 mt-4">
-              <RefreshCw className="h-4 w-4" />
-              New Transaction
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto mt-4">
+              <Button onClick={clearAll} className="gap-2 flex-1">
+                <RefreshCw className="h-4 w-4" />
+                New Transaction
+              </Button>
+              {!isCheckoutSuccess && (
+                <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="gap-2 flex-1">
+                      <Printer className="h-4 w-4" />
+                      Print Receipt
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md print:shadow-none print:border-none">
+                    <DialogHeader>
+                      <DialogTitle className="print:hidden">Return Receipt</DialogTitle>
+                    </DialogHeader>
+                    <div id="receipt-content" className="print:p-0 space-y-4">
+                      <div className="text-center border-b pb-4">
+                        <h2 className="font-display font-bold text-lg">Holy Redeemer School Library</h2>
+                        <p className="text-sm text-muted-foreground">Return Receipt</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(new Date(), 'MMMM dd, yyyy • h:mm a')}
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        {returnResults.map((r, i) => (
+                          <div key={i} className="border-b pb-2 last:border-b-0">
+                            <p className="font-medium">{r.bookTitle}</p>
+                            <p className="text-xs text-muted-foreground">Copy #{r.copyNumber}</p>
+                            <p className="text-xs text-muted-foreground">Receipt No: {r.receiptNo || 'N/A'}</p>
+                            {r.daysOverdue > 0 && (
+                              <p className="text-xs text-destructive">{r.daysOverdue} days overdue</p>
+                            )}
+                            {r.fineAmount && (
+                              <p className="text-xs font-medium">Fine: ₱{r.fineAmount.toFixed(2)}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {totalFines > 0 && (
+                        <div className="border-t pt-2">
+                          <p className="font-bold">Total Fines: ₱{totalFines.toFixed(2)}</p>
+                        </div>
+                      )}
+
+                      <div className="text-center text-xs text-muted-foreground border-t pt-4">
+                        <p>Thank you for returning your books!</p>
+                        <p className="mt-1">Holy Redeemer School of Cabuyao</p>
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={() => window.print()}
+                      className="gap-2 w-full print:hidden"
+                    >
+                      <Printer className="h-4 w-4" />
+                      Print
+                    </Button>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
           </CardContent>
         </Card>
       </motion.div>

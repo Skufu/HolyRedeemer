@@ -4,10 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/services/api';
 
-export const useFines = (params?: ListFinesParams) => {
+export const useFines = (params?: ListFinesParams & { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['fines', params],
     queryFn: () => finesService.list(params),
+    enabled: params?.enabled ?? true,
   });
 };
 
