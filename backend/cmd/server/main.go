@@ -153,10 +153,10 @@ func main() {
 			students.POST("", middleware.RequireRoles("admin", "super_admin"), studentHandler.CreateStudent)
 			students.PUT("/:id", middleware.RequireRoles("admin", "super_admin", "librarian"), studentHandler.UpdateStudent)
 			students.POST("/reserve", studentHandler.ReserveBook)
-			students.GET("/:id/loans", middleware.RequireRoles("librarian", "admin", "super_admin"), studentHandler.GetStudentLoans)
-			students.GET("/:id/history", middleware.RequireRoles("librarian", "admin", "super_admin"), studentHandler.GetStudentHistory)
-			students.GET("/:id/requests", middleware.RequireRoles("librarian", "admin", "super_admin"), studentHandler.GetStudentRequests)
-			students.GET("/:id/fines", middleware.RequireRoles("librarian", "admin", "super_admin"), studentHandler.GetStudentFines)
+			students.GET("/:id/loans", studentHandler.GetStudentLoans)
+			students.GET("/:id/history", studentHandler.GetStudentHistory)
+			students.GET("/:id/requests", studentHandler.GetStudentRequests)
+			students.GET("/:id/fines", studentHandler.GetStudentFines)
 		}
 
 		// Circulation routes

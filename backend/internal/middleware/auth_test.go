@@ -150,8 +150,9 @@ func TestRequireRoles_InvalidToken(t *testing.T) {
 // TestRBACRouteRestrictions verifies the specific route restrictions added:
 // - /circulation/renew requires librarian, admin, super_admin (NOT student)
 // - /transactions requires librarian, admin, super_admin (NOT student)
-// - /students/:id/* lookup requires librarian, admin, super_admin (NOT student)
 // - /requests POST requires student only (NOT librarian/admin)
+// Note: /students/:id/{loans,history,requests,fines} use handler-level ownership checks,
+// not route-level RequireRoles, because students need to access their own data.
 func TestRBACRouteRestrictions(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	jwtManager := newTestJWTManager()
@@ -199,20 +200,6 @@ func TestRBACRouteRestrictions(t *testing.T) {
 			expectStatus: http.StatusOK,
 		},
 		{
-			name:         "student-loans: student denied",
-			route:        "/students/test-id/loans",
-			method:       "GET",
-			role:         "student",
-			expectStatus: http.StatusForbidden,
-		},
-		{
-			name:         "student-loans: librarian allowed",
-			route:        "/students/test-id/loans",
-			method:       "GET",
-			role:         "librarian",
-			expectStatus: http.StatusOK,
-		},
-		{
 			name:         "requests-post: librarian denied",
 			route:        "/requests",
 			method:       "POST",
@@ -237,9 +224,6 @@ func TestRBACRouteRestrictions(t *testing.T) {
 				router.Use(Auth(jwtManager))
 				router.Use(RequireRoles("librarian", "admin", "super_admin"))
 			case "/transactions":
-				router.Use(Auth(jwtManager))
-				router.Use(RequireRoles("librarian", "admin", "super_admin"))
-			case "/students/test-id/loans":
 				router.Use(Auth(jwtManager))
 				router.Use(RequireRoles("librarian", "admin", "super_admin"))
 			case "/requests":
