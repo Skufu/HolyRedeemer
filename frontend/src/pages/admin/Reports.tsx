@@ -90,21 +90,17 @@ const AdminReports: React.FC = () => {
   const circulationStatus = overview?.circulationStatus || [];
   const damageLostStats = overview?.damageLostStats;
 
-  const allCurrentLoans = currentLoansData?.data || [];
-  const allOverdueLoans = overdueData?.data || [];
-  const allFines = finesData?.data || [];
-
   const currentLoans = useMemo(
-    () => filterByDateRange(allCurrentLoans, 'checkoutDate', startDate, endDate),
-    [allCurrentLoans, startDate, endDate],
+    () => filterByDateRange(currentLoansData?.data || [], 'checkoutDate', startDate, endDate),
+    [currentLoansData?.data, startDate, endDate],
   );
   const overdueLoans = useMemo(
-    () => filterByDateRange(allOverdueLoans, 'dueDate', startDate, endDate),
-    [allOverdueLoans, startDate, endDate],
+    () => filterByDateRange(overdueData?.data || [], 'dueDate', startDate, endDate),
+    [overdueData?.data, startDate, endDate],
   );
   const fines = useMemo(
-    () => filterByDateRange(allFines, 'created_at', startDate, endDate),
-    [allFines, startDate, endDate],
+    () => filterByDateRange(finesData?.data || [], 'created_at', startDate, endDate),
+    [finesData?.data, startDate, endDate],
   );
 
   // Chart data preparation
@@ -186,7 +182,7 @@ const AdminReports: React.FC = () => {
         toast({ title: 'Nothing to Export', description: 'Overview charts cannot be exported.' });
         return;
       }
-      const rows: any[] = [];
+      const rows: Record<string, unknown>[] = [];
       if (selectedReport === 'transactions') {
         rows.push(...currentLoans.map((l) => ({ ...l, _shortId: l.id.slice(0, 8), _checkoutFmt: safeFormatDate(l.checkoutDate), _dueFmt: safeFormatDate(l.dueDate) })));
       } else if (selectedReport === 'overdue') {

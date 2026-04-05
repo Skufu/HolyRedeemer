@@ -90,17 +90,16 @@ const StudentCatalog = () => {
 
   const { data: categoriesData } = useCategories();
 
-  const books = booksData?.data || [];
   const meta = booksData?.meta;
   const categories = categoriesData?.data || [];
 
   const filteredBooks = useMemo(
-    () => books.filter((book) => {
+    () => (booksData?.data || []).filter((book) => {
       if (availabilityFilter === 'checked_out' && (book.availableCopies || 0) > 0) return false;
       if (availabilityFilter === 'out_of_stock' && (book.availableCopies || 0) > 0) return false;
       return true;
     }),
-    [books, availabilityFilter],
+    [booksData?.data, availabilityFilter],
   );
 
   const sortedBooks = useMemo(

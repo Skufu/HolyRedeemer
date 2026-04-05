@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { AuditLog } from '@/services/audit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -45,7 +46,7 @@ const AuditLogs: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
-  const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
   const { data: logsData, isLoading } = useAuditLogs({
     page,
