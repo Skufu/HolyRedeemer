@@ -35,12 +35,13 @@ func (h *RequestHandler) invalidateRequestCaches() {
 }
 
 func CancelPendingReservationsForBook(ctx context.Context, db *pgxpool.Pool, bookID uuid.UUID) error {
+	//nolint:misspell // Database column name uses British spelling
 	result, err := db.Exec(ctx, `
 		UPDATE book_requests
-		SET status = 'cancelled',
+		SET status = 'canceled',
 		    auto_cancelled_at = CURRENT_TIMESTAMP,
 		    processed_at = CURRENT_TIMESTAMP,
-		    notes = COALESCE(notes, 'Auto-cancelled: copy checked out')
+		    notes = COALESCE(notes, 'Auto-canceled: copy checked out')
 		WHERE book_id = $1
 		  AND request_type = 'reservation'
 		  AND status = 'pending'
@@ -50,7 +51,7 @@ func CancelPendingReservationsForBook(ctx context.Context, db *pgxpool.Pool, boo
 	}
 
 	if result.RowsAffected() > 0 {
-		log.Printf("Auto-cancelled %d pending reservation(s) for book %s", result.RowsAffected(), bookID)
+		log.Printf("Auto-canceled %d pending reservation(s) for book %s", result.RowsAffected(), bookID)
 	}
 
 	return nil
@@ -235,14 +236,14 @@ func (h *RequestHandler) ApproveRequest(c *gin.Context) {
 			return
 		}
 
-		copy, err := h.queries.GetAvailableCopy(c.Request.Context(), toPgUUID(bookID))
-		if err != nil {
+		copy, copyErr := h.queries.GetAvailableCopy(c.Request.Context(), toPgUUID(bookID))
+		if copyErr != nil {
 			response.BadRequest(c, "No available copies to reserve")
 			return
 		}
 
-		tx, err := h.db.Begin(c.Request.Context())
-		if err != nil {
+		tx, txErr := h.db.Begin(c.Request.Context())
+		if txErr != nil {
 			response.InternalError(c, "Failed to begin transaction")
 			return
 		}
@@ -284,7 +285,7 @@ func (h *RequestHandler) ApproveRequest(c *gin.Context) {
 			})
 		}
 
-		if err := tx.Commit(c.Request.Context()); err != nil {
+		if commitErr := tx.Commit(c.Request.Context()); commitErr != nil {
 			response.InternalError(c, "Failed to approve reservation")
 			return
 		}
@@ -324,7 +325,7 @@ func (h *RequestHandler) RejectRequest(c *gin.Context) {
 	var input struct {
 		Notes string `json:"notes"`
 	}
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if bindErr := c.ShouldBindJSON(&input); bindErr != nil {
 		response.BadRequest(c, "Invalid request body")
 		return
 	}

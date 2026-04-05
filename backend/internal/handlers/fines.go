@@ -214,7 +214,7 @@ func (h *FineHandler) PayFine(c *gin.Context) {
 		response.InternalError(c, "Failed to begin transaction")
 		return
 	}
-	defer tx.Rollback(c.Request.Context())
+	defer func() { _ = tx.Rollback(c.Request.Context()) }()
 
 	queries := h.queries.WithTx(tx)
 

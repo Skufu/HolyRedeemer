@@ -170,7 +170,7 @@ func (h *AdminHandler) UpdateAdmin(c *gin.Context) {
 	}
 
 	var req UpdateAdminRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		response.BadRequest(c, "Invalid request body")
 		return
 	}

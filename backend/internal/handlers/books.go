@@ -455,7 +455,7 @@ func (h *BookHandler) CreateCopy(c *gin.Context) {
 	}
 
 	var req CreateCopyRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		response.BadRequest(c, "Invalid request body")
 		return
 	}
@@ -576,7 +576,7 @@ func (h *BookHandler) BulkRegenerateQRCodes(c *gin.Context) {
 		response.InternalError(c, "Failed to begin transaction")
 		return
 	}
-	defer tx.Rollback(c.Request.Context())
+	defer func() { _ = tx.Rollback(c.Request.Context()) }()
 
 	txQueries := h.queries.WithTx(tx)
 

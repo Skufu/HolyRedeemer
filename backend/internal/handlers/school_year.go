@@ -369,7 +369,7 @@ func (h *SchoolYearHandler) ResetStudentData(c *gin.Context) {
 		response.InternalError(c, "Failed to begin transaction")
 		return
 	}
-	defer tx.Rollback(c.Request.Context())
+	defer func() { _ = tx.Rollback(c.Request.Context()) }()
 
 	queries := h.queries.WithTx(tx)
 
@@ -565,9 +565,9 @@ func (h *SchoolYearHandler) writeTransactionsCSV(c *gin.Context, writer *csv.Wri
 			row.BookTitle,
 			strconv.Itoa(int(row.CopyNumber)),
 			formatTransactionStatusValue(row.Status),
-			formatPgTimestampValue(row.CheckoutDate, time.RFC3339),
+			formatPgTimestampValue(row.CheckoutDate),
 			formatPgDate(row.DueDate, "2006-01-02"),
-			formatPgTimestampValue(row.ReturnDate, time.RFC3339),
+			formatPgTimestampValue(row.ReturnDate),
 			formatInt4Value(row.RenewalCount),
 			fromPgText(row.Notes),
 		}); err != nil {
@@ -597,8 +597,8 @@ func (h *SchoolYearHandler) writeFinesCSV(c *gin.Context, writer *csv.Writer, st
 			string(row.FineType),
 			fromPgText(row.Description),
 			formatFineStatus(row.Status),
-			formatPgTimestampValue(row.CreatedAt, time.RFC3339),
-			formatPgTimestampValue(row.UpdatedAt, time.RFC3339),
+			formatPgTimestampValue(row.CreatedAt),
+			formatPgTimestampValue(row.UpdatedAt),
 		}); err != nil {
 			return err
 		}
@@ -626,8 +626,8 @@ func (h *SchoolYearHandler) writePaymentsCSV(c *gin.Context, writer *csv.Writer,
 			string(row.PaymentMethod),
 			fromPgText(row.ReferenceNumber),
 			fromPgText(row.Notes),
-			formatPgTimestampValue(row.PaymentDate, time.RFC3339),
-			formatPgTimestampValue(row.CreatedAt, time.RFC3339),
+			formatPgTimestampValue(row.PaymentDate),
+			formatPgTimestampValue(row.CreatedAt),
 		}); err != nil {
 			return err
 		}
@@ -654,8 +654,8 @@ func (h *SchoolYearHandler) writeRequestsCSV(c *gin.Context, writer *csv.Writer,
 			row.BookTitle,
 			string(row.RequestType),
 			formatRequestStatus(row.Status),
-			formatPgTimestampValue(row.RequestDate, time.RFC3339),
-			formatPgTimestampValue(row.ProcessedAt, time.RFC3339),
+			formatPgTimestampValue(row.RequestDate),
+			formatPgTimestampValue(row.ProcessedAt),
 			fromPgText(row.Notes),
 		}); err != nil {
 			return err
@@ -686,7 +686,7 @@ func (h *SchoolYearHandler) writeNotificationsCSV(c *gin.Context, writer *csv.Wr
 			strconv.FormatBool(row.IsRead.Bool),
 			fromPgText(row.ReferenceType),
 			uuidOrEmpty(row.ReferenceID),
-			formatPgTimestampValue(row.CreatedAt, time.RFC3339),
+			formatPgTimestampValue(row.CreatedAt),
 		}); err != nil {
 			return err
 		}
@@ -717,7 +717,7 @@ func (h *SchoolYearHandler) writeAuditLogsCSV(c *gin.Context, writer *csv.Writer
 			formatJSONBytes(row.NewValues),
 			fromPgText(row.IpAddress),
 			fromPgText(row.UserAgent),
-			formatPgTimestampValue(row.CreatedAt, time.RFC3339),
+			formatPgTimestampValue(row.CreatedAt),
 		}); err != nil {
 			return err
 		}
@@ -757,7 +757,7 @@ func (h *SchoolYearHandler) createStudentFromImport(c *gin.Context, payload stud
 	if err != nil {
 		return errors.New("Failed to begin transaction")
 	}
-	defer tx.Rollback(c.Request.Context())
+	defer func() { _ = tx.Rollback(c.Request.Context()) }()
 
 	queries := h.queries.WithTx(tx)
 
@@ -923,9 +923,9 @@ func uuidOrEmpty(value pgtype.UUID) string {
 	return ""
 }
 
-func formatPgTimestampValue(value pgtype.Timestamp, layout string) string {
+func formatPgTimestampValue(value pgtype.Timestamp) string {
 	if value.Valid {
-		return value.Time.Format(layout)
+		return value.Time.Format(time.RFC3339)
 	}
 	return ""
 }

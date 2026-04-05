@@ -420,7 +420,7 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 				fineAmount = h.config.DefaultMaxFineCap
 			}
 
-			fine, err := queries.CreateFine(c.Request.Context(), sqlcdb.CreateFineParams{
+			fine, fineErr := queries.CreateFine(c.Request.Context(), sqlcdb.CreateFineParams{
 				TransactionID: toPgUUID(loan.ID),
 				StudentID:     loan.StudentID,
 				Amount:        toPgNumeric(fineAmount),
@@ -428,7 +428,7 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 				Description:   toPgText(""),
 				Status:        sqlcdb.NullFineStatus{FineStatus: sqlcdb.FineStatusPending, Valid: true},
 			})
-			if err == nil {
+			if fineErr == nil {
 				resp.Fine = &struct {
 					ID     string  `json:"id"`
 					Amount float64 `json:"amount"`
@@ -439,14 +439,14 @@ func (h *CirculationHandler) Return(c *gin.Context) {
 					Type:   "overdue",
 				}
 			} else {
-				log.Printf("Failed to create fine: %v", err)
+				log.Printf("Failed to create fine: %v", fineErr)
 			}
 		}
 	}
 
 	// Commit transaction
-	if err := tx.Commit(c.Request.Context()); err != nil {
-		log.Printf("Failed to commit transaction: %v", err)
+	if commitErr := tx.Commit(c.Request.Context()); commitErr != nil {
+		log.Printf("Failed to commit transaction: %v", commitErr)
 		response.InternalError(c, "Failed to complete return")
 		return
 	}

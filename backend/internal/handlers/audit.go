@@ -144,7 +144,7 @@ func LogAuditFromContext(c *gin.Context, queries *sqlcdb.Queries, action sqlcdb.
 		newValuesJSON, _ = sonic.Marshal(newValues)
 	}
 
-	queries.CreateAuditLog(c.Request.Context(), sqlcdb.CreateAuditLogParams{
+	_, _ = queries.CreateAuditLog(c.Request.Context(), sqlcdb.CreateAuditLogParams{
 		UserID:     userID,
 		Action:     action,
 		EntityType: pgtype.Text{String: entityType, Valid: true},
