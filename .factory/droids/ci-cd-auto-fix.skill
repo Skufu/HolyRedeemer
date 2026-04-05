@@ -1,0 +1,73 @@
+# CI/CD Auto-Fix Skill
+
+## Description
+
+Automatically diagnose and fix GitHub Actions CI/CD failures. This skill monitors workflow runs, parses error logs, and applies automated fixes for common linting, type, and build errors.
+
+## When to Use
+
+Use this skill when:
+- GitHub Actions workflows are failing
+- CI shows ESLint, TypeScript, Go linting, or build errors
+- You need automated fixes pushed back to the repository
+
+## Workflow
+
+1. Check the latest GitHub Actions workflow run status using `gh run list` and `gh run view`
+2. Fetch failure logs from failing jobs
+3. Parse error messages to identify:
+   - Error type (ESLint, Go linting, TypeScript, build, etc.)
+   - Affected files and line numbers
+   - Specific error messages and codes
+4. Read the failing source files
+5. Apply appropriate fixes based on error type
+6. Run local verification if tools are available
+7. Commit and push changes
+8. Report what was fixed
+
+## Supported Error Types
+
+### ESLint Errors
+- `@typescript-eslint/no-explicit-any`: Replace `any` with proper types
+- `react-hooks/exhaustive-deps`: Move logic inside useMemo/useEffect callbacks
+- Missing imports: Add proper import statements
+
+### Go Linting (golangci-lint)
+- `errcheck`: Handle unchecked error returns with `_ = func()`
+- `govet/shadow`: Rename shadowing variables (e.g., `err` to `bindErr`)
+- `misspell`: Fix spelling (e.g., "cancelled" → "canceled")
+- `unparam`: Remove unused parameters or add `//nolint` comments
+
+### TypeScript Errors
+- Missing type annotations
+- Import errors
+- Type mismatches
+
+### Build Errors
+- Missing configuration
+- Dependency issues
+
+## Tools to Use
+
+- `gh` CLI for GitHub Actions interaction
+- `Read`, `Edit` for file modifications
+- `Execute` for running local verification
+- `Grep` for finding patterns
+
+## Example Usage
+
+```
+User: "The CI is failing, fix it"
+→ Skill invokes, checks latest run
+→ Fetches logs, identifies ESLint errors
+→ Fixes the issues
+→ Commits and pushes
+→ Reports success
+```
+
+## Handoff Fields
+
+- `fixedErrors`: List of errors that were fixed
+- `filesModified`: List of files changed
+- `verificationResult`: Whether local verification passed
+- `commitHash`: The commit with fixes
