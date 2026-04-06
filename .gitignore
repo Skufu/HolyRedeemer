@@ -36,3 +36,7 @@ tmp/
 backend/server
 .sisyphus/
 .agents
+
+# Video Recordings
+demo-video/
+remotion-video/
