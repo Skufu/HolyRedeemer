@@ -70,7 +70,7 @@ func TestLoad_DefaultValues(t *testing.T) {
 	cfg := Load()
 
 	// Verify defaults are set correctly
-	assert.Equal(t, "8080", cfg.Port, "Default PORT should be 8080")
+	assert.Equal(t, "8082", cfg.Port, "Default PORT should be 8082")
 	assert.Equal(t, "development", cfg.Environment, "Default ENVIRONMENT should be development")
 	assert.Equal(t, 7, cfg.DefaultLoanDays, "Default DEFAULT_LOAN_DAYS should be 7")
 	assert.Equal(t, 3, cfg.DefaultMaxBooks, "Default DEFAULT_MAX_BOOKS should be 3")
