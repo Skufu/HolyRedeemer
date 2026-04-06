@@ -81,8 +81,8 @@ const LibrarianDashboard: React.FC = () => {
   const yearLevelLoading = studentsByGradeLoading || loansByGradeLoading || overdueByGradeLoading || finesByGradeLoading;
 
   const quickStats = [
-    { label: 'Active Loans', value: stats?.currentLoans ?? currentLoans.length, icon: BookOpen, color: 'text-info' },
-    { label: 'Overdue', value: stats?.overdueBooks ?? overdueLoans.length, icon: AlertTriangle, color: 'text-destructive' },
+    { label: 'Currently Borrowed', value: stats?.currentLoans ?? currentLoans.length, icon: BookOpen, color: 'text-info' },
+    { label: 'Overdue Books', value: stats?.overdueBooks ?? overdueLoans.length, icon: AlertTriangle, color: 'text-destructive' },
     { label: 'Due Soon', value: dueSoon.length, icon: Clock, color: 'text-warning-foreground' },
     { label: 'Today\'s Checkouts', value: stats?.checkoutsToday ?? 0, icon: TrendingUp, color: 'text-success' },
   ];
@@ -251,76 +251,6 @@ const LibrarianDashboard: React.FC = () => {
             <div className="text-center py-6 text-muted-foreground">
               <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p>No books due soon</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Analytics by Year Level */}
-      <Card className="library-card">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-display">Analytics by Year Level</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {yearLevelLoading ? (
-            <div className="h-[320px] flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="h-[320px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={yearLevelChartData} margin={{ left: 0, right: 20 }}>
-                  <XAxis
-                    dataKey="gradeLevel"
-                    tick={{ fontSize: 12, fill: 'hsl(25, 15%, 40%)' }}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 12, fill: 'hsl(25, 15%, 40%)' }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(38, 35%, 97%)',
-                      border: '1px solid hsl(35, 25%, 82%)',
-                      borderRadius: '8px',
-                      fontFamily: 'Source Serif 4, serif'
-                    }}
-                  />
-                  <Legend
-                    wrapperStyle={{ fontFamily: 'Source Serif 4, serif', fontSize: '13px' }}
-                  />
-                  <Bar
-                    dataKey="students"
-                    name="Students"
-                    fill={chartColors.info}
-                    radius={[4, 4, 0, 0]}
-                    barSize={20}
-                  />
-                  <Bar
-                    dataKey="activeLoans"
-                    name="Active Loans"
-                    fill={chartColors.primary}
-                    radius={[4, 4, 0, 0]}
-                    barSize={20}
-                  />
-                  <Bar
-                    dataKey="overdue"
-                    name="Overdue"
-                    fill={chartColors.warning}
-                    radius={[4, 4, 0, 0]}
-                    barSize={20}
-                  />
-                  <Bar
-                    dataKey="fines"
-                    name="Fines (₱)"
-                    fill={chartColors.destructive}
-                    radius={[4, 4, 0, 0]}
-                    barSize={20}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
             </div>
           )}
         </CardContent>

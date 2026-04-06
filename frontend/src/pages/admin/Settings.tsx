@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Settings as SettingsIcon, BookOpen, DollarSign, GraduationCap, Save, RotateCcw, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface SettingsState {
   library_name: string;
@@ -119,187 +120,202 @@ const Settings: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <SettingsIcon className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="font-display">General Settings</CardTitle>
-                <CardDescription>Basic library information</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="libraryName">Library Name</Label>
-                <Input
-                  id="libraryName"
-                  value={settings.library_name}
-                  onChange={(e) => handleChange('library_name', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="schoolYear">School Year</Label>
-                <Input
-                  id="schoolYear"
-                  value={settings.school_year}
-                  onChange={(e) => handleChange('school_year', e.target.value)}
-                  placeholder="2024-2025"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="general" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 lg:w-[600px] mb-6">
+          <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="borrowing">Borrowing</TabsTrigger>
+          <TabsTrigger value="fines">Fines</TabsTrigger>
+          <TabsTrigger value="quota">Reading Quota</TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-info/10">
-                <BookOpen className="h-5 w-5 text-info" />
+        <TabsContent value="general">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <SettingsIcon className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="font-display">General Settings</CardTitle>
+                  <CardDescription>Basic library information</CardDescription>
+                </div>
               </div>
-              <div>
-                <CardTitle className="font-display">Borrowing Rules</CardTitle>
-                <CardDescription>Configure book borrowing policies</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="libraryName">Library Name</Label>
+                  <Input
+                    id="libraryName"
+                    value={settings.library_name}
+                    onChange={(e) => handleChange('library_name', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="schoolYear">School Year</Label>
+                  <Input
+                    id="schoolYear"
+                    value={settings.school_year}
+                    onChange={(e) => handleChange('school_year', e.target.value)}
+                    placeholder="2024-2025"
+                  />
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid sm:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="maxBooks">Max Books Per Student</Label>
-                <Input
-                  id="maxBooks"
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={settings.max_books_per_student}
-                  onChange={(e) => handleChange('max_books_per_student', e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">Maximum books a student can borrow at once</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="loanDuration">Loan Duration (Days)</Label>
-                <Input
-                  id="loanDuration"
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={settings.loan_duration_days}
-                  onChange={(e) => handleChange('loan_duration_days', e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">Default borrowing period</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="maxRenewals">Maximum Renewals</Label>
-                <Input
-                  id="maxRenewals"
-                  type="number"
-                  min={0}
-                  max={5}
-                  value={settings.max_renewals}
-                  onChange={(e) => handleChange('max_renewals', e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">How many times a book can be renewed</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-warning/10">
-                <DollarSign className="h-5 w-5 text-warning-foreground" />
+        <TabsContent value="borrowing">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-info/10">
+                  <BookOpen className="h-5 w-5 text-info" />
+                </div>
+                <div>
+                  <CardTitle className="font-display">Borrowing Rules</CardTitle>
+                  <CardDescription>Configure book borrowing policies</CardDescription>
+                </div>
               </div>
-              <div>
-                <CardTitle className="font-display">Fine Settings</CardTitle>
-                <CardDescription>Configure overdue fine policies</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="maxBooks">Max Books Per Student</Label>
+                  <Input
+                    id="maxBooks"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={settings.max_books_per_student}
+                    onChange={(e) => handleChange('max_books_per_student', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Maximum books a student can borrow at once</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="loanDuration">Loan Duration (Days)</Label>
+                  <Input
+                    id="loanDuration"
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={settings.loan_duration_days}
+                    onChange={(e) => handleChange('loan_duration_days', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Default borrowing period</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maxRenewals">Maximum Renewals</Label>
+                  <Input
+                    id="maxRenewals"
+                    type="number"
+                    min={0}
+                    max={5}
+                    value={settings.max_renewals}
+                    onChange={(e) => handleChange('max_renewals', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">How many times a book can be renewed</p>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="finePerDay">Fine Per Day (₱)</Label>
-                <Input
-                  id="finePerDay"
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  value={settings.fine_per_day}
-                  onChange={(e) => handleChange('fine_per_day', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gracePeriod">Grace Period (Days)</Label>
-                <Input
-                  id="gracePeriod"
-                  type="number"
-                  min={0}
-                  max={7}
-                  value={settings.fine_grace_period_days}
-                  onChange={(e) => handleChange('fine_grace_period_days', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="maxFine">Maximum Fine Cap (₱)</Label>
-                <Input
-                  id="maxFine"
-                  type="number"
-                  min={0}
-                  value={settings.max_fine_cap}
-                  onChange={(e) => handleChange('max_fine_cap', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="blockThreshold">Block Threshold (₱)</Label>
-                <Input
-                  id="blockThreshold"
-                  type="number"
-                  min={0}
-                  value={settings.fine_block_threshold}
-                  onChange={(e) => handleChange('fine_block_threshold', e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">Block borrowing above this fine amount</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-success/10">
-                <GraduationCap className="h-5 w-5 text-success" />
+        <TabsContent value="fines">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-warning/10">
+                  <DollarSign className="h-5 w-5 text-warning-foreground" />
+                </div>
+                <div>
+                  <CardTitle className="font-display">Fine Settings</CardTitle>
+                  <CardDescription>Configure overdue fine policies</CardDescription>
+                </div>
               </div>
-              <div>
-                <CardTitle className="font-display">Reading Quota</CardTitle>
-                <CardDescription>Annual reading requirements for students</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="finePerDay">Fine Per Day (₱)</Label>
+                  <Input
+                    id="finePerDay"
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={settings.fine_per_day}
+                    onChange={(e) => handleChange('fine_per_day', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gracePeriod">Grace Period (Days)</Label>
+                  <Input
+                    id="gracePeriod"
+                    type="number"
+                    min={0}
+                    max={7}
+                    value={settings.fine_grace_period_days}
+                    onChange={(e) => handleChange('fine_grace_period_days', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maxFine">Maximum Fine Cap (₱)</Label>
+                  <Input
+                    id="maxFine"
+                    type="number"
+                    min={0}
+                    value={settings.max_fine_cap}
+                    onChange={(e) => handleChange('max_fine_cap', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="blockThreshold">Block Threshold (₱)</Label>
+                  <Input
+                    id="blockThreshold"
+                    type="number"
+                    min={0}
+                    value={settings.fine_block_threshold}
+                    onChange={(e) => handleChange('fine_block_threshold', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Block borrowing above this fine amount</p>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="max-w-xs space-y-2">
-              <Label htmlFor="quota">Required Books Per Year</Label>
-              <Input
-                id="quota"
-                type="number"
-                min={0}
-                max={100}
-                value={settings.reading_quota_per_year}
-                onChange={(e) => handleChange('reading_quota_per_year', e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Minimum books students must read per school year
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="quota">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-success/10">
+                  <GraduationCap className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <CardTitle className="font-display">Reading Quota</CardTitle>
+                  <CardDescription>Annual reading requirements for students</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="max-w-xs space-y-2">
+                <Label htmlFor="quota">Required Books Per Year</Label>
+                <Input
+                  id="quota"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={settings.reading_quota_per_year}
+                  onChange={(e) => handleChange('reading_quota_per_year', e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Minimum books students must read per school year
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

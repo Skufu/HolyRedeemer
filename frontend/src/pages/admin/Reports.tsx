@@ -45,9 +45,11 @@ import {
   useMonthlyTrends,
 } from '@/hooks/useDashboard';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { exportToPDF, exportToExcel, filterByDateRange, type ExportColumn } from '@/utils/reportExport';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, Legend } from 'recharts';
 import { cn } from '@/lib/utils';
+import { categoryFillAt, CategoryPieLegend } from '@/lib/categoryChartPalette';
 
 const safeFormatDate = (dateStr: string | undefined | null, dateFormat: string = 'MMM d, yyyy') => {
   if (!dateStr) return '—';
@@ -70,7 +72,15 @@ const AdminReports: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<ReportTab>('overview');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  
+  // Filter states
+  const [transactionFilter, setTransactionFilter] = useState<'all' | 'active' | 'returned'>('all');
+  const [overdueFilter, setOverdueFilter] = useState<'all' | 'severe'>('all');
+  const [finesFilter, setFinesFilter] = useState<'all' | 'pending' | 'paid'>('all');
+  const [inventoryFilter, setInventoryFilter] = useState<'all' | 'available' | 'low_stock'>('all');
+
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const { data: overviewData, isLoading: overviewLoading } = useOverview();
   const { data: currentLoansData, isLoading: loansLoading } = useCurrentLoans();
@@ -83,11 +93,6 @@ const AdminReports: React.FC = () => {
   const categories = overview?.categories || [];
   const topBorrowed = overview?.topBorrowed || [];
   const trends = overview?.trends || [];
-  const studentsByGrade = overview?.studentsByGrade || [];
-  const loansByGrade = overview?.loansByGrade || [];
-  const overdueByGrade = overview?.overdueByGrade || [];
-  const finesByGrade = overview?.finesByGrade || [];
-  const circulationStatus = overview?.circulationStatus || [];
   const damageLostStats = overview?.damageLostStats;
 
   const currentLoans = useMemo(
@@ -103,35 +108,85 @@ const AdminReports: React.FC = () => {
     [finesData?.data, startDate, endDate],
   );
 
+  const pendingFines = fines.filter(f => f.status === 'pending');
+  const paidFines = fines.filter(f => f.status === 'paid');
+  const totalPendingAmount = pendingFines.reduce((s, f) => s + f.amount, 0);
+  const totalPaidAmount = paidFines.reduce((s, f) => s + f.amount, 0);
+
+  const filteredTransactions = useMemo(() => {
+    if (transactionFilter === 'active') return currentLoans.filter(l => l.status === 'active');
+    if (transactionFilter === 'returned') return currentLoans.filter(l => l.status === 'returned');
+    return currentLoans;
+  }, [currentLoans, transactionFilter]);
+
+  const filteredOverdue = useMemo(() => {
+    if (overdueFilter === 'severe') return overdueLoans.filter(l => l.daysOverdue > 7);
+    return overdueLoans;
+  }, [overdueLoans, overdueFilter]);
+
+  const filteredFines = useMemo(() => {
+    if (finesFilter === 'pending') return pendingFines;
+    if (finesFilter === 'paid') return paidFines;
+    return fines;
+  }, [fines, finesFilter, pendingFines, paidFines]);
+
+  const filteredInventory = useMemo(() => {
+    const list = booksData?.data || [];
+    if (inventoryFilter === 'available') return list.filter(b => b.availableCopies > 0);
+    if (inventoryFilter === 'low_stock') return list.filter(b => b.availableCopies === 0);
+    return list;
+  }, [booksData?.data, inventoryFilter]);
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
+      paid: { variant: 'default', label: 'Paid' },
+      pending: { variant: 'secondary', label: 'Pending' },
+      waived: { variant: 'outline', label: 'Waived' },
+    };
+    const s = map[status] || { variant: 'outline' as const, label: status };
+    return <Badge variant={s.variant}>{s.label}</Badge>;
+  };
+
   // Chart data preparation
-  const gradeLevels = [7, 8, 9, 10, 11, 12];
-  const yearLevelChartData = gradeLevels.map(grade => ({
-    gradeLevel: `Grade ${grade}`,
-    students: studentsByGrade.find(s => s.grade_level === grade)?.count || 0,
-    activeLoans: loansByGrade.find(l => l.grade_level === grade)?.count || 0,
-    overdue: overdueByGrade.find(o => o.grade_level === grade)?.count || 0,
-    fines: Math.round(finesByGrade.find(f => f.grade_level === grade)?.total_amount || 0),
-  }));
-
-  const circulationChartData = circulationStatus.map((item, index) => ({
-    name: item.circulation_status,
-    value: item.count,
-    fill: [chartColors.primary, chartColors.success, chartColors.warning, chartColors.destructive, chartColors.info][index % 5],
-  }));
-
   const categoryChartData = categories.map((c, i) => ({
     name: c.name,
     value: c.value,
-    fill: [chartColors.primary, chartColors.secondary, chartColors.success, chartColors.warning, chartColors.info, chartColors.destructive][i % 6],
+    fill: categoryFillAt(i),
   }));
 
   const statCards = [
-    { title: 'Total Books', value: stats?.totalBooks || 0, icon: BookOpen, color: 'text-primary', bg: 'bg-primary/10' },
-    { title: 'Active Loans', value: stats?.currentLoans || 0, icon: BookOpen, color: 'text-info', bg: 'bg-info/10' },
-    { title: 'Overdue', value: stats?.overdueBooks || 0, icon: Clock, color: 'text-destructive', bg: 'bg-destructive/10' },
-    { title: 'Active Students', value: stats?.activeStudents || 0, icon: Users, color: 'text-success', bg: 'bg-success/10' },
-    { title: 'Pending Fines', value: `₱${(stats?.totalFines || 0).toFixed(2)}`, icon: DollarSign, color: 'text-warning', bg: 'bg-warning/10' },
-    { title: 'Lost Books', value: stats?.lostBooks || 0, icon: ShieldAlert, color: 'text-destructive', bg: 'bg-destructive/10' },
+    {
+      title: 'Total Collection',
+      value: stats?.totalBooks || 0,
+      icon: BookOpen,
+      gradient: 'from-primary/20 to-primary/5',
+      iconBg: 'bg-primary/15',
+      iconColor: 'text-primary'
+    },
+    {
+      title: 'Currently Borrowed',
+      value: stats?.currentLoans || 0,
+      icon: BookOpen,
+      gradient: 'from-info/20 to-info/5',
+      iconBg: 'bg-info/15',
+      iconColor: 'text-info'
+    },
+    {
+      title: 'Overdue Books',
+      value: stats?.overdueBooks || 0,
+      icon: Clock,
+      gradient: 'from-destructive/20 to-destructive/5',
+      iconBg: 'bg-destructive/15',
+      iconColor: 'text-destructive'
+    },
+    {
+      title: 'Pending Fines',
+      value: `₱${(stats?.totalFines || 0).toFixed(2)}`,
+      icon: DollarSign,
+      gradient: 'from-warning/20 to-warning/5',
+      iconBg: 'bg-warning/15',
+      iconColor: 'text-warning'
+    }
   ];
 
   const reportColumns: Record<Exclude<ReportTab, 'overview'>, ExportColumn[]> = {
@@ -260,19 +315,26 @@ const AdminReports: React.FC = () => {
 
       {/* Overview Tab */}
       {selectedReport === 'overview' && (
-        <>
+        <div className="p-4">
           {/* Stat Cards */}
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            {statCards.map((stat) => (
-              <Card key={stat.title} className="library-card">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className={cn('p-2.5 rounded-lg', stat.bg)}>
-                      <stat.icon className={cn('h-5 w-5', stat.color)} />
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-6">
+            {statCards.map((stat, index) => (
+              <Card 
+                key={stat.title} 
+                className="library-card overflow-hidden opacity-0 animate-fade-in-up hover-lift"
+                style={{ animationDelay: `${index * 0.1}s`, animationFillMode: 'forwards' }}
+              >
+                <div className={cn('absolute inset-0 bg-gradient-to-br opacity-50', stat.gradient)} />
+                <CardContent className="p-5 relative">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground font-medium">{stat.title}</p>
+                      <p className="text-2xl font-display font-bold tracking-tight">
+                        {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
+                      </p>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground font-medium">{stat.title}</p>
-                      <p className="text-lg font-display font-bold">{typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}</p>
+                    <div className={cn('p-3 rounded-xl shrink-0', stat.iconBg)}>
+                      <stat.icon className={cn('h-5 w-5', stat.iconColor)} />
                     </div>
                   </div>
                 </CardContent>
@@ -280,80 +342,7 @@ const AdminReports: React.FC = () => {
             ))}
           </div>
 
-          {/* Year Level Analytics */}
-          <Card className="library-card">
-            <CardHeader>
-              <CardTitle className="font-display">Analytics by Year Level</CardTitle>
-              <CardDescription>Student count, active loans, overdue items, and fines per grade</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={yearLevelChartData}>
-                  <XAxis dataKey="gradeLevel" fontSize={12} />
-                  <YAxis fontSize={12} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="students" fill={chartColors.primary} name="Students" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="activeLoans" fill={chartColors.info} name="Active Loans" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="overdue" fill={chartColors.warning} name="Overdue" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="fines" fill={chartColors.destructive} name="Fines (₱)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
           {/* Charts Row */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="library-card">
-              <CardHeader>
-                <CardTitle className="font-display flex items-center gap-2">
-                  <PieChartIcon className="h-5 w-5" /> Circulation Status
-                </CardTitle>
-                <CardDescription>Last 30 days transaction distribution</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {circulationChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie data={circulationChartData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={4} dataKey="value">
-                        {circulationChartData.map((entry, i) => <Cell key={`circ-${entry.name}-${i}`} fill={entry.fill} />)}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">No data available</div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="library-card">
-              <CardHeader>
-                <CardTitle className="font-display flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" /> Category Distribution
-                </CardTitle>
-                <CardDescription>Books by category</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {categoryChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie data={categoryChartData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={4} dataKey="value">
-                        {categoryChartData.map((entry, i) => <Cell key={`cat-${entry.name}-${i}`} fill={entry.fill} />)}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">No data available</div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Trends + Top Books Row */}
           <div className="grid gap-4 md:grid-cols-2">
             <Card className="library-card">
               <CardHeader>
@@ -383,19 +372,30 @@ const AdminReports: React.FC = () => {
             <Card className="library-card">
               <CardHeader>
                 <CardTitle className="font-display flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" /> Top Borrowed Books
+                  <BookOpen className="h-5 w-5" /> Category Distribution
                 </CardTitle>
-                <CardDescription>Most popular titles in the library</CardDescription>
+                <CardDescription>Books by category</CardDescription>
               </CardHeader>
               <CardContent>
-                {topBorrowed.length > 0 ? (
+                {categoryChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={topBorrowed} layout="vertical">
-                      <XAxis type="number" fontSize={12} />
-                      <YAxis type="category" dataKey="name" fontSize={11} width={120} tick={{ fontSize: 11 }} />
+                    <PieChart>
+                      <Pie
+                        data={categoryChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={4}
+                        dataKey="value"
+                        stroke="hsl(var(--background))"
+                        strokeWidth={2}
+                      >
+                        {categoryChartData.map((entry, i) => <Cell key={`cat-${entry.name}-${i}`} fill={entry.fill} />)}
+                      </Pie>
                       <Tooltip />
-                      <Bar dataKey="value" fill={chartColors.secondary} name="Times Borrowed" radius={[0, 4, 4, 0]} />
-                    </BarChart>
+                      <Legend content={(props) => <CategoryPieLegend {...props} />} />
+                    </PieChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">No data available</div>
@@ -406,7 +406,7 @@ const AdminReports: React.FC = () => {
 
           {/* Damage/Lost Stats */}
           {damageLostStats && (damageLostStats.damage_count > 0 || damageLostStats.lost_count > 0) && (
-            <Card className="library-card">
+            <Card className="library-card mt-4">
               <CardHeader>
                 <CardTitle className="font-display flex items-center gap-2">
                   <ShieldAlert className="h-5 w-5 text-warning" /> Damage & Loss Summary
@@ -430,7 +430,7 @@ const AdminReports: React.FC = () => {
               </CardContent>
             </Card>
           )}
-        </>
+        </div>
       )}
 
       {/* Report Table Tabs */}
@@ -475,94 +475,356 @@ const AdminReports: React.FC = () => {
                 <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
               )}
               {selectedReport === 'transactions' && !loansLoading && (
-                <Table>
-                  <TableHeader><TableRow className="bg-muted/50"><TableHead>ID</TableHead><TableHead>Student</TableHead><TableHead>Book</TableHead><TableHead>Checkout</TableHead><TableHead>Due Date</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {currentLoans.map((loan) => (
-                      <TableRow key={loan.id}>
-                        <TableCell className="font-mono text-sm">{loan.id.slice(0, 8)}</TableCell>
-                        <TableCell>{loan.studentName}</TableCell>
-                        <TableCell>{loan.bookTitle}</TableCell>
-                        <TableCell>{safeFormatDate(loan.checkoutDate)}</TableCell>
-                        <TableCell>{safeFormatDate(loan.dueDate)}</TableCell>
-                        <TableCell><Badge variant={loan.status === 'active' ? 'default' : loan.status === 'returned' ? 'secondary' : 'destructive'}>{loan.status}</Badge></TableCell>
-                      </TableRow>
-                    ))}
-                    {currentLoans.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No transactions found</TableCell></TableRow>}
-                  </TableBody>
-                </Table>
+                <div className="p-4">
+                  <div className="grid gap-4 grid-cols-3 mb-6">
+                    <Card 
+                      className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", transactionFilter === 'all' ? 'ring-2 ring-primary bg-primary/5' : '')}
+                      onClick={() => setTransactionFilter('all')}
+                    >
+                      <CardContent className="p-6">
+                        <p className="text-sm text-muted-foreground font-medium">Total Transactions</p>
+                        <p className="text-3xl font-display font-bold mt-1">{currentLoans.length}</p>
+                      </CardContent>
+                    </Card>
+                    <Card 
+                      className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", transactionFilter === 'active' ? 'ring-2 ring-primary bg-primary/5' : '')}
+                      onClick={() => setTransactionFilter('active')}
+                    >
+                      <CardContent className="p-6">
+                        <p className="text-sm text-muted-foreground font-medium">Active Loans</p>
+                        <p className="text-3xl font-display font-bold text-primary mt-1">{currentLoans.filter(l => l.status === 'active').length}</p>
+                      </CardContent>
+                    </Card>
+                    <Card 
+                      className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", transactionFilter === 'returned' ? 'ring-2 ring-success bg-success/5' : '')}
+                      onClick={() => setTransactionFilter('returned')}
+                    >
+                      <CardContent className="p-6">
+                        <p className="text-sm text-muted-foreground font-medium">Returned</p>
+                        <p className="text-3xl font-display font-bold text-success mt-1">{currentLoans.filter(l => l.status === 'returned').length}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader><TableRow className="bg-muted/50"><TableHead>ID</TableHead><TableHead>Student</TableHead><TableHead>Book</TableHead><TableHead>Checkout</TableHead><TableHead>Due Date</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {filteredTransactions.map((loan) => (
+                          <TableRow key={loan.id}>
+                            <TableCell className="font-mono text-xs text-muted-foreground">{loan.id.slice(0, 8)}</TableCell>
+                        <TableCell className="font-medium">
+                          <button 
+                            className="hover:underline text-primary text-left"
+                            onClick={() => navigate(`/admin/users?search=${encodeURIComponent(loan.studentName)}`)}
+                          >
+                            {loan.studentName}
+                          </button>
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate">
+                          <button 
+                            className="hover:underline text-primary text-left"
+                            onClick={() => navigate(`/admin/books?search=${encodeURIComponent(loan.bookTitle)}`)}
+                          >
+                            {loan.bookTitle}
+                          </button>
+                        </TableCell>
+                            <TableCell>{safeFormatDate(loan.checkoutDate)}</TableCell>
+                            <TableCell>{safeFormatDate(loan.dueDate)}</TableCell>
+                            <TableCell>
+                              <Badge variant={loan.status === 'active' ? 'default' : loan.status === 'returned' ? 'secondary' : 'destructive'}>
+                                {loan.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {filteredTransactions.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No transactions found</TableCell></TableRow>}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               )}
               {selectedReport === 'overdue' && !overdueLoading && (
-                <Table>
-                  <TableHeader><TableRow className="bg-muted/50"><TableHead>Student</TableHead><TableHead>Book</TableHead><TableHead>Due Date</TableHead><TableHead>Days Overdue</TableHead><TableHead>Fine</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {overdueLoans.map((loan) => (
-                      <TableRow key={loan.id}>
-                        <TableCell>{loan.studentName}</TableCell>
-                        <TableCell>{loan.bookTitle}</TableCell>
-                        <TableCell>{safeFormatDate(loan.dueDate)}</TableCell>
-                        <TableCell className="text-destructive font-medium">{loan.daysOverdue} days</TableCell>
-                        <TableCell>₱{loan.fineAmount.toFixed(2)}</TableCell>
-                      </TableRow>
-                    ))}
-                    {overdueLoans.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No overdue items</TableCell></TableRow>}
-                  </TableBody>
-                </Table>
+                <div className="p-4">
+                  <div className="grid gap-4 grid-cols-2 mb-6">
+                    <Card 
+                      className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", overdueFilter === 'all' ? 'ring-2 ring-primary bg-primary/5' : '')}
+                      onClick={() => setOverdueFilter('all')}
+                    >
+                      <CardContent className="p-6">
+                        <p className="text-sm text-muted-foreground font-medium">Total Overdue</p>
+                        <p className="text-3xl font-display font-bold mt-1">{overdueLoans.length}</p>
+                      </CardContent>
+                    </Card>
+                    <Card 
+                      className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", overdueFilter === 'severe' ? 'ring-2 ring-destructive bg-destructive/5' : '')}
+                      onClick={() => setOverdueFilter('severe')}
+                    >
+                      <CardContent className="p-6">
+                        <p className="text-sm text-muted-foreground font-medium">Severe (&gt;7 Days Overdue)</p>
+                        <p className="text-3xl font-display font-bold text-destructive mt-1">{overdueLoans.filter(l => l.daysOverdue > 7).length}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader><TableRow className="bg-muted/50"><TableHead>Student</TableHead><TableHead>Book</TableHead><TableHead>Due Date</TableHead><TableHead className="text-center">Days Overdue</TableHead><TableHead className="text-right">Fine</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {filteredOverdue.map((loan) => (
+                          <TableRow key={loan.id} className="hover:bg-destructive/5">
+                        <TableCell className="font-medium">
+                          <button 
+                            className="hover:underline text-primary text-left"
+                            onClick={() => navigate(`/admin/users?search=${encodeURIComponent(loan.studentName)}`)}
+                          >
+                            {loan.studentName}
+                          </button>
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate">
+                          <button 
+                            className="hover:underline text-primary text-left"
+                            onClick={() => navigate(`/admin/books?search=${encodeURIComponent(loan.bookTitle)}`)}
+                          >
+                            {loan.bookTitle}
+                          </button>
+                        </TableCell>
+                            <TableCell>{safeFormatDate(loan.dueDate)}</TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="destructive" className="font-mono">{loan.daysOverdue}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-medium">₱{loan.fineAmount.toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                        {filteredOverdue.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No overdue items</TableCell></TableRow>}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               )}
               {selectedReport === 'fines' && !finesLoading && (
-                <Table>
-                  <TableHeader><TableRow className="bg-muted/50"><TableHead>Student</TableHead><TableHead>Book</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {fines.map((fine) => (
-                      <TableRow key={fine.id}>
-                        <TableCell>{fine.student_name || '—'}</TableCell>
-                        <TableCell>{fine.book_title || '—'}</TableCell>
-                        <TableCell>{fine.fine_type}</TableCell>
-                        <TableCell className="text-right font-medium">₱{fine.amount.toFixed(2)}</TableCell>
-                        <TableCell><Badge variant={fine.status === 'paid' ? 'default' : fine.status === 'pending' ? 'secondary' : 'outline'}>{fine.status}</Badge></TableCell>
-                        <TableCell>{safeFormatDate(fine.created_at)}</TableCell>
-                      </TableRow>
-                    ))}
-                    {fines.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No fines found</TableCell></TableRow>}
-                  </TableBody>
-                </Table>
+                <div className="space-y-6 p-4">
+                  <div className="grid gap-4 grid-cols-3">
+                    <Card 
+                      className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", finesFilter === 'pending' ? 'ring-2 ring-warning bg-warning/5' : '')}
+                      onClick={() => setFinesFilter(finesFilter === 'pending' ? 'all' : 'pending')}
+                    >
+                      <CardContent className="p-6">
+                        <p className="text-sm text-muted-foreground font-medium">Pending</p>
+                        <p className="text-3xl font-display font-bold text-warning mt-1">₱{totalPendingAmount.toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{pendingFines.length} outstanding</p>
+                      </CardContent>
+                    </Card>
+                    <Card 
+                      className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", finesFilter === 'paid' ? 'ring-2 ring-success bg-success/5' : '')}
+                      onClick={() => setFinesFilter(finesFilter === 'paid' ? 'all' : 'paid')}
+                    >
+                      <CardContent className="p-6">
+                        <p className="text-sm text-muted-foreground font-medium">Collected</p>
+                        <p className="text-3xl font-display font-bold text-success mt-1">₱{totalPaidAmount.toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{paidFines.length} paid</p>
+                      </CardContent>
+                    </Card>
+                    <Card 
+                      className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", finesFilter === 'all' ? 'ring-2 ring-primary bg-primary/5' : '')}
+                      onClick={() => setFinesFilter('all')}
+                    >
+                      <CardContent className="p-6">
+                        <p className="text-sm text-muted-foreground font-medium">Total</p>
+                        <p className="text-3xl font-display font-bold mt-1">₱{(totalPendingAmount + totalPaidAmount).toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{fines.length} fines</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader><TableRow className="bg-muted/50"><TableHead>Student</TableHead><TableHead>Book</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {filteredFines.map((fine) => (
+                          <TableRow key={fine.id}>
+                        <TableCell className="font-medium">
+                          <button 
+                            className="hover:underline text-primary text-left"
+                            onClick={() => navigate(`/admin/users?search=${encodeURIComponent(fine.student_name || '')}`)}
+                          >
+                            {fine.student_name || '—'}
+                          </button>
+                        </TableCell>
+                        <TableCell className="max-w-[180px] truncate">
+                          <button 
+                            className="hover:underline text-primary text-left"
+                            onClick={() => navigate(`/admin/books?search=${encodeURIComponent(fine.book_title || '')}`)}
+                          >
+                            {fine.book_title || '—'}
+                          </button>
+                        </TableCell>
+                            <TableCell><Badge variant={fine.fine_type === 'overdue' ? 'default' : fine.fine_type === 'lost' ? 'destructive' : 'secondary'}>{fine.fine_type}</Badge></TableCell>
+                            <TableCell className="text-right font-medium">₱{fine.amount.toFixed(2)}</TableCell>
+                            <TableCell>{statusBadge(fine.status)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{safeFormatDate(fine.created_at)}</TableCell>
+                          </TableRow>
+                        ))}
+                        {filteredFines.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No fines found</TableCell></TableRow>}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               )}
               {selectedReport === 'inventory' && booksLoading && (
                 <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
               )}
               {selectedReport === 'inventory' && !booksLoading && (
-                <Table>
-                  <TableHeader><TableRow className="bg-muted/50"><TableHead>Title</TableHead><TableHead>Author</TableHead><TableHead>Category</TableHead><TableHead>ISBN</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">Available</TableHead><TableHead>Location</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {(booksData?.data || []).map((book) => (
-                      <TableRow key={book.id}>
-                        <TableCell className="font-medium">{book.title}</TableCell>
-                        <TableCell>{book.author}</TableCell>
-                        <TableCell>{book.category}</TableCell>
-                        <TableCell className="font-mono text-sm">{book.isbn || '—'}</TableCell>
-                        <TableCell className="text-center">{book.totalCopies}</TableCell>
-                        <TableCell className="text-center"><Badge variant={book.availableCopies > 0 ? 'default' : 'destructive'}>{book.availableCopies}</Badge></TableCell>
-                        <TableCell className="text-sm">{book.shelfLocation || '—'}</TableCell>
-                      </TableRow>
-                    ))}
-                    {(booksData?.data || []).length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No books found</TableCell></TableRow>}
-                  </TableBody>
-                </Table>
+                <div className="p-4">
+                  <div className="grid gap-4 grid-cols-2 mb-4">
+                    <Card className="library-card">
+                      <CardContent className="p-6">
+                        <p className="text-sm text-muted-foreground font-medium">Total Titles</p>
+                        <p className="text-3xl font-display font-bold mt-1">{(booksData?.data || []).length}</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="library-card">
+                      <CardContent className="p-6">
+                        <p className="text-sm text-muted-foreground font-medium">Total Copies</p>
+                        <p className="text-3xl font-display font-bold text-primary mt-1">
+                          {(booksData?.data || []).reduce((sum, book) => sum + book.totalCopies, 0)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <div className="grid gap-4 grid-cols-2 mb-6">
+                    <Card 
+                      className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", inventoryFilter === 'available' ? 'ring-2 ring-success bg-success/5' : '')}
+                      onClick={() => setInventoryFilter(inventoryFilter === 'available' ? 'all' : 'available')}
+                    >
+                      <CardContent className="p-6">
+                        <p className="text-sm text-muted-foreground font-medium">Available Copies</p>
+                        <p className="text-3xl font-display font-bold text-success mt-1">
+                          {(booksData?.data || []).reduce((sum, book) => sum + book.availableCopies, 0)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card 
+                      className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", inventoryFilter === 'low_stock' ? 'ring-2 ring-destructive bg-destructive/5' : '')}
+                      onClick={() => setInventoryFilter(inventoryFilter === 'low_stock' ? 'all' : 'low_stock')}
+                    >
+                      <CardContent className="p-6">
+                        <p className="text-sm text-muted-foreground font-medium">Low Stock / Unavailable</p>
+                        <p className="text-3xl font-display font-bold text-destructive mt-1">
+                          {(booksData?.data || []).filter(book => book.availableCopies === 0).length}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader><TableRow className="bg-muted/50"><TableHead>Title</TableHead><TableHead>Author</TableHead><TableHead>Category</TableHead><TableHead>ISBN</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">Available</TableHead><TableHead>Location</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {filteredInventory.map((book) => (
+                          <TableRow key={book.id}>
+                            <TableCell className="font-medium max-w-[200px] truncate">
+                              <button 
+                                className="hover:underline text-primary text-left"
+                                onClick={() => navigate(`/admin/books?search=${encodeURIComponent(book.title)}`)}
+                              >
+                                {book.title}
+                              </button>
+                            </TableCell>
+                            <TableCell className="max-w-[150px] truncate">{book.author}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="font-normal">{book.category}</Badge>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">{book.isbn || '—'}</TableCell>
+                            <TableCell className="text-center font-medium">{book.totalCopies}</TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant={book.availableCopies > 0 ? 'default' : 'destructive'} className={book.availableCopies > 0 ? 'bg-success hover:bg-success/90' : ''}>
+                                {book.availableCopies}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{book.shelfLocation || '—'}</TableCell>
+                          </TableRow>
+                        ))}
+                        {filteredInventory.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No books found</TableCell></TableRow>}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               )}
               {selectedReport === 'usage' && (
-                <Table>
-                  <TableHeader><TableRow className="bg-muted/50"><TableHead>Rank</TableHead><TableHead>Book Title</TableHead><TableHead className="text-center">Times Borrowed</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {topBorrowed.map((book, index) => (
-                      <TableRow key={`top-${book.name}-${index}`}>
-                        <TableCell className="font-bold text-secondary">#{index + 1}</TableCell>
-                        <TableCell className="font-medium">{book.name}</TableCell>
-                        <TableCell className="text-center">{book.value}</TableCell>
-                      </TableRow>
-                    ))}
-                    {topBorrowed.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No borrowing data</TableCell></TableRow>}
-                  </TableBody>
-                </Table>
+                <div className="p-4">
+                  <div className="grid gap-6 md:grid-cols-2 mb-6">
+                    <Card className="library-card">
+                      <CardHeader>
+                        <CardTitle className="font-display flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5" /> Most Borrowed
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {topBorrowed.length > 0 ? (
+                          <ResponsiveContainer width="100%" height={350}>
+                            <BarChart data={topBorrowed.slice(0, 8)} layout="vertical">
+                              <XAxis type="number" fontSize={12} />
+                              <YAxis type="category" dataKey="name" fontSize={11} width={140} tick={{ fontSize: 11 }} />
+                              <Tooltip />
+                              <Bar dataKey="value" fill={chartColors.primary} name="Borrows" radius={[0, 4, 4, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        ) : <p className="text-center py-8 text-muted-foreground">No data</p>}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="library-card">
+                      <CardHeader>
+                        <CardTitle className="font-display">Ranking</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {topBorrowed.length > 0 ? (
+                          <div className="space-y-2">
+                            {topBorrowed.slice(0, 10).map((book, i) => (
+                              <div key={`${book.name}-${i}`} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
+                                <div className={cn(
+                                  'h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm',
+                                  i === 0 ? 'bg-yellow-100 text-yellow-700' : i === 1 ? 'bg-gray-100 text-gray-600' : i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-muted text-muted-foreground'
+                                )}>
+                                  {i + 1}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate">{book.name}</p>
+                                </div>
+                                <div className="flex items-center gap-1 text-sm font-bold">
+                                  {book.value} <Users className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : <p className="text-center py-8 text-muted-foreground">No data</p>}
+                      </CardContent>
+                    </Card>
+                  </div>
+                  
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader><TableRow className="bg-muted/50"><TableHead>Rank</TableHead><TableHead>Book Title</TableHead><TableHead className="text-center">Times Borrowed</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {topBorrowed.map((book, index) => (
+                          <TableRow key={`top-${book.name}-${index}`}>
+                            <TableCell className="font-bold text-muted-foreground">#{index + 1}</TableCell>
+                            <TableCell className="font-medium">
+                          <button 
+                            className="hover:underline text-primary text-left"
+                            onClick={() => navigate(`/admin/books?search=${encodeURIComponent(book.name)}`)}
+                          >
+                            {book.name}
+                          </button>
+                        </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="secondary" className="font-mono">{book.value}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {topBorrowed.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No borrowing data</TableCell></TableRow>}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>

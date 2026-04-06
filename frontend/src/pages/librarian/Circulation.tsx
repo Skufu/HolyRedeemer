@@ -46,11 +46,12 @@ import { format, addDays } from 'date-fns';
 import { useRfidLookup, useCheckout, useReturn } from '@/hooks/useCirculation';
 import { useCopyByQRMutation, useBooks } from '@/hooks/useBooks';
 import { useStudents, useStudentLoans, useStudent } from '@/hooks/useStudents';
-import { Book as BookType, BookCopy } from '@/services/books';
+import { booksService, Book as BookType, BookCopy } from '@/services/books';
 import { StudentLookup as RfidStudentLookup } from '@/services/auth';
 import { Student as ApiStudent } from '@/services/students';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { listItemVariants, staggerContainerVariants, fadeInUpVariants } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 
 type CirculationMode = 'checkout' | 'return';
 
@@ -122,8 +123,6 @@ const Circulation: React.FC = () => {
   const [scannedBooks, setScannedBooks] = useState<ScannedBook[]>([]);
   const [studentSearch, setStudentSearch] = useState('');
   const [bookSearch, setBookSearch] = useState('');
-  const [manualBookQR, setManualBookQR] = useState('');
-  const [manualStudentId, setManualStudentId] = useState('');
 
   // Success state
   const [checkoutResults, setCheckoutResults] = useState<CheckoutResult[]>([]);
@@ -261,6 +260,7 @@ const Circulation: React.FC = () => {
             title: 'Book Scanned',
             description: `${book.title} (Copy #${normalizedCopy.copyNumber})`,
           });
+          setBookSearch('');
         }
       } catch {
         toast({
@@ -272,19 +272,6 @@ const Circulation: React.FC = () => {
     }
   };
 
-  const handleManualBookSubmit = async () => {
-    if (!manualBookQR.trim()) return;
-    await handleQRScan(manualBookQR.trim(), 'book');
-    setManualBookQR('');
-  };
-
-  const handleManualStudentSubmit = async () => {
-    const trimmed = manualStudentId.trim();
-    if (!trimmed) return;
-    setStudentSearch(trimmed);
-    setManualStudentId('');
-  };
-
   const handleStudentSelect = (student: StudentDisplay) => {
     setSelectedStudent(student);
     setStudentSearch('');
@@ -292,10 +279,11 @@ const Circulation: React.FC = () => {
 
   const handleBookSelect = async (book: BookType) => {
     try {
-      // Ask backend for available copies
-      const result = await copyByQRMutation.mutateAsync(book.id);
+      const result = await booksService.listCopies(book.id);
+      const copies = result.data || [];
+      const availableCopy = copies.find(c => c.status === 'available');
 
-      if (!result.data) {
+      if (!availableCopy) {
         toast({
           title: 'No Available Copies',
           description: 'All copies are currently borrowed.',
@@ -303,21 +291,14 @@ const Circulation: React.FC = () => {
         });
         return;
       }
-      const { book: bookData, ...copy } = result.data as { book: BookType } & BookCopyResponse;
-
-      const normalizedCopy: BookCopy = {
-        ...copy,
-        copyNumber: copy.copy_number ?? copy.copyNumber,
-        qrCode: copy.qr_code ?? copy.qrCode,
-      };
 
       setScannedBooks(prev => [
         ...prev,
-        { copy: normalizedCopy, book: bookData },
+        { copy: availableCopy, book },
       ]);
       toast({
         title: 'Book Added',
-        description: `${bookData.title} (Copy #${normalizedCopy.copyNumber})`,
+        description: `${book.title} (Copy #${availableCopy.copyNumber})`,
       });
 
       setBookSearch('');
@@ -434,7 +415,6 @@ const Circulation: React.FC = () => {
     setScannedBooks([]);
     setStudentSearch('');
     setBookSearch('');
-    setManualBookQR('');
     setShowSuccess(false);
     setCheckoutResults([]);
     setReturnResults([]);
@@ -626,14 +606,31 @@ const Circulation: React.FC = () => {
     >
       {/* Header */}
       <div className="flex flex-col gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-display font-bold text-primary">Circulation Station</h1>
-          <p className="text-sm text-muted-foreground">Process book checkouts and returns</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-display font-bold text-primary">Circulation Station</h1>
+            <p className="text-sm text-muted-foreground">Process book checkouts and returns quickly</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={clearAll} size="sm" className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Reset Station
+            </Button>
+          </div>
         </div>
-        <Button variant="outline" onClick={clearAll} size="sm" className="gap-2 w-fit">
-          <RefreshCw className="h-4 w-4" />
-          Clear All
-        </Button>
+      </div>
+
+      {/* Quick Guide */}
+      <div className="hidden sm:flex items-center gap-4 p-3 rounded-lg bg-primary/5 border border-primary/10 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="bg-background">Tip</Badge>
+          <span>Use a barcode scanner for instant processing.</span>
+        </div>
+        <Separator orientation="vertical" className="h-4" />
+        <div className="flex items-center gap-2">
+          <Keyboard className="h-4 w-4" />
+          <span>Press <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[10px]">Enter</kbd> to submit manual inputs.</span>
+        </div>
       </div>
 
       {/* Mode Tabs */}
@@ -664,55 +661,35 @@ const Circulation: React.FC = () => {
                   <CardDescription className="text-xs sm:text-sm">Scan student ID or search by name</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex gap-2">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Search student..."
+                        autoFocus={!selectedStudent && mode === 'checkout'}
+                        placeholder="Scan student ID or type name to search..."
                         value={studentSearch}
                         onChange={(e) => setStudentSearch(e.target.value)}
-                        className="pl-9"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && studentSearch.trim()) {
+                            e.preventDefault();
+                            handleQRScan(studentSearch.trim(), 'student');
+                          }
+                        }}
+                        className="pl-9 h-12 text-base"
                       />
                     </div>
                     <Button
                       onClick={() => openScanner('student')}
-                      variant="secondary"
-                      className="gap-2 shrink-0"
+                      variant="outline"
+                      className="gap-2 shrink-0 h-12 px-4"
                       disabled={rfidLookup.isPending}
+                      title="Use Camera Scanner"
                     >
                       {rfidLookup.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-5 w-5 animate-spin" />
                       ) : (
-                        <Camera className="h-4 w-4" />
+                        <Camera className="h-5 w-5" />
                       )}
-                      <span className="sm:hidden">Scan</span>
-                      <span className="hidden sm:inline">Scan ID</span>
-                    </Button>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Manual Student ID (e.g. 2023-0001)"
-                        value={manualStudentId}
-                        onChange={(e) => setManualStudentId(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleManualStudentSubmit()}
-                        className="pl-9"
-                      />
-                    </div>
-                    <Button
-                      onClick={handleManualStudentSubmit}
-                      variant="secondary"
-                      className="gap-2 shrink-0"
-                      disabled={!manualStudentId.trim()}
-                    >
-                      {rfidLookup.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Keyboard className="h-4 w-4" />
-                      )}
-                      Submit
                     </Button>
                   </div>
 
@@ -786,63 +763,49 @@ const Circulation: React.FC = () => {
               </Card>
 
               {/* Book Selection */}
-              <Card>
+              <Card className={cn("transition-all duration-300", !selectedStudent && mode === 'checkout' ? "opacity-50 pointer-events-none grayscale-[0.5]" : "")}>
                 <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
                   <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
                     <QrCode className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     2. Scan Books
                   </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Scan book QR codes or search manually</CardDescription>
+                  <CardDescription className="text-xs sm:text-sm">
+                    {!selectedStudent && mode === 'checkout' 
+                      ? "Select a student first to scan books" 
+                      : "Scan book QR codes or search manually"}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex gap-2">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Search book..."
+                        autoFocus={!!selectedStudent && mode === 'checkout'}
+                        placeholder="Scan book QR or type title to search..."
                         value={bookSearch}
                         onChange={(e) => setBookSearch(e.target.value)}
-                        className="pl-9"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && bookSearch.trim()) {
+                            e.preventDefault();
+                            handleQRScan(bookSearch.trim(), 'book');
+                          }
+                        }}
+                        className="pl-9 h-12 text-base"
+                        disabled={!selectedStudent && mode === 'checkout'}
                       />
                     </div>
                     <Button
                       onClick={() => openScanner('book')}
-                      className="gap-2 shrink-0"
-                      disabled={copyByQRMutation.isPending}
+                      variant="outline"
+                      className="gap-2 shrink-0 h-12 px-4"
+                      disabled={copyByQRMutation.isPending || (!selectedStudent && mode === 'checkout')}
+                      title="Use Camera Scanner"
                     >
                       {copyByQRMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-5 w-5 animate-spin" />
                       ) : (
-                        <Camera className="h-4 w-4" />
+                        <Camera className="h-5 w-5" />
                       )}
-                      <span className="sm:hidden">Scan</span>
-                      <span className="hidden sm:inline">Scan QR</span>
-                    </Button>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Manual QR entry (e.g. HR-B001-C1)"
-                        value={manualBookQR}
-                        onChange={(e) => setManualBookQR(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleManualBookSubmit()}
-                        className="pl-9"
-                      />
-                    </div>
-                    <Button
-                      onClick={handleManualBookSubmit}
-                      variant="secondary"
-                      className="gap-2 shrink-0"
-                      disabled={!manualBookQR.trim() || copyByQRMutation.isPending}
-                    >
-                      {copyByQRMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Keyboard className="h-4 w-4" />
-                      )}
-                      Submit
                     </Button>
                   </div>
 
@@ -923,36 +886,40 @@ const Circulation: React.FC = () => {
                 <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
                   <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
-                    Checkout Summary
+                    3. Checkout Summary
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
                   {/* Student Info */}
-                  <div className="p-2.5 sm:p-3 rounded-lg bg-muted/50">
+                  <div className="p-2.5 sm:p-3 rounded-lg bg-muted/50 border border-transparent transition-colors">
                     <p className="text-xs sm:text-sm text-muted-foreground mb-1">Borrower</p>
                     {selectedStudent ? (
-                      <p className="font-medium text-sm sm:text-base truncate">{selectedStudent.name}</p>
+                      <p className="font-medium text-sm sm:text-base truncate text-primary">{selectedStudent.name}</p>
                     ) : (
-                      <p className="text-muted-foreground italic text-sm">No student selected</p>
+                      <p className="text-muted-foreground italic text-sm flex items-center gap-2">
+                        <ArrowRightLeft className="h-3 w-3" /> Waiting for student selection...
+                      </p>
                     )}
                   </div>
 
                   {/* Books List */}
-                  <div className="p-2.5 sm:p-3 rounded-lg bg-muted/50">
+                  <div className="p-2.5 sm:p-3 rounded-lg bg-muted/50 border border-transparent transition-colors">
                     <p className="text-xs sm:text-sm text-muted-foreground mb-2">
                       Books ({scannedBooks.length})
                     </p>
                     {scannedBooks.length > 0 ? (
                       <ul className="space-y-1 max-h-32 overflow-y-auto">
                         {scannedBooks.map(({ book, copy }) => (
-                          <li key={copy.id} className="text-xs sm:text-sm flex items-center gap-2">
-                            <BookOpen className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{book.title}</span>
+                          <li key={copy.id} className="text-xs sm:text-sm flex items-center gap-2 text-foreground">
+                            <BookOpen className="h-3 w-3 shrink-0 text-primary" />
+                            <span className="truncate font-medium">{book.title}</span>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-muted-foreground italic text-xs sm:text-sm">No books scanned</p>
+                      <p className="text-muted-foreground italic text-xs sm:text-sm flex items-center gap-2">
+                        <ArrowRightLeft className="h-3 w-3" /> Waiting for books to be scanned...
+                      </p>
                     )}
                   </div>
 
@@ -1012,54 +979,35 @@ const Circulation: React.FC = () => {
                 <CardDescription className="text-xs sm:text-sm">Scan QR codes or search by title</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search by title or ISBN..."
+                      autoFocus={mode === 'return'}
+                      placeholder="Scan book QR or type title to search..."
                       value={bookSearch}
                       onChange={(e) => setBookSearch(e.target.value)}
-                      className="pl-9"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && bookSearch.trim()) {
+                          e.preventDefault();
+                          handleQRScan(bookSearch.trim(), 'book');
+                        }
+                      }}
+                      className="pl-9 h-12 text-base"
                     />
                   </div>
                   <Button
                     onClick={() => openScanner('book')}
-                    className="gap-2 shrink-0"
+                    variant="outline"
+                    className="gap-2 shrink-0 h-12 px-4"
                     disabled={copyByQRMutation.isPending}
+                    title="Use Camera Scanner"
                   >
                     {copyByQRMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
-                      <Camera className="h-4 w-4" />
+                      <Camera className="h-5 w-5" />
                     )}
-                    <span className="sm:hidden">Scan</span>
-                    <span className="hidden sm:inline">Scan QR</span>
-                  </Button>
-                </div>
-
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Manual QR entry (e.g. HR-B001-C1)"
-                      value={manualBookQR}
-                      onChange={(e) => setManualBookQR(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleManualBookSubmit()}
-                      className="pl-9"
-                    />
-                  </div>
-                  <Button
-                    onClick={handleManualBookSubmit}
-                    variant="secondary"
-                    className="gap-2 shrink-0"
-                    disabled={!manualBookQR.trim() || copyByQRMutation.isPending}
-                  >
-                    {copyByQRMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Keyboard className="h-4 w-4" />
-                    )}
-                    Submit
                   </Button>
                 </div>
 
@@ -1145,9 +1093,14 @@ const Circulation: React.FC = () => {
                 )}
 
                 {scannedBooks.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <ArrowRightLeft className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>Scan book QR codes to process returns</p>
+                  <div className="text-center py-12 px-4 rounded-xl bg-muted/30 border border-dashed">
+                    <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                      <ArrowRightLeft className="h-8 w-8 text-primary" />
+                    </div>
+                    <h3 className="font-display font-semibold text-lg mb-1">Ready for Returns</h3>
+                    <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                      Scan book QR codes or search manually to add books to the return queue.
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -1157,37 +1110,41 @@ const Circulation: React.FC = () => {
             <Card className="lg:sticky lg:top-6 h-fit">
               <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-3">
                 <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
-                  <ArrowRightLeft className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                  <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
                   Return Summary
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
-                <div className="p-2.5 sm:p-3 rounded-lg bg-muted/50">
+                <div className="p-2.5 sm:p-3 rounded-lg bg-muted/50 border border-transparent transition-colors">
                   <p className="text-xs sm:text-sm text-muted-foreground mb-1">Books to Return</p>
                   <p className="text-2xl font-bold">{scannedBooks.length}</p>
                 </div>
 
-                {scannedBooks.length > 0 && (
-                  <div className="p-2.5 sm:p-3 rounded-lg bg-muted/50">
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-2">Book List</p>
+                <div className="p-2.5 sm:p-3 rounded-lg bg-muted/50 border border-transparent transition-colors">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-2">Book List</p>
+                  {scannedBooks.length > 0 ? (
                     <ul className="space-y-1 max-h-32 overflow-y-auto">
                       {scannedBooks.map(({ book, copy, returnCondition }) => (
-                        <li key={copy.id} className="text-xs sm:text-sm flex items-center justify-between">
+                        <li key={copy.id} className="text-xs sm:text-sm flex items-center justify-between text-foreground">
                           <span className="flex items-center gap-2 truncate">
-                            <BookOpen className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{book.title}</span>
+                            <BookOpen className="h-3 w-3 shrink-0 text-primary" />
+                            <span className="truncate font-medium">{book.title}</span>
                           </span>
                           <Badge
                             variant="outline"
-                            className="text-[10px] ml-2 shrink-0"
+                            className="text-[10px] ml-2 shrink-0 bg-background"
                           >
                             {returnCondition || 'good'}
                           </Badge>
                         </li>
                       ))}
                     </ul>
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-muted-foreground italic text-xs sm:text-sm flex items-center gap-2">
+                      <ArrowRightLeft className="h-3 w-3" /> Waiting for books to be scanned...
+                    </p>
+                  )}
+                </div>
 
                 {scannedBooks.length > 0 && (
                   <>

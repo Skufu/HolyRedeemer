@@ -164,15 +164,22 @@ const DailyOperations: React.FC = () => {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5 mb-2">
         {[
-          { label: 'Pending Requests', value: pendingRequests.length, icon: Bell, color: 'text-orange-600', bg: 'bg-orange-500/10', pulse: pendingRequests.length > 0 },
-          { label: 'Checkouts Today', value: todayCheckouts.length, icon: ArrowUpRight, color: 'text-success', bg: 'bg-success/10' },
-          { label: 'Active Loans', value: currentLoans.length, icon: BookOpen, color: 'text-info', bg: 'bg-info/10' },
-          { label: 'Due Today', value: dueToday.length, icon: Clock, color: 'text-warning', bg: 'bg-warning/10' },
-          { label: 'Overdue', value: overdueBooks.length, icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
+          { id: 'requests', label: 'Pending Requests', value: pendingRequests.length, icon: Bell, color: 'text-orange-600', bg: 'bg-orange-500/10', pulse: pendingRequests.length > 0, action: () => setActiveTab('requests') },
+          { id: 'checkouts', label: 'Checkouts Today', value: todayCheckouts.length, icon: ArrowUpRight, color: 'text-success', bg: 'bg-success/10', action: () => navigate('/librarian/reports') },
+          { id: 'active', label: 'Active Loans', value: currentLoans.length, icon: BookOpen, color: 'text-info', bg: 'bg-info/10', action: () => navigate('/librarian/reports') },
+          { id: 'due-today', label: 'Due Today', value: dueToday.length, icon: Clock, color: 'text-warning', bg: 'bg-warning/10', action: () => setActiveTab('due-today') },
+          { id: 'overdue', label: 'Overdue', value: overdueBooks.length, icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10', action: () => setActiveTab('overdue') },
         ].map(card => (
-          <Card key={card.label} className="library-card">
+          <Card 
+            key={card.label} 
+            className={cn(
+              "library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50",
+              activeTab === card.id ? 'ring-2 ring-primary bg-primary/5' : ''
+            )}
+            onClick={card.action}
+          >
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -255,8 +262,22 @@ const DailyOperations: React.FC = () => {
                 <TableBody>
                   {filteredDueToday.map(loan => (
                     <TableRow key={loan.id} className="hover:bg-warning/5">
-                      <TableCell className="font-medium max-w-[200px] truncate">{loan.bookTitle}</TableCell>
-                      <TableCell>{loan.studentName}</TableCell>
+                      <TableCell className="font-medium max-w-[200px] truncate">
+                        <button 
+                          className="hover:underline text-primary text-left"
+                          onClick={() => navigate(`/librarian/books?search=${encodeURIComponent(loan.bookTitle)}`)}
+                        >
+                          {loan.bookTitle}
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <button 
+                          className="hover:underline text-primary text-left"
+                          onClick={() => navigate(`/librarian/student-lookup?search=${encodeURIComponent(loan.studentName)}`)}
+                        >
+                          {loan.studentName}
+                        </button>
+                      </TableCell>
                       <TableCell className="font-mono text-sm">{loan.studentNumber}</TableCell>
                       <TableCell>{safeFormatDate(loan.checkoutDate)}</TableCell>
                       <TableCell className="text-center"><Badge variant="secondary">Due Today</Badge></TableCell>
@@ -301,10 +322,22 @@ const DailyOperations: React.FC = () => {
                 <TableBody>
                   {filteredOverdue.map(loan => (
                     <TableRow key={loan.id} className="hover:bg-destructive/5">
-                      <TableCell className="font-medium max-w-[200px] truncate">{loan.bookTitle}</TableCell>
+                      <TableCell className="font-medium max-w-[200px] truncate">
+                        <button 
+                          className="hover:underline text-primary text-left"
+                          onClick={() => navigate(`/librarian/books?search=${encodeURIComponent(loan.bookTitle)}`)}
+                        >
+                          {loan.bookTitle}
+                        </button>
+                      </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{loan.studentName}</p>
+                          <button 
+                            className="font-medium hover:underline text-primary text-left"
+                            onClick={() => navigate(`/librarian/student-lookup?search=${encodeURIComponent(loan.studentName)}`)}
+                          >
+                            {loan.studentName}
+                          </button>
                           <p className="text-xs text-muted-foreground font-mono">{loan.studentNumber}</p>
                         </div>
                       </TableCell>
@@ -365,10 +398,22 @@ const DailyOperations: React.FC = () => {
                 <TableBody>
                   {pendingRequests.map(req => (
                     <TableRow key={req.id} className="hover:bg-orange-500/5">
-                      <TableCell className="font-medium max-w-[200px] truncate">{req.bookTitle || 'Unknown'}</TableCell>
+                      <TableCell className="font-medium max-w-[200px] truncate">
+                        <button 
+                          className="hover:underline text-primary text-left"
+                          onClick={() => navigate(`/librarian/books?search=${encodeURIComponent(req.bookTitle || '')}`)}
+                        >
+                          {req.bookTitle || 'Unknown'}
+                        </button>
+                      </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{req.studentName}</p>
+                          <button 
+                            className="font-medium hover:underline text-primary text-left"
+                            onClick={() => navigate(`/librarian/student-lookup?search=${encodeURIComponent(req.studentName)}`)}
+                          >
+                            {req.studentName}
+                          </button>
                           <p className="text-xs text-muted-foreground font-mono">{req.studentNumber}</p>
                         </div>
                       </TableCell>

@@ -41,13 +41,15 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { useOverview, useCategoryUsageByGradeLevel, useTopBorrowedByGradeLevel, useMonthlyTrendsByYear } from '@/hooks/useDashboard';
+import { useNavigate } from 'react-router-dom';
+import { useOverview, useTopBorrowedByGradeLevel } from '@/hooks/useDashboard';
 import { useOverdueLoans, useCurrentLoans } from '@/hooks/useCirculation';
 import { useFines } from '@/hooks/useFines';
 import { useDamageLostIncidents } from '@/hooks/useDamageLost';
 import { exportToPDF, exportToExcel, type ExportColumn } from '@/utils/reportExport';
 import { DamageLostIncident } from '@/services/damage_lost';
 import { cn } from '@/lib/utils';
+import { categoryFillAt, CategoryPieLegend } from '@/lib/categoryChartPalette';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LineChart, Line } from 'recharts';
 
 const safeFormatDate = (dateStr: string | undefined | null, dateFormat: string = 'MMM d, yyyy') => {
@@ -78,23 +80,32 @@ const statusBadge = (status: string) => {
   return <Badge variant={s.variant} className="gap-1">{s.icon}{s.label}</Badge>;
 };
 
-type ReportTab = 'daily' | 'overdue' | 'fines' | 'popular' | 'students' | 'inventory' | 'damage' | 'advanced';
+type ReportTab = 'overview' | 'overdue' | 'fines' | 'popular' | 'students' | 'inventory' | 'damage';
 
 const LibrarianReports: React.FC = () => {
-  const [selectedTab, setSelectedTab] = useState<ReportTab>('daily');
+  const [selectedTab, setSelectedTab] = useState<ReportTab>('overview');
   const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  
+  // Filter states
+  const [transactionFilter, setTransactionFilter] = useState<'all' | 'active' | 'returned'>('all');
+  const [overdueFilter, setOverdueFilter] = useState<'all' | 'severe'>('all');
+  const [finesFilter, setFinesFilter] = useState<'all' | 'pending' | 'paid'>('all');
+  const [inventoryFilter, setInventoryFilter] = useState<'all' | 'available' | 'low_stock'>('all');
+  const [damageFilter, setDamageFilter] = useState<'all' | 'damage' | 'lost'>('all');
+
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const { data: overviewData, isLoading: overviewLoading } = useOverview();
   const { data: overdueData, isLoading: overdueLoading } = useOverdueLoans({ enabled: selectedTab === 'overdue' });
-  const { data: currentLoansData } = useCurrentLoans({ enabled: selectedTab === 'daily' });
+  const { data: currentLoansData } = useCurrentLoans({ enabled: selectedTab === 'overview' });
   const { data: finesData, isLoading: finesLoading } = useFines({ enabled: selectedTab === 'fines' });
   const { data: incidentsData } = useDamageLostIncidents({ per_page: 100, enabled: selectedTab === 'damage' });
   
-  // Advanced Analytics hooks
-  const { data: categoryUsageData, isLoading: categoryUsageLoading } = useCategoryUsageByGradeLevel();
+  // Advanced Analytics hooks (only keeping what's needed for popular tab)
   const { data: topBorrowedByGradeData, isLoading: topBorrowedByGradeLoading } = useTopBorrowedByGradeLevel();
-  const { data: monthlyTrendsData, isLoading: monthlyTrendsLoading } = useMonthlyTrendsByYear();
 
   const overview = overviewData?.data;
   const stats = overview?.stats;
@@ -116,12 +127,39 @@ const LibrarianReports: React.FC = () => {
   const totalPendingAmount = pendingFines.reduce((s, f) => s + f.amount, 0);
   const totalPaidAmount = paidFines.reduce((s, f) => s + f.amount, 0);
 
-  const filteredOverdue = overdueList.filter(l =>
-    !searchTerm || l.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) || l.bookTitle?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  const filteredFines = finesList.filter(f =>
-    !searchTerm || (f.student_name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (f.book_title || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTransactions = React.useMemo(() => {
+    if (transactionFilter === 'active') return currentLoans.filter(l => l.status === 'active');
+    if (transactionFilter === 'returned') return currentLoans.filter(l => l.status === 'returned');
+    return currentLoans;
+  }, [currentLoans, transactionFilter]);
+
+  const filteredOverdue = React.useMemo(() => {
+    const list = overdueList.filter(l =>
+      !searchTerm || l.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) || l.bookTitle?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    if (overdueFilter === 'severe') return list.filter(l => l.daysOverdue > 7);
+    return list;
+  }, [overdueList, searchTerm, overdueFilter]);
+
+  const filteredFines = React.useMemo(() => {
+    const list = finesList.filter(f =>
+      !searchTerm || (f.student_name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (f.book_title || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    if (finesFilter === 'pending') return list.filter(f => f.status === 'pending');
+    if (finesFilter === 'paid') return list.filter(f => f.status === 'paid');
+    return list;
+  }, [finesList, searchTerm, finesFilter]);
+
+  const filteredInventory = React.useMemo(() => {
+    const list = categories || [];
+    return list;
+  }, [categories]);
+
+  const filteredIncidents = React.useMemo(() => {
+    if (damageFilter === 'damage') return incidents.filter((i: DamageLostIncident) => i.incident_type === 'damage');
+    if (damageFilter === 'lost') return incidents.filter((i: DamageLostIncident) => i.incident_type === 'lost');
+    return incidents;
+  }, [incidents, damageFilter]);
 
   const handleExport = (fmt: 'pdf' | 'excel') => {
     try {
@@ -132,8 +170,8 @@ const LibrarianReports: React.FC = () => {
       const sfmt = (d: string | undefined | null) => safeFormatDate(d, 'MMM d, yyyy');
 
       switch (selectedTab) {
-        case 'daily':
-          title = 'Daily Operations Report';
+        case 'overview':
+          title = 'Overview Report';
           columns = [
             { header: 'Metric', key: 'metric', width: 30 },
             { header: 'Value', key: 'value', width: 20 },
@@ -228,14 +266,13 @@ const LibrarianReports: React.FC = () => {
   };
 
   const tabs = [
-    { id: 'daily' as const, label: 'Daily Operations', icon: Calendar },
+    { id: 'overview' as const, label: 'Overview', icon: BarChart3 },
     { id: 'overdue' as const, label: 'Overdue Books', icon: AlertTriangle },
     { id: 'fines' as const, label: 'Fines', icon: DollarSign },
     { id: 'popular' as const, label: 'Popular Books', icon: TrendingUp },
     { id: 'students' as const, label: 'By Grade Level', icon: Users },
     { id: 'inventory' as const, label: 'Inventory', icon: BookOpen },
     { id: 'damage' as const, label: 'Damage & Lost', icon: ShieldAlert },
-    { id: 'advanced' as const, label: 'Advanced Analytics', icon: BarChart3 },
   ];
 
   return (
@@ -289,79 +326,36 @@ const LibrarianReports: React.FC = () => {
         </div>
       )}
 
-      {/* Daily Operations */}
-      {selectedTab === 'daily' && (
+      {/* Overview */}
+      {selectedTab === 'overview' && (
         <div className="space-y-6">
           {/* Big Stat Cards */}
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
             {[
-              { label: 'Checkouts Today', value: stats?.checkoutsToday ?? 0, icon: ArrowUpRight, color: 'text-success', bg: 'bg-success/10' },
-              { label: 'Returns Today', value: stats?.returnsToday ?? 0, icon: ArrowDownRight, color: 'text-info', bg: 'bg-info/10' },
-              { label: 'Due Today', value: stats?.dueToday ?? 0, icon: Clock, color: 'text-warning', bg: 'bg-warning/10' },
-              { label: 'Overdue', value: stats?.overdueBooks ?? 0, icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
-            ].map(card => (
-              <Card key={card.label} className="library-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
+              { label: 'Checkouts Today', value: stats?.checkoutsToday ?? 0, icon: ArrowUpRight, gradient: 'from-success/20 to-success/5', iconBg: 'bg-success/15', iconColor: 'text-success' },
+              { label: 'Returns Today', value: stats?.returnsToday ?? 0, icon: ArrowDownRight, gradient: 'from-info/20 to-info/5', iconBg: 'bg-info/15', iconColor: 'text-info' },
+              { label: 'Due Today', value: stats?.dueToday ?? 0, icon: Clock, gradient: 'from-warning/20 to-warning/5', iconBg: 'bg-warning/15', iconColor: 'text-warning' },
+              { label: 'Overdue', value: stats?.overdueBooks ?? 0, icon: AlertTriangle, gradient: 'from-destructive/20 to-destructive/5', iconBg: 'bg-destructive/15', iconColor: 'text-destructive' },
+            ].map((card, index) => (
+              <Card 
+                key={card.label} 
+                className="library-card overflow-hidden opacity-0 animate-fade-in-up hover-lift"
+                style={{ animationDelay: `${index * 0.1}s`, animationFillMode: 'forwards' }}
+              >
+                <div className={cn('absolute inset-0 bg-gradient-to-br opacity-50', card.gradient)} />
+                <CardContent className="p-5 relative">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
                       <p className="text-sm text-muted-foreground font-medium">{card.label}</p>
-                      <p className="text-4xl font-display font-bold mt-2">{card.value}</p>
+                      <p className="text-3xl font-display font-bold tracking-tight">{card.value}</p>
                     </div>
-                    <div className={cn('p-4 rounded-2xl', card.bg)}>
-                      <card.icon className={cn('h-7 w-7', card.color)} />
+                    <div className={cn('p-3 rounded-xl shrink-0', card.iconBg)}>
+                      <card.icon className={cn('h-6 w-6', card.iconColor)} />
                     </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
-          </div>
-
-          {/* Charts Row */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="library-card">
-              <CardHeader>
-                <CardTitle className="font-display">Books by Category</CardTitle>
-                <CardDescription>Collection distribution</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {categories.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie data={categories.map(c => ({ name: c.name, value: c.value }))} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={4} dataKey="value">
-                        {categories.map((_, i) => <Cell key={i} fill={[chartColors.primary, chartColors.secondary, chartColors.success, chartColors.warning, chartColors.info, chartColors.destructive][i % 6]} />)}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : <p className="text-center py-8 text-muted-foreground">No data</p>}
-              </CardContent>
-            </Card>
-
-            <Card className="library-card">
-              <CardHeader>
-                <CardTitle className="font-display">Activity by Grade Level</CardTitle>
-                <CardDescription>Active loans per grade</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loansByGrade.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={[7, 8, 9, 10, 11, 12].map(g => ({
-                      grade: `G${g}`,
-                      loans: loansByGrade.find(l => l.grade_level === g)?.count || 0,
-                      overdue: overdueByGrade.find(o => o.grade_level === g)?.count || 0,
-                    }))}>
-                      <XAxis dataKey="grade" fontSize={12} />
-                      <YAxis fontSize={12} />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="loans" fill={chartColors.info} name="Active Loans" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="overdue" fill={chartColors.destructive} name="Overdue" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : <p className="text-center py-8 text-muted-foreground">No data</p>}
-              </CardContent>
-            </Card>
           </div>
 
           {/* Recent Activity + Active Loans */}
@@ -400,14 +394,12 @@ const LibrarianReports: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {[
-                    { label: 'Total Books', value: stats?.totalBooks ?? 0, icon: BookOpen },
-                    { label: 'Total Copies', value: stats?.totalCopies ?? 0, icon: TrendingUp },
-                    { label: 'Active Students', value: stats?.activeStudents ?? 0, icon: Users },
-                    { label: 'Pending Fines', value: `₱${(stats?.totalFines ?? 0).toFixed(2)}`, icon: DollarSign },
-                    { label: 'Lost Books', value: stats?.lostBooks ?? 0, icon: ShieldAlert },
-                    { label: 'Reservations', value: stats?.totalReservations ?? 0, icon: Calendar },
-                  ].map(item => (
+                    {[
+                      { label: 'Total Collection', value: stats?.totalBooks ?? 0, icon: BookOpen },
+                      { label: 'Total Copies', value: stats?.totalCopies ?? 0, icon: TrendingUp },
+                      { label: 'Pending Fines', value: `₱${(stats?.totalFines ?? 0).toFixed(2)}`, icon: DollarSign },
+                      { label: 'Reservations', value: stats?.totalReservations ?? 0, icon: Calendar },
+                    ].map(item => (
                     <div key={item.label} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                       <div className="flex items-center gap-3">
                         <item.icon className="h-4 w-4 text-muted-foreground" />
@@ -425,70 +417,115 @@ const LibrarianReports: React.FC = () => {
 
       {/* Overdue Books */}
       {selectedTab === 'overdue' && (
-        <Card className="library-card">
-          <CardHeader>
-            <CardTitle className="font-display flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" /> Overdue Books
-            </CardTitle>
-            <CardDescription>{filteredOverdue.length} books past due date</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            {overdueLoading ? (
-              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
-            ) : filteredOverdue.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40">
-                    <TableHead>Book</TableHead>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead className="text-center">Days Overdue</TableHead>
-                    <TableHead className="text-right">Fine</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredOverdue.map(loan => (
-                    <TableRow key={loan.id} className="hover:bg-destructive/5">
-                      <TableCell className="font-medium max-w-[200px] truncate">{loan.bookTitle}</TableCell>
-                      <TableCell>{loan.studentName}</TableCell>
-                      <TableCell>{safeFormatDate(loan.dueDate, 'MMM d, yyyy')}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="destructive" className="font-mono">{loan.daysOverdue}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">₱{loan.fineAmount.toFixed(2)}</TableCell>
+        <div className="space-y-6">
+          <div className="grid gap-4 grid-cols-2 mb-6">
+            <Card 
+              className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", overdueFilter === 'all' ? 'ring-2 ring-primary bg-primary/5' : '')}
+              onClick={() => setOverdueFilter('all')}
+            >
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground font-medium">Total Overdue</p>
+                <p className="text-3xl font-display font-bold mt-1">{overdueList.length}</p>
+              </CardContent>
+            </Card>
+            <Card 
+              className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", overdueFilter === 'severe' ? 'ring-2 ring-destructive bg-destructive/5' : '')}
+              onClick={() => setOverdueFilter('severe')}
+            >
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground font-medium">Severe (&gt;7 Days Overdue)</p>
+                <p className="text-3xl font-display font-bold text-destructive mt-1">{overdueList.filter(l => l.daysOverdue > 7).length}</p>
+              </CardContent>
+            </Card>
+          </div>
+          <Card className="library-card">
+            <CardHeader>
+              <CardTitle className="font-display flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" /> Overdue Books
+              </CardTitle>
+              <CardDescription>{filteredOverdue.length} books past due date</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {overdueLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
+              ) : filteredOverdue.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead>Book</TableHead>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead className="text-center">Days Overdue</TableHead>
+                      <TableHead className="text-right">Fine</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center py-12">
-                <CheckCircle2 className="h-12 w-12 mx-auto text-success/50 mb-3" />
-                <p className="text-muted-foreground">No overdue books — great job!</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredOverdue.map(loan => (
+                      <TableRow key={loan.id} className="hover:bg-destructive/5">
+                        <TableCell className="font-medium max-w-[200px] truncate">
+                          <button 
+                            className="hover:underline text-primary text-left"
+                            onClick={() => navigate(`/librarian/books?search=${encodeURIComponent(loan.bookTitle)}`)}
+                          >
+                            {loan.bookTitle}
+                          </button>
+                        </TableCell>
+                        <TableCell>
+                          <button 
+                            className="hover:underline text-primary text-left"
+                            onClick={() => navigate(`/librarian/student-lookup?search=${encodeURIComponent(loan.studentName)}`)}
+                          >
+                            {loan.studentName}
+                          </button>
+                        </TableCell>
+                        <TableCell>{safeFormatDate(loan.dueDate, 'MMM d, yyyy')}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="destructive" className="font-mono">{loan.daysOverdue}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">₱{loan.fineAmount.toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-12">
+                  <CheckCircle2 className="h-12 w-12 mx-auto text-success/50 mb-3" />
+                  <p className="text-muted-foreground">No overdue books — great job!</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Fines */}
       {selectedTab === 'fines' && (
         <div className="space-y-6">
-          <div className="grid gap-4 grid-cols-3">
-            <Card className="library-card">
+          <div className="grid gap-4 grid-cols-3 mb-6">
+            <Card 
+              className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", finesFilter === 'pending' ? 'ring-2 ring-warning bg-warning/5' : '')}
+              onClick={() => setFinesFilter(finesFilter === 'pending' ? 'all' : 'pending')}
+            >
               <CardContent className="p-6">
                 <p className="text-sm text-muted-foreground font-medium">Pending</p>
                 <p className="text-3xl font-display font-bold text-warning mt-1">₱{totalPendingAmount.toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground mt-1">{pendingFines.length} outstanding</p>
               </CardContent>
             </Card>
-            <Card className="library-card">
+            <Card 
+              className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", finesFilter === 'paid' ? 'ring-2 ring-success bg-success/5' : '')}
+              onClick={() => setFinesFilter(finesFilter === 'paid' ? 'all' : 'paid')}
+            >
               <CardContent className="p-6">
                 <p className="text-sm text-muted-foreground font-medium">Collected</p>
                 <p className="text-3xl font-display font-bold text-success mt-1">₱{totalPaidAmount.toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground mt-1">{paidFines.length} paid</p>
               </CardContent>
             </Card>
-            <Card className="library-card">
+            <Card 
+              className={cn("library-card cursor-pointer transition-all hover:ring-2 hover:ring-primary/50", finesFilter === 'all' ? 'ring-2 ring-primary bg-primary/5' : '')}
+              onClick={() => setFinesFilter('all')}
+            >
               <CardContent className="p-6">
                 <p className="text-sm text-muted-foreground font-medium">Total</p>
                 <p className="text-3xl font-display font-bold mt-1">₱{(totalPendingAmount + totalPaidAmount).toFixed(2)}</p>
@@ -519,8 +556,22 @@ const LibrarianReports: React.FC = () => {
                   <TableBody>
                     {filteredFines.map(fine => (
                       <TableRow key={fine.id}>
-                        <TableCell className="font-medium">{fine.student_name || '—'}</TableCell>
-                        <TableCell className="max-w-[180px] truncate">{fine.book_title || '—'}</TableCell>
+                            <TableCell className="font-medium">
+                              <button 
+                                className="hover:underline text-primary text-left"
+                                onClick={() => navigate(`/librarian/student-lookup?search=${encodeURIComponent(fine.student_name || '')}`)}
+                              >
+                                {fine.student_name || '—'}
+                              </button>
+                            </TableCell>
+                            <TableCell className="max-w-[180px] truncate">
+                              <button 
+                                className="hover:underline text-primary text-left"
+                                onClick={() => navigate(`/librarian/books?search=${encodeURIComponent(fine.book_title || '')}`)}
+                              >
+                                {fine.book_title || '—'}
+                              </button>
+                            </TableCell>
                         <TableCell><Badge variant={fine.fine_type === 'overdue' ? 'default' : fine.fine_type === 'lost' ? 'destructive' : 'secondary'}>{fine.fine_type}</Badge></TableCell>
                         <TableCell className="text-right font-medium">₱{fine.amount.toFixed(2)}</TableCell>
                         <TableCell>{statusBadge(fine.status)}</TableCell>
@@ -543,26 +594,44 @@ const LibrarianReports: React.FC = () => {
           <Card className="library-card">
             <CardHeader>
               <CardTitle className="font-display flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" /> Most Borrowed
+                <TrendingUp className="h-5 w-5" /> Top Borrowed Books by Grade
               </CardTitle>
+              <CardDescription>Most popular titles per grade level</CardDescription>
             </CardHeader>
             <CardContent>
-              {topBorrowed.length > 0 ? (
-                <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={topBorrowed.slice(0, 8)} layout="vertical">
-                    <XAxis type="number" fontSize={12} />
-                    <YAxis type="category" dataKey="name" fontSize={11} width={140} tick={{ fontSize: 11 }} />
-                    <Tooltip />
-                    <Bar dataKey="value" fill={chartColors.primary} name="Borrows" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <p className="text-center py-8 text-muted-foreground">No data</p>}
+              {topBorrowedByGradeLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
+              ) : topBorrowedByGradeData?.data && topBorrowedByGradeData.data.length > 0 ? (
+                <div className="space-y-4">
+                  {[7, 8, 9, 10, 11, 12].map(grade => {
+                    const gradeBooks = topBorrowedByGradeData.data.filter(b => b.grade_level === grade).slice(0, 3);
+                    return gradeBooks.length > 0 ? (
+                      <div key={grade} className="p-3 rounded-lg bg-muted/30">
+                        <p className="text-sm font-semibold mb-2">Grade {grade}</p>
+                        <div className="space-y-1">
+                          {gradeBooks.map((book, i) => (
+                            <div key={`${grade}-${book.title}-${i}`} className="flex items-center justify-between text-sm">
+                              <button 
+                                className="truncate max-w-[200px] hover:underline text-primary text-left"
+                                onClick={() => navigate(`/librarian/books?search=${encodeURIComponent(book.title)}`)}
+                              >
+                                {book.title}
+                              </button>
+                              <Badge variant="secondary" className="font-mono">{book.borrow_count}</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+              ) : <p className="text-center py-8 text-muted-foreground">No top borrowed data</p>}
             </CardContent>
           </Card>
 
           <Card className="library-card">
             <CardHeader>
-              <CardTitle className="font-display">Ranking</CardTitle>
+              <CardTitle className="font-display">Overall Ranking</CardTitle>
             </CardHeader>
             <CardContent>
               {topBorrowed.length > 0 ? (
@@ -570,15 +639,20 @@ const LibrarianReports: React.FC = () => {
                   {topBorrowed.slice(0, 10).map((book, i) => (
                     <div key={`${book.name}-${i}`} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
                       <div className={cn(
-                        'h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm',
+                        'h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0',
                         i === 0 ? 'bg-yellow-100 text-yellow-700' : i === 1 ? 'bg-gray-100 text-gray-600' : i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-muted text-muted-foreground'
                       )}>
                         {i + 1}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{book.name}</p>
+                        <button 
+                          className="font-medium text-sm truncate hover:underline text-primary text-left"
+                          onClick={() => navigate(`/librarian/books?search=${encodeURIComponent(book.name)}`)}
+                        >
+                          {book.name}
+                        </button>
                       </div>
-                      <div className="flex items-center gap-1 text-sm font-bold">
+                      <div className="flex items-center gap-1 text-sm font-bold shrink-0">
                         {book.value} <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </div>
@@ -602,23 +676,25 @@ const LibrarianReports: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
-                    <TableHead>Grade</TableHead>
-                    <TableHead className="text-right">Students</TableHead>
-                    <TableHead className="text-right">Loans</TableHead>
-                    <TableHead className="text-right">Overdue</TableHead>
-                    <TableHead className="text-right">Fines</TableHead>
+                    <TableHead className="whitespace-nowrap">Grade</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">Students</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">Loans</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">Overdue</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Fines</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {[7, 8, 9, 10, 11, 12].map(g => (
-                    <TableRow key={g}>
-                      <TableCell className="font-medium">Grade {g}</TableCell>
-                      <TableCell className="text-right">{studentsByGrade.find(s => s.grade_level === g)?.count || 0}</TableCell>
-                      <TableCell className="text-right">{loansByGrade.find(l => l.grade_level === g)?.count || 0}</TableCell>
-                      <TableCell className="text-right">
-                        {(() => { const c = overdueByGrade.find(o => o.grade_level === g)?.count || 0; return c > 0 ? <Badge variant="destructive">{c}</Badge> : '0'; })()}
+                    <TableRow key={g} className="hover:bg-muted/50 transition-colors">
+                      <TableCell className="font-medium whitespace-nowrap">Grade {g}</TableCell>
+                      <TableCell className="text-center">{studentsByGrade.find(s => s.grade_level === g)?.count || 0}</TableCell>
+                      <TableCell className="text-center">{loansByGrade.find(l => l.grade_level === g)?.count || 0}</TableCell>
+                      <TableCell className="text-center">
+                        {(() => { const c = overdueByGrade.find(o => o.grade_level === g)?.count || 0; return c > 0 ? <Badge variant="destructive" className="font-mono">{c}</Badge> : <span className="text-muted-foreground">0</span>; })()}
                       </TableCell>
-                      <TableCell className="text-right font-medium">₱{(finesByGrade.find(f => f.grade_level === g)?.total_amount || 0).toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-medium whitespace-nowrap">
+                        {(() => { const f = finesByGrade.find(f => f.grade_level === g)?.total_amount || 0; return f > 0 ? `₱${f.toFixed(2)}` : <span className="text-muted-foreground">₱0.00</span>; })()}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -668,8 +744,13 @@ const LibrarianReports: React.FC = () => {
                       <TableRow key={cat.name}>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
-                            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: [chartColors.primary, chartColors.secondary, chartColors.success, chartColors.warning, chartColors.info, chartColors.destructive][i % 6] }} />
-                            {cat.name}
+                            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: categoryFillAt(i) }} />
+                            <button 
+                              className="hover:underline text-primary text-left"
+                              onClick={() => navigate(`/librarian/books?search=${encodeURIComponent(cat.name)}`)}
+                            >
+                              {cat.name}
+                            </button>
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-bold">{cat.value}</TableCell>
@@ -687,11 +768,21 @@ const LibrarianReports: React.FC = () => {
               {categories.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie data={categories.map(c => ({ name: c.name, value: c.value }))} cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={4} dataKey="value">
-                      {categories.map((_, i) => <Cell key={i} fill={[chartColors.primary, chartColors.secondary, chartColors.success, chartColors.warning, chartColors.info, chartColors.destructive][i % 6]} />)}
+                    <Pie
+                      data={categories.map(c => ({ name: c.name, value: c.value }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={90}
+                      paddingAngle={4}
+                      dataKey="value"
+                      stroke="hsl(var(--background))"
+                      strokeWidth={2}
+                    >
+                      {categories.map((_, i) => <Cell key={i} fill={categoryFillAt(i)} />)}
                     </Pie>
                     <Tooltip />
-                    <Legend />
+                    <Legend content={(props) => <CategoryPieLegend {...props} />} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : <p className="text-center py-8 text-muted-foreground">No data</p>}
@@ -741,134 +832,36 @@ const LibrarianReports: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {incidents.map((i: DamageLostIncident) => (
-                      <TableRow key={i.id}>
-                        <TableCell className="font-mono text-xs">{i.receipt_no}</TableCell>
-                        <TableCell className="max-w-[180px] truncate font-medium">{i.book_title || '—'}</TableCell>
-                        <TableCell>{i.student_name || '—'}</TableCell>
-                        <TableCell><Badge variant={i.incident_type === 'lost' ? 'destructive' : 'default'}>{i.incident_type}</Badge></TableCell>
-                        <TableCell className="text-sm">{i.severity.replace('_', ' ')}</TableCell>
-                        <TableCell className="text-right font-medium">₱{(i.assessed_cost || 0).toFixed(2)}</TableCell>
-                        <TableCell>{statusBadge(i.status)}</TableCell>
-                      </TableRow>
-                    ))}
+                  {incidents.map((i: DamageLostIncident) => (
+                    <TableRow key={i.id}>
+                      <TableCell className="font-mono text-xs">{i.receipt_no}</TableCell>
+                      <TableCell className="max-w-[180px] truncate font-medium">
+                        <button 
+                          className="hover:underline text-primary text-left"
+                          onClick={() => navigate(`/librarian/books?search=${encodeURIComponent(i.book_title || '')}`)}
+                        >
+                          {i.book_title || '—'}
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <button 
+                          className="hover:underline text-primary text-left"
+                          onClick={() => navigate(`/librarian/student-lookup?search=${encodeURIComponent(i.student_name || '')}`)}
+                        >
+                          {i.student_name || '—'}
+                        </button>
+                      </TableCell>
+                      <TableCell><Badge variant={i.incident_type === 'lost' ? 'destructive' : 'default'}>{i.incident_type}</Badge></TableCell>
+                      <TableCell className="text-sm">{i.severity.replace('_', ' ')}</TableCell>
+                      <TableCell className="text-right font-medium">₱{(i.assessed_cost || 0).toFixed(2)}</TableCell>
+                      <TableCell>{statusBadge(i.status)}</TableCell>
+                    </TableRow>
+                  ))}
                   </TableBody>
                 </Table>
               ) : <p className="text-center py-12 text-muted-foreground">No incidents recorded</p>}
             </CardContent>
           </Card>
-        </div>
-      )}
-
-      {/* Advanced Analytics */}
-      {selectedTab === 'advanced' && (
-        <div className="space-y-6">
-          {categoryUsageLoading || topBorrowedByGradeLoading || monthlyTrendsLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
-          ) : (
-            <>
-              <div className="grid gap-6 md:grid-cols-2">
-                <Card className="library-card">
-                  <CardHeader>
-                    <CardTitle className="font-display">Category Usage by Grade Level</CardTitle>
-                    <CardDescription>Which categories each grade borrows most</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {categoryUsageData?.data && categoryUsageData.data.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={categoryUsageData.data}>
-                          <XAxis dataKey="category" fontSize={11} angle={-45} textAnchor="end" height={80} />
-                          <YAxis fontSize={12} />
-                          <Tooltip formatter={(value: number) => [value, 'Borrows']} />
-                          <Legend />
-                          {[7, 8, 9, 10, 11, 12].map(grade => (
-                            <Bar
-                              key={grade}
-                              dataKey={(entry: { grade_level: number; borrow_count: number }) => entry.grade_level === grade ? entry.borrow_count : 0}
-                              name={`Grade ${grade}`}
-                              fill={[chartColors.primary, chartColors.secondary, chartColors.success, chartColors.warning, chartColors.info, chartColors.destructive][grade - 7]}
-                              radius={[4, 4, 0, 0]}
-                            />
-                          ))}
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : <p className="text-center py-8 text-muted-foreground">No category usage data</p>}
-                  </CardContent>
-                </Card>
-
-                <Card className="library-card">
-                  <CardHeader>
-                    <CardTitle className="font-display">Top Borrowed Books by Grade</CardTitle>
-                    <CardDescription>Most popular titles per grade level</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {topBorrowedByGradeData?.data && topBorrowedByGradeData.data.length > 0 ? (
-                      <div className="space-y-4">
-                        {[7, 8, 9, 10, 11, 12].map(grade => {
-                          const gradeBooks = topBorrowedByGradeData.data.filter(b => b.grade_level === grade).slice(0, 3);
-                          return gradeBooks.length > 0 ? (
-                            <div key={grade} className="p-3 rounded-lg bg-muted/30">
-                              <p className="text-sm font-semibold mb-2">Grade {grade}</p>
-                              <div className="space-y-1">
-                                {gradeBooks.map((book, i) => (
-                                  <div key={`${grade}-${book.title}-${i}`} className="flex items-center justify-between text-sm">
-                                    <span className="truncate max-w-[200px]">{book.title}</span>
-                                    <Badge variant="secondary" className="font-mono">{book.borrow_count}</Badge>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : null;
-                        })}
-                      </div>
-                    ) : <p className="text-center py-8 text-muted-foreground">No top borrowed data</p>}
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card className="library-card">
-                <CardHeader>
-                  <CardTitle className="font-display">Monthly Trends by Year</CardTitle>
-                  <CardDescription>Checkout and return patterns across years</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {monthlyTrendsData?.data && monthlyTrendsData.data.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={350}>
-                      <LineChart data={monthlyTrendsData.data}>
-                        <XAxis dataKey="month" fontSize={12} />
-                        <YAxis fontSize={12} />
-                        <Tooltip />
-                        <Legend />
-                        {Array.from(new Set(monthlyTrendsData.data.map(d => d.year))).sort().map((year, i) => (
-                          <Line
-                            key={year}
-                            type="monotone"
-                            dataKey={(entry: { year: number; checkouts: number }) => entry.year === year ? entry.checkouts : undefined}
-                            name={`${year} Checkouts`}
-                            stroke={[chartColors.primary, chartColors.secondary, chartColors.success, chartColors.warning, chartColors.info][i % 5]}
-                            strokeWidth={2}
-                            dot={{ r: 4 }}
-                          />
-                        ))}
-                        {Array.from(new Set(monthlyTrendsData.data.map(d => d.year))).sort().map((year, i) => (
-                          <Line
-                            key={`${year}-returns`}
-                            type="monotone"
-                            dataKey={(entry: { year: number; returns: number }) => entry.year === year ? entry.returns : undefined}
-                            name={`${year} Returns`}
-                            stroke={[chartColors.primary, chartColors.secondary, chartColors.success, chartColors.warning, chartColors.info][i % 5]}
-                            strokeWidth={2}
-                            strokeDasharray="5 5"
-                            dot={{ r: 3 }}
-                          />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  ) : <p className="text-center py-8 text-muted-foreground">No monthly trends data</p>}
-                </CardContent>
-              </Card>
-            </>
-          )}
         </div>
       )}
     </div>

@@ -21,7 +21,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Plus, Loader2, Users, UserCheck, Shield } from 'lucide-react';
 import { useStudents, useCreateStudent, useUpdateStudent } from '@/hooks/useStudents';
 import { useLibrarians, useCreateLibrarian, useUpdateLibrarian, useDeleteLibrarian, useAdmins, useCreateAdmin, useUpdateAdmin } from '@/hooks/useUsers';
 import { CreateStudentRequest, Student } from '@/services/students';
@@ -429,6 +430,26 @@ const UsersManagement: React.FC = () => {
 
         <TabsContent value="students">
           <div className="space-y-4">
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 mb-6 mt-4">
+              <Card className="library-card">
+                <CardContent className="p-6">
+                  <p className="text-sm text-muted-foreground font-medium">Total Students</p>
+                  <p className="text-3xl font-display font-bold mt-1">{students.length}</p>
+                </CardContent>
+              </Card>
+              <Card className="library-card">
+                <CardContent className="p-6">
+                  <p className="text-sm text-muted-foreground font-medium">Active Students</p>
+                  <p className="text-3xl font-display font-bold text-success mt-1">{students.filter(s => s.status === 'active').length}</p>
+                </CardContent>
+              </Card>
+              <Card className="library-card">
+                <CardContent className="p-6">
+                  <p className="text-sm text-muted-foreground font-medium">Inactive</p>
+                  <p className="text-3xl font-display font-bold text-muted-foreground mt-1">{students.filter(s => s.status !== 'active').length}</p>
+                </CardContent>
+              </Card>
+            </div>
             <Button onClick={handleOpenAdd}>
               <Plus className="mr-2 h-4 w-4" />
               Add Student
@@ -448,6 +469,20 @@ const UsersManagement: React.FC = () => {
 
         <TabsContent value="librarians">
           <div className="space-y-4">
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 mb-6 mt-4">
+              <Card className="library-card">
+                <CardContent className="p-6">
+                  <p className="text-sm text-muted-foreground font-medium">Total Librarians</p>
+                  <p className="text-3xl font-display font-bold mt-1">{librarians.length}</p>
+                </CardContent>
+              </Card>
+              <Card className="library-card">
+                <CardContent className="p-6">
+                  <p className="text-sm text-muted-foreground font-medium">Active Staff</p>
+                  <p className="text-3xl font-display font-bold text-primary mt-1">{librarians.filter(l => l.status === 'active').length}</p>
+                </CardContent>
+              </Card>
+            </div>
             <Button onClick={handleOpenAddLibrarian}>
               <Plus className="mr-2 h-4 w-4" />
               Add Librarian
@@ -466,6 +501,20 @@ const UsersManagement: React.FC = () => {
         {isSuperAdmin && (
           <TabsContent value="admins">
             <div className="space-y-4">
+              <div className="grid gap-4 grid-cols-2 md:grid-cols-3 mb-6 mt-4">
+                <Card className="library-card">
+                  <CardContent className="p-6">
+                    <p className="text-sm text-muted-foreground font-medium">Total Admins</p>
+                    <p className="text-3xl font-display font-bold mt-1">{admins.length}</p>
+                  </CardContent>
+                </Card>
+                <Card className="library-card">
+                  <CardContent className="p-6">
+                    <p className="text-sm text-muted-foreground font-medium">Super Admins</p>
+                    <p className="text-3xl font-display font-bold text-primary mt-1">{admins.filter(a => a.role === 'super_admin').length}</p>
+                  </CardContent>
+                </Card>
+              </div>
               <Button onClick={handleOpenAddAdmin}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Admin
@@ -718,6 +767,18 @@ const UsersManagement: React.FC = () => {
                 value={librarianFormData.department}
                 onChange={(e) => setLibrarianFormData({ ...librarianFormData, department: e.target.value })}
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="librarian-status">Status</Label>
+              <select
+                id="librarian-status"
+                value={librarianFormData.status}
+                onChange={(e) => setLibrarianFormData({ ...librarianFormData, status: e.target.value })}
+                className="px-3 py-2 border rounded-md bg-background"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
             </div>
           </div>
           <DialogFooter>

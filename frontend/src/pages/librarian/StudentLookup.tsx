@@ -273,63 +273,63 @@ const StudentLookup: React.FC = () => {
           </Card>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <BookOpen className="h-6 w-6 mx-auto mb-2 text-info" />
-                <p className="text-2xl font-bold">{activeLoans.length}</p>
-                <p className="text-sm text-muted-foreground">Active Loans</p>
+            <Card className="bg-card hover:bg-accent/50 transition-colors border-transparent shadow-sm">
+              <CardContent className="pt-6 pb-6 flex flex-col items-center justify-center text-center">
+                <BookOpen className="h-6 w-6 mb-3 text-info" />
+                <p className="text-3xl font-display font-bold">{activeLoans.length}</p>
+                <p className="text-sm text-muted-foreground mt-1">Active Loans</p>
               </CardContent>
             </Card>
-            <Card className={overdueLoans.length > 0 ? 'border-destructive/50' : ''}>
-              <CardContent className="pt-6 text-center">
-                <AlertTriangle className={`h-6 w-6 mx-auto mb-2 ${overdueLoans.length > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
-                <p className="text-2xl font-bold">{overdueLoans.length}</p>
-                <p className="text-sm text-muted-foreground">Overdue</p>
+            <Card className={`bg-card hover:bg-accent/50 transition-colors shadow-sm ${overdueLoans.length > 0 ? 'border-destructive/50 bg-destructive/5' : 'border-transparent'}`}>
+              <CardContent className="pt-6 pb-6 flex flex-col items-center justify-center text-center">
+                <AlertTriangle className={`h-6 w-6 mb-3 ${overdueLoans.length > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
+                <p className={`text-3xl font-display font-bold ${overdueLoans.length > 0 ? 'text-destructive' : ''}`}>{overdueLoans.length}</p>
+                <p className="text-sm text-muted-foreground mt-1">Overdue</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <DollarSign className="h-6 w-6 mx-auto mb-2 text-warning-foreground" />
-                <p className="text-2xl font-bold">
-                  {pendingFines.reduce((a: number, f: { amount: number }) => a + f.amount, 0)}
+            <Card className="bg-card hover:bg-accent/50 transition-colors border-transparent shadow-sm">
+              <CardContent className="pt-6 pb-6 flex flex-col items-center justify-center text-center">
+                <DollarSign className="h-6 w-6 mb-3 text-warning-foreground" />
+                <p className="text-3xl font-display font-bold">
+                  ₱{pendingFines.reduce((a: number, f: { amount: number }) => a + f.amount, 0).toFixed(2)}
                 </p>
-                <p className="text-sm text-muted-foreground">Pending Fines</p>
+                <p className="text-sm text-muted-foreground mt-1">Pending Fines</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <Clock className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-2xl font-bold">{studentHistory.length}</p>
-                <p className="text-sm text-muted-foreground">Total Borrowed</p>
+            <Card className="bg-card hover:bg-accent/50 transition-colors border-transparent shadow-sm">
+              <CardContent className="pt-6 pb-6 flex flex-col items-center justify-center text-center">
+                <Clock className="h-6 w-6 mb-3 text-muted-foreground" />
+                <p className="text-3xl font-display font-bold">{studentHistory.length}</p>
+                <p className="text-sm text-muted-foreground mt-1">Total Borrowed</p>
               </CardContent>
             </Card>
           </div>
 
-          <Tabs defaultValue="loans">
-            <TabsList>
-              <TabsTrigger value="loans" className="gap-2">
+          <Tabs defaultValue="loans" className="w-full">
+            <TabsList className="bg-muted/50 p-1 h-auto inline-flex rounded-lg mb-4">
+              <TabsTrigger value="loans" className="gap-2 px-4 py-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
                 <BookOpen className="h-4 w-4" />
-                Current Loans ({activeLoans.length})
+                Current Loans <span className="text-xs text-muted-foreground ml-1">({activeLoans.length})</span>
               </TabsTrigger>
-              <TabsTrigger value="history" className="gap-2">
+              <TabsTrigger value="history" className="gap-2 px-4 py-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
                 <Clock className="h-4 w-4" />
                 History
               </TabsTrigger>
-              <TabsTrigger value="fines" className="gap-2">
+              <TabsTrigger value="fines" className="gap-2 px-4 py-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
                 <DollarSign className="h-4 w-4" />
-                Fines ({pendingFines.length})
+                Fines <span className="text-xs text-muted-foreground ml-1">({pendingFines.length})</span>
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="loans" className="mt-4">
-              <Card>
-                <CardContent className="pt-6">
+            <TabsContent value="loans" className="mt-0">
+              <Card className="border-transparent shadow-sm">
+                <CardContent className="p-0">
                   {loansLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     </div>
                   ) : activeLoans.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="divide-y divide-border">
                       {activeLoans.map((loan) => {
                         const isOverdue = loan.status === 'overdue';
                         const daysRemaining = differenceInDays(new Date(loan.dueDate), new Date());
@@ -337,21 +337,25 @@ const StudentLookup: React.FC = () => {
                         return (
                           <div
                             key={loan.id}
-                            className={`p-4 rounded-lg border ${isOverdue ? 'border-destructive/50 bg-destructive/5' : 'bg-muted/50'}`}
+                            className={`p-5 transition-colors hover:bg-accent/30 ${isOverdue ? 'bg-destructive/5' : 'bg-card'}`}
                           >
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                               <div>
-                                <p className="font-medium">{loan.bookTitle}</p>
-                                <p className="text-sm text-muted-foreground">
+                                <h3 className="font-display font-semibold text-lg text-foreground mb-1">{loan.bookTitle}</h3>
+                                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                                  <Clock className="h-3.5 w-3.5" />
                                   Borrowed: {format(new Date(loan.checkoutDate), 'MMM d, yyyy')}
                                 </p>
                               </div>
-                              <div className="text-right">
-                                <Badge variant={isOverdue ? 'destructive' : 'secondary'}>
+                              <div className="flex flex-col sm:items-end gap-1.5">
+                                <Badge 
+                                  variant={isOverdue ? 'destructive' : 'secondary'}
+                                  className={`px-3 py-1 text-xs font-medium ${!isOverdue && daysRemaining <= 3 ? 'bg-warning text-warning-foreground hover:bg-warning/90' : ''}`}
+                                >
                                   {isOverdue ? `${Math.abs(daysRemaining)} days overdue` : `${daysRemaining} days left`}
                                 </Badge>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Due: {format(new Date(loan.dueDate), 'MMM d')}
+                                <p className="text-sm text-muted-foreground font-medium">
+                                  Due: {format(new Date(loan.dueDate), 'MMM d, yyyy')}
                                 </p>
                               </div>
                             </div>
@@ -360,76 +364,86 @@ const StudentLookup: React.FC = () => {
                       })}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <BookOpen className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>No active loans</p>
+                    <div className="text-center py-16 text-muted-foreground">
+                      <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                      <p className="text-lg font-medium">No active loans</p>
+                      <p className="text-sm mt-1">This student has returned all their books.</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
             </TabsContent>
 
-            <TabsContent value="history" className="mt-4">
-              <Card>
-                <CardContent className="pt-6">
+            <TabsContent value="history" className="mt-0">
+              <Card className="border-transparent shadow-sm">
+                <CardContent className="p-0">
                   {historyLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     </div>
                   ) : studentHistory.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="divide-y divide-border">
                       {studentHistory.map((txn) => (
-                        <div key={txn.id} className="p-3 rounded-lg bg-muted/50 flex items-center justify-between">
+                        <div key={txn.id} className="p-5 bg-card hover:bg-accent/30 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div>
-                            <p className="font-medium text-sm">{txn.bookTitle}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {format(new Date(txn.checkoutDate), 'MMM d')} - {txn.returnDate && format(new Date(txn.returnDate), 'MMM d, yyyy')}
+                            <h3 className="font-display font-semibold text-lg text-foreground mb-1">{txn.bookTitle}</h3>
+                            <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                              <Clock className="h-3.5 w-3.5" />
+                              {format(new Date(txn.checkoutDate), 'MMM d, yyyy')} - {txn.returnDate ? format(new Date(txn.returnDate), 'MMM d, yyyy') : 'Present'}
                             </p>
                           </div>
-                          <Badge variant="outline">Returned</Badge>
+                          <Badge variant="outline" className="w-fit bg-muted/50 text-muted-foreground px-3 py-1">Returned</Badge>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>No borrowing history</p>
+                    <div className="text-center py-16 text-muted-foreground">
+                      <Clock className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                      <p className="text-lg font-medium">No borrowing history</p>
+                      <p className="text-sm mt-1">This student hasn't borrowed any books yet.</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
             </TabsContent>
 
-            <TabsContent value="fines" className="mt-4">
-              <Card>
-                <CardContent className="pt-6">
+            <TabsContent value="fines" className="mt-0">
+              <Card className="border-transparent shadow-sm">
+                <CardContent className="p-0">
                   {finesLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     </div>
                   ) : studentFines.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="divide-y divide-border">
                       {studentFines.map((fine) => (
                         <div
                           key={fine.id}
-                          className={`p-4 rounded-lg border ${fine.status === 'pending' ? 'border-warning/50 bg-warning/5' : 'bg-muted/50'}`}
+                          className={`p-5 transition-colors hover:bg-accent/30 ${fine.status === 'pending' ? 'bg-warning/5' : 'bg-card'}`}
                         >
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
-                              <p className="font-medium">{fine.bookTitle || 'Unknown Book'}</p>
-                              <p className="text-sm text-muted-foreground">{fine.reason || fine.description || ''}</p>
+                              <h3 className="font-display font-semibold text-lg text-foreground mb-1">{fine.bookTitle || 'Unknown Book'}</h3>
+                              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                {fine.reason || fine.description || 'Fine'}
+                              </p>
                             </div>
-                            <div className="flex items-center gap-4">
-                              <div className="text-right">
-                                <p className="font-bold text-lg">{fine.amount}</p>
-                                <Badge variant={fine.status === 'pending' ? 'destructive' : 'outline'}>
+                            <div className="flex flex-col sm:items-end gap-3">
+                              <div className="text-left sm:text-right flex items-center sm:block gap-3">
+                                <p className="font-display font-bold text-2xl text-foreground">₱{fine.amount}</p>
+                                <Badge 
+                                  variant={fine.status === 'pending' ? 'destructive' : 'outline'}
+                                  className={`px-3 py-1 ${fine.status === 'pending' ? '' : 'bg-muted/50 text-muted-foreground border-transparent'}`}
+                                >
                                   {fine.status}
                                 </Badge>
                               </div>
                               {fine.status === 'pending' && (
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 w-full sm:w-auto">
                                   <Button
                                     size="sm"
+                                    className="flex-1 sm:flex-none"
                                     onClick={() => {
                                       if (confirm(`Confirm payment of ₱${fine.amount}?`)) {
                                         const paymentAmount = Number(fine.amount);
@@ -441,11 +455,12 @@ const StudentLookup: React.FC = () => {
                                     }}
                                     disabled={payFine.isPending}
                                   >
-                                    Pay
+                                    Pay Fine
                                   </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"
+                                    className="flex-1 sm:flex-none"
                                     onClick={() => {
                                       const reason = prompt("Enter reason for waiving:");
                                       if (reason) {
@@ -464,9 +479,10 @@ const StudentLookup: React.FC = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <DollarSign className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>No fines</p>
+                    <div className="text-center py-16 text-muted-foreground">
+                      <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                      <p className="text-lg font-medium">No fines</p>
+                      <p className="text-sm mt-1">This student has a clean record.</p>
                     </div>
                   )}
                 </CardContent>

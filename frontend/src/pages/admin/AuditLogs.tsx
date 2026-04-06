@@ -95,12 +95,12 @@ const AuditLogs: React.FC = () => {
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Audit Logs</h1>
-          <p className="text-muted-foreground mt-1">Track all system activities and changes</p>
+          <h1 className="text-2xl font-display font-bold text-primary">Audit Logs</h1>
+          <p className="text-muted-foreground">Track all system activities and changes</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <History className="h-4 w-4" />
-          <span>{meta?.total || 0} total entries</span>
+        <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 rounded-lg border border-primary/10">
+          <History className="h-5 w-5 text-primary" />
+          <span className="font-medium text-primary">{meta?.total || 0} total entries</span>
         </div>
       </div>
 
