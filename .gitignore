@@ -1,42 +1,36 @@
-# Binary and Executables
+# === Go ===
 *.exe
+*.exe~
 *.dll
 *.so
 *.dylib
+*.test
+*.out
+vendor/
+go.work
+go.work.sum
+bin/
 
-# Logs
+# === Node ===
+node_modules/
+.pnp
+.pnp.js
+dist/
+build/
+coverage/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
 
-# Environment Variables
+# === General ===
 .env
-backend/.env
-frontend/.env
-
-# Dependencies
-node_modules/
-vendor/
-
-# OS Files
-.DS_Store
-Thumbs.db
-nul
-backend/nul
-
-# IDEs
+.env.local
+.env.*.local
 .vscode/
 .idea/
-
-# Temp
-tmp/
-
-# Go
-backend/server
-.sisyphus/
-.agents
-
-# Video Recordings
-demo-video/
-remotion-video/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
